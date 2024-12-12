@@ -69,8 +69,3 @@ class Scraper:
         # parameter context: contextual information for naming
         # return: A string representing the zip file name
         pass
-
-Scraper = Scraper()
-sc = Scraper.fetch_html(url=f'https://woo.dataportaaloverijssel.nl/list/document/759bdb1b-9add-4ab0-bd8c-72502a0ed4f5')
-
-print(sc)
