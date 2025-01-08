@@ -92,7 +92,6 @@ if __name__ == "__main__":
 
     # Chunk the document
     chunks = rag.chunk_document(document)
-    rag.chunks = chunks
 
     # Generate embeddings and store them
     embeddings = rag.embed_chunks(chunks)
