@@ -1,3 +1,6 @@
+import requests
+from bs4 import BeautifulSoup
+
 class Scraper:
     """
     Deze class is voor het scrapen van web content, het vinden van PDF's, downloaden van PDF's en het genereren van metadata.
@@ -23,9 +26,22 @@ class Scraper:
         pass
 
     def fetch_html(self, url: str) -> str:
-        # Fetches HTML content van een specifieke webpagina
-        # Returned HTML content als een string.
-        pass
+            """
+            Fetches HTML content van een specifieke webpagina.
+
+            Parameters:
+            url (str): De URL van de webpagina waarvan HTML opgehaald moet worden.
+
+            Returns:
+            str: HTML content van de webpagina als string.
+            """
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                return response.text
+            except requests.exceptions.RequestException as e:
+                print(f"Error fetching HTML from {url}: {e}")
+                return ""
 
     def find_pdfs(self, html_content: str) -> list:
         # Identificeert en extract pdf file links van de html content. 
