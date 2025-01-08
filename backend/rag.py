@@ -1,6 +1,7 @@
 from openai import OpenAI
 import faiss
 import numpy as np
+import json
 import os
 from typing import List
 
@@ -10,9 +11,12 @@ class DocumentChunk:
         self.embedding = embedding
 
 class Database:
-    def __init__(self):
+    def __init__(self, index_file: str, chunks_file: str):
+        self.index_file = index_file
+        self.chunks_file = chunks_file
         self.index = None
         self.chunks = []
+        self.load()
 
     def add_chunk(self, chunk: DocumentChunk):
         self.chunks.append(chunk)
@@ -20,16 +24,36 @@ class Database:
             dimension = chunk.embedding.shape[0]
             self.index = faiss.IndexFlatL2(dimension)
         self.index.add(np.array([chunk.embedding]))
+        self.save()
 
     def search(self, query_embedding: np.ndarray, top_k: int = 3) -> List[DocumentChunk]:
         distances, indices = self.index.search(query_embedding, top_k)
         return [self.chunks[idx] for idx in indices[0]]
 
+    def save(self):
+        # Save the FAISS index
+        faiss.write_index(self.index, self.index_file)
+        
+        # Save the chunks
+        with open(self.chunks_file, 'w') as f:
+            json.dump([chunk.text for chunk in self.chunks], f)
+
+    def load(self):
+        # Load the FAISS index
+        if os.path.exists(self.index_file):
+            self.index = faiss.read_index(self.index_file)
+        
+        # Load the chunks
+        if os.path.exists(self.chunks_file):
+            with open(self.chunks_file, 'r') as f:
+                texts = json.load(f)
+                self.chunks = [DocumentChunk(text, np.zeros(self.index.d)) for text in texts]
+
 class RAG:
-    def __init__(self, openai_api_key):
+    def __init__(self, openai_api_key, index_file='index.faiss', chunks_file='chunks.json'):
         self.openai_api_key = openai_api_key
         self.client = OpenAI(api_key=self.openai_api_key)
-        self.database = Database()
+        self.database = Database(index_file, chunks_file)
 
     def chunk_document(self, document, chunk_size=100):
         """Splits a document into chunks of the specified size."""
