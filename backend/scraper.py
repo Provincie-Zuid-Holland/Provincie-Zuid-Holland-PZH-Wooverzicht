@@ -48,13 +48,52 @@ class Scraper:
                 return ""
 
     def find_pdfs(self, html_content: str) -> list:
-        # Identificeert en extract pdf file links van de html content. 
-        # Returned een lijst van PDF file links in de html.
-        pass
+        """
+        Identificeert en extract PDF-links van de HTML-content.
+
+        Parameters:
+        html_content (str): De HTML-content waarin naar PDF-links wordt gezocht.
+
+        Returns:
+        list: Een lijst van gevonden PDF-links.
+        """
+        pdf_links = []
+        try:
+            # Parse the HTML content
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Find all anchor tags with href attributes
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                # Check if the href ends with '.pdf'
+                if href.lower().endswith('.pdf'):
+                    pdf_links.append(href)
+            
+        except Exception as e:
+            print(f"An error occurred while parsing HTML: {e}")
+        
+        return pdf_links
 
     def download_file(self, file_url: str, save_path: str) -> None:
-        #  Download een file van een URL pad, parameter file_url en directory path waar het gestored moet worden
-        pass
+        """
+        Download een file van de opgegeven URL en sla deze op in het opgegeven pad.
+
+        Parameters:
+        file_url (str): De URL van het bestand dat moet worden gedownload.
+        save_path (str): Het pad waar het bestand moet worden opgeslagen.
+
+        Returns:
+        None
+        """
+        try:
+            response = requests.get(file_url, stream=True)
+            response.raise_for_status()
+            with open(save_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    file.write(chunk)
+            print(f"Bestand gedownload: {save_path}")
+        except requests.exceptions.RequestException as e:
+            print(f"Error downloading file {file_url}: {e}")
 
     def generate_metadata(self, file_path:str) -> dict:
         # Genereert metadata voor een file
@@ -101,3 +140,18 @@ class Scraper:
         zip_name = self.generate_zip_name(url)
         self.create_unique_zip(downloaded_files, zip_name)
 
+
+
+if __name__ == "__main__":
+        # Instantiate the Scraper class
+        scraper = Scraper()
+
+        # Define test inputs
+        test_url = "https://www.geoportaaloverijssel.nl/attachment/66294899-f83d-44aa-a102-f367511a73a3/241209_Brief_project_Daarle_Geredigeerd.pdf"
+        save_path = "test_file.pdf"
+
+        # Call the download_file function
+        scraper.download_file(test_url, save_path)
+
+        # Verify the file was downloaded
+        print(f"File saved at: {save_path}")
