@@ -93,13 +93,47 @@ class Scraper:
                     file.write(chunk)
             print(f"Bestand gedownload: {save_path}")
         except requests.exceptions.RequestException as e:
-            print(f"Error downloading file {file_url}: {e}")
+            print(f"Error downloading file {file_url}: {e}")      
+    
+    def generate_metadata(self, html_content: str) -> dict:
+        """
+        Parse HTML content and extract metadata such as title, summary, creation year, and WOO themes.
 
-    def generate_metadata(self, file_path:str) -> dict:
-        # Genereert metadata voor een file
-        # parameter: file_path de path voor generatie van metadata
-        # return: dictionairy containing the metadata
-        pass
+        Args:
+            html_content (str): HTML content of the webpage.
+
+        Returns:
+            dict: A dictionary containing the extracted metadata.
+        """
+        # Parse the HTML with BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Extract the title
+        title_div = soup.find('div', class_='print-document')
+        title = title_div.find('div', class_='document-hoofd').find('a').get_text(strip=True)
+
+        # Extract the summary 
+        summary_td = soup.find('td', class_='zoekoverzicht', colspan="2")
+        summary = summary_td.find_all('p')[1].get_text(strip=True)  # Get the second <p> tag
+
+        # Extract the creation year
+        creation_year_tag = soup.find('td', string='Creatie jaar')
+        creation_year = creation_year_tag.find_next_sibling('td').get_text(strip=True) if creation_year_tag else None
+
+        # Extract the WOO themes
+        woo_themes_tag = soup.find('td', string="WOO thema's")
+        woo_themes_list = woo_themes_tag.find_next_sibling('td').find_all('li') if woo_themes_tag else []
+        woo_themes = [theme.get_text(strip=True) for theme in woo_themes_list]
+
+        # Combine results in a dictionary
+        metadata = {
+            'title': title,
+            'summary': summary,
+            'creation_year': creation_year,
+            'woo_themes': woo_themes
+        }
+
+        return metadata
 
     def generate_zip_name(self, url: str) -> str:
         """
@@ -141,17 +175,17 @@ class Scraper:
         self.create_unique_zip(downloaded_files, zip_name)
 
 
-
 if __name__ == "__main__":
-        # Instantiate the Scraper class
-        scraper = Scraper()
+    # Instantiate the Scraper class
+    scraper = Scraper()
 
-        # Define test inputs
-        test_url = "https://www.geoportaaloverijssel.nl/attachment/66294899-f83d-44aa-a102-f367511a73a3/241209_Brief_project_Daarle_Geredigeerd.pdf"
-        save_path = "test_file.pdf"
-
-        # Call the download_file function
-        scraper.download_file(test_url, save_path)
-
-        # Verify the file was downloaded
-        print(f"File saved at: {save_path}")
+    # Sample HTML content (replace this with the actual HTML string)
+    html_content = """<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name="theme-color" content="#000000"><link rel="manifest" href="/manifest.json"><link rel="shortcut icon" href="/favicon.ico"><title>WOO portaal Provincie Overijssel</title><script defer="defer" src="/static/js/main.972d3c47.js"></script><link href="/static/css/main.b8080ddf.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"><div class="body-normal "><div id="wrapper"><div id="header"><div class="label">Provincie Overijssel</div><div class="overlay"></div><div class="afbeeldingen"><img src="/clouds.png" alt="WOO portaal Provincie Overijssel" title="WOO portaal Provincie Overijssel"></div><div class="titelbalk">WOO portaal Provincie Overijssel</div><div class="navigatie"><ul><li class=""><a class="hoeken_3_boven" href="/">Home</a></li><li class="active"><a class="hoeken_3_boven" href="/list">Documenten</a></li><li class=""><a class="hoeken_3_boven" href="/contact">Contact</a></li></ul></div></div><div id="content" class="content"><div class="dummy"><div class="content_main"><div class="documents-laatste"><h1>Document Detail</h1><a href="/list">&lt;&lt; Terug naar de zoekresultaten</a><div class="print-document"><div class="document-hoofd hoeken_5"><table width="100%" cellspacing="0" cellpadding="0" border="0"><tbody><tr><td width="20" align="center"><ul><li></li></ul></td><td><a href="/list/document/66294899-f83d-44aa-a102-f367511a73a3">Brief project Daarle</a></td><td class="date" width="100">2024</td></tr></tbody></table></div><div class="document-content"><table width="100%" cellspacing="1" cellpadding="0"><tbody><tr><td class="icoon" width="20" align="center"><ul style="position: absolute; top: 15px;"><li></li></ul></td><td class="zoekoverzicht" colspan="2"><strong>Samenvatting:</strong><p></p><p>In deze brief worden twee vragen beantwoord over windturbines in weidevogelgebied Daarle-Hoge Hexel.</p></td></tr><tr><td class="icoon" width="20" align="center"><ul><li></li></ul></td><td class="zoekoverzicht"><strong>Bijlagen</strong></td><td class="zoekoverzicht"><ul><li><a href="https://www.geoportaaloverijssel.nl/attachment/66294899-f83d-44aa-a102-f367511a73a3/241209_Brief_project_Daarle_Geredigeerd.pdf" target="_blank">241209_Brief_project_Daarle_Geredigeerd.pdf</a></li></ul></td></tr><tr><td class="icoon" width="20" align="center"><ul><li></li></ul></td><td class="zoekoverzicht"><strong>Creatie jaar</strong></td><td class="zoekoverzicht">2024</td></tr><tr><td class="icoon" width="20" align="center"><ul><li></li></ul></td><td class="zoekoverzicht"><strong>Eindverantwoordelijke</strong></td><td class="zoekoverzicht">Provincie Overijssel: eenheid Economie en Cultuur</td></tr><tr><td class="icoon" width="20" align="center"><ul><li></li></ul></td><td class="zoekoverzicht"><strong>WOO thema's</strong></td><td class="zoekoverzicht"><ul><li>overig besluit van algemene strekking</li></ul></td></tr><tr><td class="icoon" width="20" align="center"><ul><li></li></ul></td><td class="zoekoverzicht"><strong>Gebruiksrestricties</strong></td><td class="zoekoverzicht">De bron mag ook voor externe partijen vindbaar zijn</td></tr></tbody></table></div></div></div></div></div></div><div id="footer" class="content_footer"><div class="copyright"><a href="/">WOO portaal Provincie Overijssel</a></div><div class="menu"><ul><li class=""><a class="hoeken_3_boven" href="https://www.overijssel.nl/algemene-onderdelen/proclaimer" target="_blank">Proclaimer</a></li></ul></div></div></div></div></div></body></html>"""
+    
+    # Extract metadata
+    metadata = scraper.generate_metadata(html_content)
+    print("Extracted Metadata:")
+    print(f"Title: {metadata['title']}")
+    print(f"Samenvatting: {metadata['summary']}")
+    print(f"Creatie jaar: {metadata['creation_year']}")
+    print(f"Woo thema: {metadata['woo_themes']}")
