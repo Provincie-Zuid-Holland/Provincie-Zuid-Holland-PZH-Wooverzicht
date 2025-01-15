@@ -12,6 +12,62 @@ import tempfile
 import hashlib
 
 class Scraper:
+    """
+    Deze class is voor het scrapen en downloaden van documenten van het WOO portaal Overijssel.
+    De scraper gebruikt Selenium voor het laden van JavaScript-gerenderde content en BeautifulSoup voor HTML parsing.
+    Documenten worden gedownload en opgeslagen in zip bestanden, samen met hun metadata.
+    De scraper houdt bij welke bestanden al gedownload zijn om dubbele downloads te voorkomen.
+    
+    Attributen:
+        supported_extensions (tuple): Lijst van ondersteunde bestandsextensies (.pdf, .docx, etc.)
+        base_download_dir (str): Basis directory waar de zip bestanden worden opgeslagen
+        downloaded_files_cache (dict): Cache van reeds gedownloade bestanden en hun locaties
+        driver: Selenium WebDriver instance voor het laden van JavaScript content
+        wait: WebDriverWait instance voor het wachten op elementen
+
+    Methodes:
+        _build_existing_files_cache() -> dict:
+            Bouwt een cache op van alle bestanden die al gedownload zijn in zip bestanden.
+            
+        _get_file_hash(url: str) -> str:
+            Genereert een unieke hash voor een bestands-URL om duplicaten te identificeren.
+            
+        _is_file_downloaded(filename: str, url: str) -> tuple:
+            Controleert of een bestand al eerder is gedownload.
+            
+        _is_supported_file(url: str) -> bool:
+            Controleert of een bestandstype ondersteund wordt voor download.
+            
+        fetch_html(url: str) -> str:
+            Haalt de HTML content op van een pagina, inclusief JavaScript-gerenderde content.
+            
+        generate_metadata(html_content: str) -> dict:
+            Extraheert metadata (titel, samenvatting, jaar, thema's) uit de HTML content.
+            
+        get_filename_from_url(url: str) -> str:
+            Genereert een unieke en geldige bestandsnaam uit een URL.
+            
+        find_documents(html_content: str) -> list:
+            Vindt alle downloadbare documenten in de HTML content.
+            
+        download_document(url: str, save_path: str) -> bool:
+            Download een document met foutafhandeling en retries.
+            
+        create_metadata_file(metadata: dict, temp_dir: str) -> str:
+            Maakt een tekstbestand met metadata informatie.
+            
+        scrape_document(url: str, index: int) -> None:
+            Hoofdfunctie die een document URL scraped en alle gevonden bestanden downloadt.
+            
+    Details:
+        - De scraper gebruikt een cache systeem om bij te houden welke bestanden al zijn gedownload
+        - Bestanden worden opgeslagen in zip files met de naam 'woo-{index}.zip'
+        - Elk zip bestand bevat de gedownloade documenten en een metadata.txt bestand
+        - Ondersteunde bestandsformaten zijn configureerbaar via supported_extensions
+        - De scraper probeert maximaal 3 keer om een bestand te downloaden bij fouten
+        - Alle interactie gebeurt met Nederlandse logging voor duidelijke feedback
+        - Tijdelijke bestanden worden automatisch opgeruimd na verwerking
+    """    
     def __init__(self):
         """
         Initialiseert de Scraper met de basis mapstructuur en houdt een cache bij van gedownloade bestanden.
