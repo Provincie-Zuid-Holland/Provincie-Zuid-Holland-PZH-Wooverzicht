@@ -10,7 +10,7 @@ def main():
     """
     # Configuration
     base_url = "https://woo.dataportaaloverijssel.nl/list"
-    max_urls = 45  # Number of URLs to process
+    max_urls = 100  # Number of URLs to process
     
     try:
         print("Starting crawler to collect URLs...")
