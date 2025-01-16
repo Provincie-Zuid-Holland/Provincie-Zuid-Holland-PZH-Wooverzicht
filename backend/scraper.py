@@ -76,7 +76,7 @@ class Scraper:
         self.supported_extensions = ('.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt', '.txt', '.csv', '.rtf')
         
         # Maak de basis download directory aan voor de zip files
-        self.base_download_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'backend', 'downloads')
+        self.base_download_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'backend', 'data','downloads')
         os.makedirs(self.base_download_dir, exist_ok=True)
         
         # Cache voor het bijhouden van gedownloade bestanden
@@ -293,8 +293,6 @@ class Scraper:
         """
         metadata_path = os.path.join(temp_dir, 'metadata.txt')
         with open(metadata_path, 'w', encoding='utf-8') as f:
-            f.write("Document Metadata\n")
-            f.write("================\n\n")
             f.write(f"Titel: {metadata['titel']}\n")
             f.write(f"Samenvatting: {metadata['samenvatting']}\n")
             f.write(f"Creatie jaar: {metadata['creatie_jaar']}\n")
