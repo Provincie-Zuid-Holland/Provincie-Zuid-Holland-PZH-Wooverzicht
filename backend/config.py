@@ -1,13 +1,17 @@
 import os
 
-# Paths 
-DOWNLOADS_FOLDER = "data/downloads"
-EXTRACTED_FOLDER = "data/extracted"
-EMBEDDINGS_FOLDER = "data/embeddings"
+# Base directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# OpenAI API key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Path to the folder containing ZIP files
+DOWNLOADS_FOLDER = os.path.join(BASE_DIR, "downloads")
 
-# ChromaDB persistence directory
-CHROMADB_PATH = "data/embeddings/chromadb"
+# Path to the folder where extracted files will be stored
+EXTRACTED_FOLDER = os.path.join(BASE_DIR, "extracted")
 
+# Path to the folder where Json files will be stored
+JSON_FOLDER = os.path.join(BASE_DIR, "json")
+
+# ChromaDB configuration
+CHROMA_DB_DIR = os.path.join(BASE_DIR, "chromadb")
+CHROMA_COLLECTION_NAME = "pdf_chunks"
