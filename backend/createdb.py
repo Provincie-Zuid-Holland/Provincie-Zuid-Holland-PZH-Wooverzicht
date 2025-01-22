@@ -1,13 +1,33 @@
 import os
 import json
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from chromadb.config import Settings
-from chromadb import Client
 from config import JSON_FOLDER
+from openai import OpenAI
+from dotenv import load_dotenv
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+import chromadb.utils.embedding_functions as embedding_functions
+
+import chromadb
+from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
+
+
+# Load environment variables
+load_dotenv()
+
+# Set up OpenAI API key
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# Initialize PersistentClient
+chroma_client = chromadb.PersistentClient(
+    path="database",  # Directory where ChromaDB data will be persisted
+    settings=Settings(),
+    tenant=DEFAULT_TENANT,
+    database=DEFAULT_DATABASE,
+)
+
 
 def load_and_chunk_json_data(json_folder, chunk_size=500, chunk_overlap=50):
     """
-    Load JSON data from the specified folder and chunk the content.
+    Load JSON data, chunk the PDF content, and keep metadata intact.
 
     Args:
         json_folder (str): Path to the folder containing JSON files.
@@ -47,46 +67,76 @@ def load_and_chunk_json_data(json_folder, chunk_size=500, chunk_overlap=50):
                     "content": chunk,
                     "metadata": metadata
                 })
-    print(all_chunks)
     return all_chunks
 
 
-def load_chunks_to_chromadb(chunks, collection_name="pdf_chunks", persist_directory="chromadb_storage"):
+
+def embed_chunks(chunks):
     """
-    Load chunks into ChromaDB.
+    Embed text chunks using OpenAI's embedding model.
 
     Args:
-        chunks (list): List of chunk dictionaries with content and metadata.
+        chunks (list): List of chunk dictionaries containing content and metadata.
+
+    Returns:
+        list: List of dictionaries with embeddings and metadata.
+    """
+    embedded_chunks = []
+
+    for chunk in chunks:
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=chunk["content"]
+        )
+        print(response)
+        embedding = response.data[0].embedding
+        embedded_chunks.append({
+            "chunk_id": chunk["chunk_id"],
+            "content": chunk["content"],
+            "embedding": embedding,
+            "metadata": chunk["metadata"]
+        })
+    print(embedded_chunks)
+    return embedded_chunks
+
+
+def load_embedded_chunks_to_chromadb(embedded_chunks, collection_name="pdf_chunks"):
+    """
+    Load embedded chunks into ChromaDB using PersistentClient.
+
+    Args:
+        embedded_chunks (list): List of dictionaries containing embeddings, content, and metadata.
         collection_name (str): Name of the ChromaDB collection.
-        persist_directory (str): Directory to store the ChromaDB database.
 
     Returns:
         None
     """
-    # Initialize ChromaDB client
-    client = Client(Settings(
-        persist_directory=persist_directory,
-        chroma_db_impl="duckdb+parquet"
-    ))
-
     # Create or load the collection
-    collection = client.get_or_create_collection(name=collection_name)
+    collection = chroma_client.get_or_create_collection(name=collection_name)
 
     # Add chunks to the collection
-    for chunk in chunks:
+    for chunk in embedded_chunks:
         collection.add(
             documents=[chunk["content"]],
+            embeddings=[chunk["embedding"]],
             metadatas=[chunk["metadata"]],
             ids=[chunk["chunk_id"]]
         )
 
-    print(f"Loaded {len(chunks)} chunks into the ChromaDB collection '{collection_name}'.")
+    print(f"Loaded {len(embedded_chunks)} chunks into the ChromaDB collection '{collection_name}'.")
+
 
 if __name__ == "__main__":
     # Step 1: Chunk the data
+    print("Chunking JSON data...")
     chunks = load_and_chunk_json_data(JSON_FOLDER)
 
-    # Step 2: Load chunks into ChromaDB
-    load_chunks_to_chromadb(chunks)
+    # Step 2: Embed the chunks
+    print("Embedding chunks using OpenAI embeddings...")
+    embedded_chunks = embed_chunks(chunks)
 
-    print("All chunks have been processed and loaded into ChromaDB.")
+    # Step 3: Load embedded chunks into ChromaDB
+    print("Loading embedded chunks into ChromaDB...")
+    load_embedded_chunks_to_chromadb(embedded_chunks)
+
+    print("All chunks have been processed, embedded, and loaded into ChromaDB.")
