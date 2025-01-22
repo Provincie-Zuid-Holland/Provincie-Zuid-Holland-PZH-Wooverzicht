@@ -1,80 +1,78 @@
+from pathlib import Path
 import streamlit as st
 import base64
-import os
-# from rag import process_query  # Importeer de RAG-functie vanuit rag.py
+from typing import Optional
 
 class StreamlitApp:
     """
-    Deze class bevat de logica voor de Streamlit-applicatie.
-    Het doel is om een gebruiksvriendelijke interface te bieden waar gebruikers vragen kunnen stellen over Woo-verzoeken.
-    De applicatie bevat ook functionaliteit om afbeeldingen en stijlen te verwerken.
+    A streamlined Streamlit application for handling Woo-verzoeken (Information Disclosure Requests).
+    Provides a user-friendly interface for querying and displaying information about requests.
 
-    Attributen:
-        background_image_path (str): Pad naar de achtergrondafbeelding
-        encoded_image (str): Base64-gecodeerde afbeelding
+    The application includes functionality for:
+    - Custom styling and background images
+    - Query processing
+    - Response rendering
+
+    Attributes:
+        background_image: Path
+            Path object pointing to the background image
+        image_cache: Optional[str]
+            Cached base64 encoded image string
     """
 
-    def __init__(self):
+    def __init__(self, image_name: str = "background.png"):
         """
-        Initialiseert de StreamlitApp class en configureert de basisinstellingen voor de applicatie.
+        Initialize the StreamlitApp with basic configuration and image setup.
+
+        Args:
+            image_name: str
+                Name of the background image file (default: "background.png")
         """
+        # Configure page settings
         st.set_page_config(page_title="Wooverzicht Overijssel", layout="centered")
+        
+        # Initialize image attributes
+        self.background_image = Path(__file__).parent.parent / "frontend" / "images" / image_name
+        self.image_cache: Optional[str] = None
+        
+        # Validate image existence
+        if not self.background_image.exists():
+            raise FileNotFoundError(f"Background image not found at {self.background_image}")
 
-        # Stel het pad in naar de achtergrondafbeelding
-        self.background_image_path = os.path.join(
-            os.path.dirname(__file__),  # Huidige map
-            "..",                       # Ga naar de hoofdmap
-            "frontend", 
-            "images", 
-            "background.png"
-        )
-
-        # Controleer of de afbeelding bestaat
-        if not os.path.exists(self.background_image_path):
-            raise FileNotFoundError(f"Achtergrondafbeelding niet gevonden op {self.background_image_path}")
-
-        # Codeer de afbeelding in Base64
-        self.encoded_image = self._get_base64_encoded_image(self.background_image_path)
-
-    def _get_base64_encoded_image(self, image_path: str) -> str:
+    @property
+    def encoded_image(self) -> str:
         """
-        Encodeert een afbeelding in Base64-formaat.
-
-        Parameters:
-            image_path (str): Het pad naar de afbeelding
+        Lazy load and cache the base64 encoded background image.
 
         Returns:
-            str: Base64-gecodeerde string van de afbeelding
+            str: Base64 encoded image string
         """
-        with open(image_path, "rb") as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
+        if self.image_cache is None:
+            self.image_cache = base64.b64encode(self.background_image.read_bytes()).decode()
+        return self.image_cache
 
-    def _set_styles(self):
-        """
-        Stelt de CSS-stijl in voor de Streamlit-applicatie, inclusief de achtergrondafbeelding en kleuren.
-        """
-        header_img_style = f"""
-        <style>
-        .stApp {{
-            background-color: white; /* Zet de achtergrondkleur naar wit */
-            padding-top: 0;
-        }}
+    def _apply_styles(self) -> None:
+        """Apply custom CSS styles to the Streamlit application."""
+        st.markdown(
+            """
+            <style>
+            .stApp {
+                background-color: white;
+                padding-top: 0;
+            }
+            img.header {
+                display: block;
+                margin: 0 auto;
+                max-width: 100%;
+                height: auto;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
-        img.header {{
-            display: block;
-            margin: 0 auto;  /* Centreer de afbeelding horizontaal */
-            max-width: 100%; /* Zorg ervoor dat het schaalt binnen de container */
-            height: auto;    /* Behoud de aspect ratio */
-        }}
-        </style>
-        """
-        st.markdown(header_img_style, unsafe_allow_html=True)
-
-    def _render_header(self):
-        """
-        Render de afbeelding bovenaan de pagina.
-        """
+    def _render_header(self) -> None:
+        """Render the header image using the cached base64 encoded image."""
         st.markdown(
             f'<img class="header" src="data:image/png;base64,{self.encoded_image}" alt="Header Image">',
             unsafe_allow_html=True
@@ -82,45 +80,41 @@ class StreamlitApp:
 
     def _process_query(self, query: str) -> str:
         """
-        Roept de RAG-applicatie aan om een antwoord op de vraag te genereren.
+        Process a user query through the RAG application.
 
-        Parameters:
-            query (str): De door de gebruiker ingevoerde vraag
+        Args:
+            query: str
+                The user's input query
 
         Returns:
-            str: Het antwoord gegenereerd door de RAG-applicatie
+            str: Generated response from the RAG application
         """
+        # Import the RAG function here to avoid circular imports
+        from rag import process_query
         return process_query(query)
 
-    def run(self):
+    def run(self) -> None:
         """
-        Hoofdfunctie voor het uitvoeren van de Streamlit-app.
-        Render de interface en verwerk gebruikersinteracties.
+        Main execution function for the Streamlit application.
+        Handles rendering and user interaction flow.
         """
-        # Stel de stijlen in
-        self._set_styles()
-
-        # Render de header-afbeelding
+        # Setup UI components
+        self._apply_styles()
         self._render_header()
 
-        # Zet de titel en beschrijving
+        # Main content
         st.title("Wooverzicht Overijssel")
         st.write(
-            """
-            Typ je vraag over een Woo-verzoek en klik op "Verzend" om informatie op te zoeken of de status te controleren.
-            """
+            "Typ je vraag over een Woo-verzoek en klik op \"Verzend\" "
+            "om informatie op te zoeken of de status te controleren."
         )
 
-        # Vraag de gebruiker om een query
-        user_query = st.text_input("Stel hier je vraag:")
-
-        if st.button("Verzenden"):
-            # Verwerk de query en geef een antwoord
-            response = self._process_query(user_query)
+        # User interaction
+        query = st.text_input("Stel hier je vraag:")
+        if st.button("Verzenden") and query:
+            response = self._process_query(query)
             st.write(f"**Response:** {response}")
 
 
 if __name__ == "__main__":
-    # Maak een instantie van de StreamlitApp en voer deze uit
-    app = StreamlitApp()
-    app.run()
+    StreamlitApp().run()
