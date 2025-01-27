@@ -26,16 +26,53 @@ def extract_zip_files(input_folder, output_folder):
 
 def extract_text_from_pdf(pdf_path):
     """
-    Extract text content from a PDF file.
+    Extract text content from a PDF file and clean it thoroughly for RAG applications.
 
     Args:
         pdf_path (str): Path to the PDF file.
 
     Returns:
-        str: Extracted text content.
+        str: Cleaned extracted text content with proper sentence structure.
     """
     reader = PdfReader(pdf_path)
-    return "/n".join(page.extract_text() for page in reader.pages if page.extract_text())
+    
+    # Extract text from each page
+    extracted_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+    
+    # Clean the extracted text
+    def clean_text(text):
+        # 1. Preserve structured data format with colon (e.g., "Date: 02.12.2024")
+        preserved_lines = []
+        for line in text.split('\n'):
+            if ':' in line and len(line.split(':')[0].strip()) < 30:  # Preserve short key-value pairs
+                preserved_lines.append(line.strip())
+            else:
+                preserved_lines.append(line.strip().replace('\n', ' '))
+        
+        # 2. Join all lines with space
+        text = ' '.join(preserved_lines)
+        
+        # 3. Fix multiple spaces
+        text = ' '.join(text.split())
+        
+        # 4. Ensure proper spacing after punctuation
+        for punct in ['.', '!', '?']:
+            text = text.replace(f"{punct} ", f"{punct} ")
+            text = text.replace(f"{punct}", f"{punct} ")
+        
+        # 5. Fix common PDF artifacts
+        text = text.replace(" ,", ",")
+        text = text.replace(" .", ".")
+        text = text.replace(" :", ":")
+        
+        # 6. Remove paragraph breaks for RAG
+        text = text.replace(".\n", ". ")
+        
+        return text.strip()
+    
+    cleaned_text = clean_text(extracted_text)
+    
+    return cleaned_text
 
 
 def read_metadata_file(metadata_path):
