@@ -5,6 +5,18 @@ from PyPDF2 import PdfReader
 from docx import Document
 from config import DOWNLOADS_FOLDER, EXTRACTED_FOLDER, JSON_FOLDER
 
+"""
+This script processes ZIP files containing PDF or DOCX documents along with their metadata files.
+It extracts text content from the documents, combines it with metadata, and saves the results
+as structured JSON files. The system handles document text extraction, cleaning, and standardization
+while preserving document structure and formatting.
+
+The workflow:
+1. Extract ZIP files from a downloads folder
+2. Process PDF/DOCX files and their associated metadata.txt
+3. Clean and standardize the extracted text
+4. Save combined data as numbered JSON files
+"""
 
 def extract_zip_files(input_folder, output_folder):
     """
@@ -203,18 +215,46 @@ def main():
     """
     Main function to process ZIP files, extract documents and metadata, and save combined data.
     """
+    # Count total ZIP files
+    total_files = len([f for f in os.listdir(DOWNLOADS_FOLDER) if f.endswith('.zip')])
+    print(f"Found {total_files} ZIP files in downloads folder")
+
     extract_zip_files(DOWNLOADS_FOLDER, EXTRACTED_FOLDER)
+    
+    # Get folders and sort them numerically
+    folders = [f for f in os.listdir(EXTRACTED_FOLDER) if os.path.isdir(os.path.join(EXTRACTED_FOLDER, f))]
+    folders.sort(key=lambda x: int(x.split('-')[1]))  # Sort by the number after 'woo-'
+    print(f"Extracted {len(folders)} folders")
 
     file_index = 1  # Start file numbering from 1
-    for folder in os.listdir(EXTRACTED_FOLDER):
+    processed_count = 0
+    error_count = 0
+    
+    for folder in folders:  # Use the sorted folders list
         folder_path = os.path.join(EXTRACTED_FOLDER, folder)
-        if os.path.isdir(folder_path):
-            try:
-                combined_data = combine_document_and_metadata(folder_path)
-                save_combined_data(JSON_FOLDER, combined_data, file_index)
-                file_index += 1  # Increment the file index for unique filenames
-            except ValueError as e:
-                print(f"Error processing folder {folder_path}: {e}")
+        try:
+            # List files in the folder for debugging
+            files_in_folder = os.listdir(folder_path)
+            print(f"\nProcessing folder {folder}:")
+            print(f"Files found: {files_in_folder}")
+            
+            combined_data = combine_document_and_metadata(folder_path)
+            save_combined_data(JSON_FOLDER, combined_data, file_index)
+            file_index += 1
+            processed_count += 1
+            
+        except ValueError as e:
+            print(f"Error processing folder {folder_path}: {e}")
+            error_count += 1
+        except Exception as e:
+            print(f"Unexpected error in folder {folder_path}: {str(e)}")
+            error_count += 1
+    
+    print(f"\nProcessing complete:")
+    print(f"Total ZIP files: {total_files}")
+    print(f"Successfully processed: {processed_count}")
+    print(f"Errors encountered: {error_count}")
+    print(f"Final file index: {file_index - 1}")
 
 
 if __name__ == "__main__":
