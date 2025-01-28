@@ -314,7 +314,7 @@ def main():
         logger.info("Loading embedded chunks into ChromaDB...")
         processor.load_embedded_chunks_to_chromadb(embedded_chunks)
         
-        logger.info("Processing completed successfully.")
+        logger.info("Processing completed successfully!")
         
     except Exception as e:
         logger.error(f"An error occurred during processing: {e}")
