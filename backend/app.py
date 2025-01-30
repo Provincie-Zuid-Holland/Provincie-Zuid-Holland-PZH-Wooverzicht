@@ -45,13 +45,13 @@ def display_sources(sources):
 def main():
     # Page configuration
     st.set_page_config(
-        page_title="WOO Document Assistant",
+        page_title="W👀verzicht",
         page_icon="📑",
         layout="wide"
     )
 
     # Header
-    st.title("🔍 WOO Document Assistant")
+    st.title("🔍 W👀verzicht")
     st.markdown("""
     Deze applicatie helpt je bij het zoeken en analyseren van WOO-documenten.
     Je kunt zowel specifieke documenten zoeken als vragen stellen over de inhoud.
@@ -95,7 +95,7 @@ def main():
                 display_sources(message["sources"])
 
         # Chat input
-        user_input = st.chat_input("Stel je vraag hier...")
+        user_input = st.chat_input("Stel je vraag hier (Voorbeeld:  \"Ik wil informatie over het windbeleid in provincie Overijssel\" )...")
         
         if user_input:
             # Add user message to chat
