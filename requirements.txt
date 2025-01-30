@@ -1,3 +1,9 @@
-requests-html
+openai
+chromadb
+PyPDF2
+python-docx
+requests
 beautifulsoup4
 selenium
+python-dotenv
+langchain
