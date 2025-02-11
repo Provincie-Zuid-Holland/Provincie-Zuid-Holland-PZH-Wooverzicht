@@ -54,4 +54,7 @@ Thumbs.db
 # env
 .env
 
-/backend/database
+/backend/database/
+/backend/json/
+/backend/jsontest/
+/backend/test/
