@@ -21,7 +21,7 @@ Date: [Date]
 
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -84,7 +84,7 @@ class DocumentProcessor:
     Processes document content from JSON files into searchable vector database entries.
     """
     
-    def __init__(self, json_folder: str, openai_api_key: str | None = None):
+    def __init__(self, json_folder: str, openai_api_key: Optional[str] = None):
         """
         Initializes the document processor.
         
