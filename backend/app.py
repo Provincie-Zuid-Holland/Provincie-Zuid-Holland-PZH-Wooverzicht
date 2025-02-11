@@ -42,9 +42,9 @@ def display_sources(sources, container=None):
             **Source {idx}:**
             - File: `{source['file_name']}`
             - Date: {source['date']}
-            - Theme: {source['theme']}
-            - Relevance Score: {source['relevance_score']:.2f}
-            """)
+            - Theme: {source['theme']}"""
+            # - Relevance Score: {source['relevance_score']:.2f}
+            )
 
 def main():
     # Page configuration
