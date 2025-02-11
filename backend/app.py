@@ -10,22 +10,17 @@ This application provides a user interface for:
 import streamlit as st
 from datetime import datetime
 from conversational_rag import ConversationalRAG
-from chromadb_query import ChromaDBQuery
 
 # Initialize the RAG system
 @st.cache_resource
 def get_rag_system():
     return ConversationalRAG()
 
-@st.cache_resource
-def get_query_system():
-    return ChromaDBQuery()
-
 def display_chat_message(role: str, content: str, container=None):
     """Display a chat message with the appropriate styling"""
     if container is None:
         container = st
-        
+    
     if role == "user":
         container.write(f'🧑‍💼 **You:** {content}')
     elif role == "assistant":
@@ -62,8 +57,8 @@ def main():
     # Header
     st.title("🔍 W👀verzicht")
     st.markdown("""
-    Deze applicatie helpt je bij het zoeken en analyseren van WOO-documenten.
-    Je kunt zowel specifieke documenten zoeken als vragen stellen over de inhoud.
+    Deze applicatie helpt je bij het analyseren van WOO-documenten.
+    Je kunt vragen stellen over de inhoud van documenten.
     """)
 
     # Initialize session state for chat history
@@ -73,122 +68,53 @@ def main():
     # Create a container for chat messages
     chat_container = st.container()
 
-    # Sidebar with options
-    with st.sidebar:
-        st.header("⚙️ Instellingen")
-        search_mode = st.radio(
-            "Zoekmodus:",
-            ["Vraag & Antwoord", "Document Zoeken"]
-        )
+    # Display chat history
+    with chat_container:
+        for message in st.session_state.messages:
+            display_chat_message(message["role"], message["content"])
+            if "sources" in message:
+                display_sources(message["sources"])
+
+    # Chat input
+    user_input = st.chat_input("Stel je vraag hier (Voorbeeld: \"Ik wil informatie over het windbeleid in provincie Overijssel\")...")
+    
+    if user_input:
+        # Add user message to chat
+        st.session_state.messages.append({"role": "user", "content": user_input})
         
-        if search_mode == "Document Zoeken":
-            st.markdown("""
-            ### Filters
-            Gebruik de onderstaande filters om specifieke documenten te vinden.
-            """)
-            
-            year_filter = st.selectbox(
-                "Jaar:",
-                ["Alle jaren", "2024", "2023", "2022"]
-            )
-            
-            theme_filter = st.selectbox(
-                "WOO Thema:",
-                ["Alle thema's", "overig besluit van algemene strekking", "andere thema's"]
-            )
-
-    # Main content area
-    if search_mode == "Vraag & Antwoord":
-        # Display chat history
-        with chat_container:
-            for message in st.session_state.messages:
-                display_chat_message(message["role"], message["content"])
-                if "sources" in message:
-                    display_sources(message["sources"])
-
-        # Chat input
-        user_input = st.chat_input("Stel je vraag hier (Voorbeeld: \"Ik wil informatie over het windbeleid in provincie Overijssel\")...")
+        # Create a new container for the current interaction
+        response_container = st.container()
         
-        if user_input:
-            # Add user message to chat
-            st.session_state.messages.append({"role": "user", "content": user_input})
+        with response_container:
+            # Display user message
+            display_chat_message("user", user_input)
             
-            # Create a new container for the current interaction
-            response_container = st.container()
+            # Create placeholder for assistant response
+            assistant_placeholder = display_chat_message("assistant", "")
+            sources_placeholder = st.empty()
+
+            # Generate streaming response
+            rag = get_rag_system()
+            response_text = ""
             
-            with response_container:
-                # Display user message
-                display_chat_message("user", user_input)
-                
-                # Create placeholder for assistant response
-                assistant_placeholder = display_chat_message("assistant", "")
-                sources_placeholder = st.empty()
+            with st.spinner('Even denken...'):
+                # Assuming ConversationalRAG has been modified to support streaming
+                for chunk in rag.generate_response_stream(user_input):
+                    if isinstance(chunk, str):
+                        # Update text response
+                        response_text += chunk
+                        assistant_placeholder.markdown(f'🤖 **Assistant:** {response_text}')
+                    elif isinstance(chunk, dict) and 'sources' in chunk:
+                        # Display sources when they become available
+                        with sources_placeholder:
+                            display_sources(chunk['sources'])
 
-                # Generate streaming response
-                rag = get_rag_system()
-                response_text = ""
-                
-                with st.spinner('Even denken...'):
-                    # Assuming ConversationalRAG has been modified to support streaming
-                    for chunk in rag.generate_response_stream(user_input):
-                        if isinstance(chunk, str):
-                            # Update text response
-                            response_text += chunk
-                            assistant_placeholder.markdown(f'🤖 **Assistant:** {response_text}')
-                        elif isinstance(chunk, dict) and 'sources' in chunk:
-                            # Display sources when they become available
-                            with sources_placeholder:
-                                display_sources(chunk['sources'])
-
-                # Add complete response to session state
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response_text,
-                    "sources": chunk.get('sources', []) if isinstance(chunk, dict) else []
-                })
-
-    else:  # Document Search mode
-        # Search interface implementation remains the same
-        search_query = st.text_input("🔍 Zoek in documenten:", placeholder="Zoekterm...")
-        
-        if search_query:
-            query_system = get_query_system()
-            
-            # Apply filters
-            metadata_filter = {}
-            if year_filter != "Alle jaren":
-                metadata_filter["metadata.Creatie jaar"] = year_filter
-            if theme_filter != "Alle thema's":
-                metadata_filter["metadata.WOO thema's"] = theme_filter
-
-            # Perform search
-            with st.spinner('Zoeken...'):
-                results = query_system.search(
-                    query=search_query,
-                    metadata_filter=metadata_filter if metadata_filter else None,
-                    limit=10
-                )
-
-            # Display results
-            st.subheader(f"Zoekresultaten voor: '{search_query}'")
-            
-            if not results:
-                st.warning("Geen resultaten gevonden.")
-            else:
-                for idx, result in enumerate(results, 1):
-                    with st.expander(
-                        f"📄 {result.metadata.get('file_name', 'Onbekend document')} "
-                        f"(Score: {result.score:.2f})",
-                        expanded=idx == 1
-                    ):
-                        st.markdown(f"""
-                        **Document Details:**
-                        - Datum: {result.metadata.get('metadata.Creatie jaar', 'Onbekend')}
-                        - Thema: {result.metadata.get("metadata.WOO thema's", 'Onbekend')}
-                        
-                        **Inhoud:**
-                        {result.content}
-                        """)
+            # Add complete response to session state
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response_text,
+                "sources": chunk.get('sources', []) if isinstance(chunk, dict) else []
+            })
 
     # Footer
     st.markdown("---")
