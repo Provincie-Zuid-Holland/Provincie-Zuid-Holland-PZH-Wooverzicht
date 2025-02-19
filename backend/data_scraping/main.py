@@ -34,7 +34,7 @@ def main():
     )
     args = parser.parse_args()
 
-    # Import the appropriate modules based on source
+    # Import the appropriate modules based on sources
     if args.source == "overijssel":
         from backend.data_scraping.overijssel_crawler import Crawler
         from backend.data_scraping.overijssel_scraper import Scraper

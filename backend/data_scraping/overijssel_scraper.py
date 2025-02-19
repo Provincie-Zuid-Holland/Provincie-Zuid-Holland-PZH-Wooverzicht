@@ -72,7 +72,7 @@ class Scraper:
 
     def __init__(self):
         """
-        Initialiseert de Scraper met de basis mapstructuur en houdt een cache bij van gedownloade bestanden.
+        Initialiseert de Scraper met de basis mapstructuur en houdt een cache bij van gedownloade bestanden. D:
         """
         # Lijst met ondersteunde bestandsformaten
         self.supported_extensions = (

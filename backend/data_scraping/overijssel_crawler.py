@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import time
 from urllib.parse import urljoin
 
+
 class Crawler:
     """
     Deze class is voor het crawlen van webpagina's en het verzamelen van document URLs.
@@ -44,17 +45,19 @@ class Crawler:
             base_url (str): Start URL voor het crawlen
             max_urls (int): Maximum aantal URLs dat verzameld moet worden
         """
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.max_urls = max_urls
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
-        
+
         # Initialiseer Chrome driver met headless modus
         options = webdriver.ChromeOptions()
-        options.add_argument('--headless')  # Draai zonder GUI
+        options.add_argument("--headless")  # Draai zonder GUI
         self.driver = webdriver.Chrome(options=options)
-        self.wait = WebDriverWait(self.driver, 10)  # Wacht maximaal 10 seconden op elementen
+        self.wait = WebDriverWait(
+            self.driver, 10
+        )  # Wacht maximaal 10 seconden op elementen
 
     def clean_url(self, url):
         """
@@ -66,7 +69,7 @@ class Crawler:
         Returns:
             str: De opgeschoonde URL
         """
-        return url.replace('/list/list/', '/list/')
+        return url.replace("/list/list/", "/list/")
 
     def extract_page_links(self, html_content):
         """
@@ -78,16 +81,16 @@ class Crawler:
         Returns:
             list: Lijst met gevonden document URLs
         """
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = BeautifulSoup(html_content, "html.parser")
         links = []
-        
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            if '/list/document/' in href.lower():
+
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            if "/list/document/" in href.lower():
                 full_link = urljoin(self.base_url, href)
                 clean_link = self.clean_url(full_link)
                 links.append(clean_link)
-        
+
         return links
 
     def get_links(self):
@@ -101,7 +104,7 @@ class Crawler:
         """
         all_links = []
         current_page = 1
-        
+
         try:
             # Laad initiële pagina
             self.driver.get(self.base_url)
@@ -109,13 +112,17 @@ class Crawler:
 
             while len(all_links) < self.max_urls:
                 print(f"\nVerwerken van pagina {current_page}...")
-                
+
                 # Wacht tot document links aanwezig zijn
-                self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "document-hoofd")))
-                
+                self.wait.until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "document-hoofd"))
+                )
+
                 # Verkrijg huidige pagina content en extraheer links
                 current_links = self.extract_page_links(self.driver.page_source)
-                print(f"Gevonden {len(current_links)} document links op pagina {current_page}")
+                print(
+                    f"Gevonden {len(current_links)} document links op pagina {current_page}"
+                )
 
                 # Sla unieke URLs voor deze pagina op
                 page_urls = []
@@ -136,23 +143,29 @@ class Crawler:
 
                 # Probeer volgende pagina knop te vinden en te klikken
                 try:
-                    next_buttons = self.driver.find_elements(By.CLASS_NAME, 'js-nav-button')
-                    next_button = next(button for button in next_buttons if 'Volgende pagina' in button.text)
-                    
+                    next_buttons = self.driver.find_elements(
+                        By.CLASS_NAME, "js-nav-button"
+                    )
+                    next_button = next(
+                        button
+                        for button in next_buttons
+                        if "Volgende pagina" in button.text
+                    )
+
                     print("Volgende pagina knop gevonden, klikken...")
                     next_button.click()
-                    
+
                     # Wacht tot pagina is bijgewerkt
                     time.sleep(2)
-                    
+
                     # Controleer of er nieuwe content is
                     new_links = self.extract_page_links(self.driver.page_source)
                     if set(new_links) == set(current_links):
                         print("Geen nieuwe content gevonden na navigatie")
                         break
-                    
+
                     current_page += 1
-                    
+
                 except StopIteration:
                     print("Geen volgende pagina knop gevonden")
                     break
@@ -180,8 +193,10 @@ class Crawler:
             return
 
         pages_text = "pagina" if self.pages_visited == 1 else "pagina's"
-        print(f"\n{self.pages_visited} {pages_text} bezocht en {len(urls)} URLs geëxtraheerd:")
-        
+        print(
+            f"\n{self.pages_visited} {pages_text} bezocht en {len(urls)} URLs geëxtraheerd:"
+        )
+
         for page_num in range(1, self.pages_visited + 1):
             page_urls = self.urls_per_page.get(page_num, [])
             print(f"\nPagina {page_num} ({len(page_urls)} URLs):")
@@ -202,14 +217,14 @@ if __name__ == "__main__":
     # Configuratie voor het crawlen
     base_url = "https://woo.dataportaaloverijssel.nl/list"
     max_urls = 45
-    
+
     try:
         crawler = Crawler(base_url, max_urls)
         urls = crawler.get_links()
         crawler.print_results(urls)
     except KeyboardInterrupt:
         print("\nCrawlen onderbroken door gebruiker")
-        if 'crawler' in locals():
+        if "crawler" in locals():
             crawler.print_results(urls)
     except Exception as e:
         print(f"\nEr is een fout opgetreden: {e}")

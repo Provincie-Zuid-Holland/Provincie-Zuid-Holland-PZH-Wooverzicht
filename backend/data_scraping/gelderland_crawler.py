@@ -258,7 +258,7 @@ class Crawler:
 
 
 if __name__ == "__main__":
-    # Configuratie voor het crawlen
+    # Coniguratie voor het crawlen
     base_url = "https://open.gelderland.nl/woo-documenten"
     max_urls = 10
 

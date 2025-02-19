@@ -76,7 +76,7 @@ class Scraper:
             ".rtf",
         )
 
-        # Maak de basis download directory aan voor de zip files met provincie subfolder
+        # Maak de basis download directory aan voor de zip files met provincie subfolders
         downloads_base = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data_scraping", "downloads"
         )
