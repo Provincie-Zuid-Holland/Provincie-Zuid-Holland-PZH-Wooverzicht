@@ -9,41 +9,37 @@ from urllib.parse import urljoin
 
 class Crawler:
     """
-    Deze class is voor het crawlen van webpagina's en het verzamelen van document URLs.
-    De crawler gebruikt Selenium voor het navigeren door pagina's en BeautifulSoup voor het parsen van HTML.
-    Selenium is een benodigde package omdat de data van Overijssel dynamisch wordt geladen door JavaScript.
-    Dit is dezelfde URL en we hebben dus selenium nodig om de JS achter de "next 15" button te laden om zo de HTML te veranderen
+    A class for crawling web pages and collecting document URLs.
+    Uses Selenium for navigating through pages and BeautifulSoup for parsing HTML.
+    Selenium is a required package because Overijssel's data is dynamically loaded by JavaScript.
+    This is the same URL and we need selenium to handle the JS behind the "next 15" button to change the HTML.
 
-    Attributen:
-        base_url (str): De basis URL waar het crawlen start
-        max_urls (int): Maximum aantal URLs dat verzameld moet worden
-        pages_visited (int): Aantal bezochte pagina's
-        urls_per_page (dict): Dictionary die URLs per pagina opslaat
-        seen_document_urls (set): Set van reeds geziene document URLs
-        driver: Selenium WebDriver instance
-        wait: WebDriverWait instance voor het wachten op elementen
+    Attributes:
+        base_url (str): The base URL where crawling starts
+        max_urls (int): Maximum number of URLs to collect
+        pages_visited (int): Number of visited pages
+        urls_per_page (dict): Dictionary storing URLs per page
+        seen_document_urls (set): Set of already seen document URLs
+        driver (webdriver.Chrome): Selenium WebDriver instance
+        wait (WebDriverWait): WebDriverWait instance for waiting for elements
 
-    Methodes:
-        clean_url(url: str) -> str:
-            Schoont een URL op door dubbele '/list/' entries te verwijderen, anders bugt het en krijg je .nl/list/list en dan 404.
-
-        extract_page_links(html_content: str) -> list:
-            Extraheert document links uit HTML content
-
-        get_links() -> list:
-            Verzamelt alle document links door de pagina's te crawlen
-
-        print_results(urls: list) -> None:
-            Print een overzicht van gevonden URLs per pagina, de return is uiteindelijk een lijst van URLs.
+    Functions:
+        clean_url: Cleans a URL by removing duplicate '/list/' entries to prevent 404 errors
+        extract_page_links: Extracts document links from HTML content
+        get_links: Collects all document links by crawling pages
+        print_results: Prints an overview of found URLs per page, ultimately returning a list of URLs
     """
 
-    def __init__(self, base_url, max_urls=15):
+    def __init__(self, base_url: str, max_urls: int = 15):
         """
-        Initialiseert de Crawler met een basis URL en maximum aantal te verzamelen URLs.
+        Initializes the Crawler with a base URL and maximum number of URLs to collect.
 
-        Parameters:
-            base_url (str): Start URL voor het crawlen
-            max_urls (int): Maximum aantal URLs dat verzameld moet worden
+        Args:
+            base_url (str): Starting URL for crawling
+            max_urls (int): Maximum number of URLs to collect
+
+        Example:
+            crawler = Crawler("https://woo.dataportaaloverijssel.nl/list", 50)
         """
         self.base_url = base_url.rstrip("/")
         self.max_urls = max_urls
@@ -51,35 +47,43 @@ class Crawler:
         self.urls_per_page = {}
         self.seen_document_urls = set()
 
-        # Initialiseer Chrome driver met headless modus
+        # Initialize Chrome driver in headless mode
         options = webdriver.ChromeOptions()
-        options.add_argument("--headless")  # Draai zonder GUI
+        options.add_argument("--headless")  # Run without GUI
         self.driver = webdriver.Chrome(options=options)
         self.wait = WebDriverWait(
             self.driver, 10
-        )  # Wacht maximaal 10 seconden op elementen
+        )  # Wait maximum 10 seconds for elements
 
-    def clean_url(self, url):
+    def clean_url(self, url: str) -> str:
         """
-        Verwijdert dubbele '/list/' entries uit URLs.
+        Removes duplicate '/list/' entries from URLs.
 
-        Parameters:
-            url (str): De URL die opgeschoond moet worden
+        Args:
+            url (str): The URL to be cleaned
 
         Returns:
-            str: De opgeschoonde URL
+            str: The cleaned URL
+
+        Example:
+            clean_url = crawler.clean_url("https://example.com/list/list/document/123")
+            # Returns "https://example.com/list/document/123"
         """
         return url.replace("/list/list/", "/list/")
 
-    def extract_page_links(self, html_content):
+    def extract_page_links(self, html_content: str) -> list:
         """
-        Extraheert document links uit de HTML content met BeautifulSoup.
+        Extracts document links from HTML content using BeautifulSoup.
 
-        Parameters:
-            html_content (str): De HTML content waarin gezocht moet worden
+        Args:
+            html_content (str): The HTML content to search in
 
         Returns:
-            list: Lijst met gevonden document URLs
+            list: List of found document URLs
+
+        Example:
+            links = crawler.extract_page_links(html_content)
+            print(f"Found {len(links)} document links")
         """
         soup = BeautifulSoup(html_content, "html.parser")
         links = []
@@ -93,38 +97,45 @@ class Crawler:
 
         return links
 
-    def get_links(self):
+    def get_links(self) -> list:
         """
-        Hoofdfunctie voor het verzamelen van document links door pagina's te crawlen.
-        Navigeert door pagina's totdat het maximum aantal URLs is bereikt of er geen
-        nieuwe pagina's meer zijn.
+        Main function for collecting document links by crawling pages.
+        Navigates through pages until the maximum number of URLs is reached or there are no
+        more new pages.
 
         Returns:
-            list: Lijst met alle verzamelde document URLs
+            list: List of all collected document URLs
+
+        Raises:
+            Exception: If an error occurs during crawling
+
+        Example:
+            urls = crawler.get_links()
+            print(f"Collected {len(urls)} document URLs")
         """
         all_links = []
         current_page = 1
 
         try:
-            # Laad initiële pagina
+            # Load initial page
             self.driver.get(self.base_url)
-            time.sleep(2)  # Wacht tot JavaScript is geladen
+            time.sleep(2)  # Wait for JavaScript to load
 
             while len(all_links) < self.max_urls:
-                print(f"\nVerwerken van pagina {current_page}...")
+                print(f"\nProcessing page {current_page}...")
 
-                # Wacht tot document links aanwezig zijn
+                # Wait until document links are present
                 self.wait.until(
                     EC.presence_of_element_located((By.CLASS_NAME, "document-hoofd"))
                 )
 
-                # Verkrijg huidige pagina content en extraheer links
+                # Get current page content and extract links
                 current_links = self.extract_page_links(self.driver.page_source)
                 print(
-                    f"Gevonden {len(current_links)} document links op pagina {current_page}"
+                    f"Found {len(current_links)} document links on page {current_page}"
                 )
 
-                # Sla unieke URLs voor deze pagina op
+                # Store unique URLs for this page
                 page_urls = []
                 for link in current_links:
                     if len(all_links) >= self.max_urls:
@@ -138,10 +149,10 @@ class Crawler:
                 self.pages_visited = current_page
 
                 if len(all_links) >= self.max_urls:
-                    print(f"Maximum aantal URLs bereikt ({self.max_urls})")
+                    print(f"Maximum number of URLs reached ({self.max_urls})")
                     break
 
-                # Probeer volgende pagina knop te vinden en te klikken
+                # Try to find and click the next page button
                 try:
                     next_buttons = self.driver.find_elements(
                         By.CLASS_NAME, "js-nav-button"
@@ -152,60 +163,69 @@ class Crawler:
                         if "Volgende pagina" in button.text
                     )
 
-                    print("Volgende pagina knop gevonden, klikken...")
+                    print("Next page button found, clicking...")
                     next_button.click()
 
-                    # Wacht tot pagina is bijgewerkt
+                    # Wait for page to update
                     time.sleep(2)
 
-                    # Controleer of er nieuwe content is
+                    # Check if there's new content
                     new_links = self.extract_page_links(self.driver.page_source)
                     if set(new_links) == set(current_links):
-                        print("Geen nieuwe content gevonden na navigatie")
+                        print("No new content found after navigation")
                         break
 
                     current_page += 1
 
                 except StopIteration:
-                    print("Geen volgende pagina knop gevonden")
+                    print("No next page button found")
                     break
                 except Exception as e:
-                    print(f"Fout tijdens navigatie: {e}")
+                    print(f"Error during navigation: {e}")
                     break
 
             return all_links
 
         except Exception as e:
-            print(f"Er is een fout opgetreden tijdens het crawlen: {e}")
+            print(f"An error occurred during crawling: {e}")
             return all_links
         finally:
             self.driver.quit()
 
-    def print_results(self, urls):
+    def print_results(self, urls: list) -> None:
         """
-        Print een overzicht van alle verzamelde URLs per pagina.
+        Prints an overview of all collected URLs per page.
 
-        Parameters:
-            urls (list): Lijst met alle verzamelde URLs
+        Args:
+            urls (list): List of all collected URLs
+
+        Returns:
+            None
+
+        Example:
+            urls = crawler.get_links()
+            crawler.print_results(urls)
         """
         if not urls:
-            print("Geen URLs gevonden.")
+            print("No URLs found.")
             return
 
-        pages_text = "pagina" if self.pages_visited == 1 else "pagina's"
+        pages_text = "page" if self.pages_visited == 1 else "pages"
         print(
-            f"\n{self.pages_visited} {pages_text} bezocht en {len(urls)} URLs geëxtraheerd:"
+            f"\n{self.pages_visited} {pages_text} visited and {len(urls)} URLs extracted:"
         )
 
         for page_num in range(1, self.pages_visited + 1):
             page_urls = self.urls_per_page.get(page_num, [])
-            print(f"\nPagina {page_num} ({len(page_urls)} URLs):")
+            print(f"\nPage {page_num} ({len(page_urls)} URLs):")
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
 
     def __del__(self):
         """
-        Destructor om ervoor te zorgen dat de browser wordt afgesloten.
+        Destructor to ensure the browser is closed.
+
+        Ensures proper cleanup of resources when the object is destroyed.
         """
         try:
             self.driver.quit()
@@ -214,7 +234,7 @@ class Crawler:
 
 
 if __name__ == "__main__":
-    # Configuratie voor het crawlen
+    # Configuration for crawling
     base_url = "https://woo.dataportaaloverijssel.nl/list"
     max_urls = 45
 
@@ -223,8 +243,8 @@ if __name__ == "__main__":
         urls = crawler.get_links()
         crawler.print_results(urls)
     except KeyboardInterrupt:
-        print("\nCrawlen onderbroken door gebruiker")
+        print("\nCrawling interrupted by user")
         if "crawler" in locals():
             crawler.print_results(urls)
     except Exception as e:
-        print(f"\nEr is een fout opgetreden: {e}")
+        print(f"\nAn error occurred: {e}")

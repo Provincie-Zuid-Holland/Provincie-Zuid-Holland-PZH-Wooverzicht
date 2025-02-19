@@ -11,58 +11,24 @@ import re
 
 class Scraper:
     """
-    Deze class is voor het scrapen en downloaden van documenten van het WOO portaal Zuid-Holland.
-    De scraper gebruikt requests en BeautifulSoup voor HTML parsing.
-    Documenten worden gedownload en opgeslagen in zip bestanden, samen met hun metadata.
-    De scraper houdt bij welke bestanden al gedownload zijn om dubbele downloads te voorkomen.
+    A class for scraping and downloading documents from the WOO portal Zuid-Holland.
+    Uses requests and BeautifulSoup for HTML parsing.
+    Documents are downloaded and stored in zip files along with their metadata.
+    The scraper keeps track of which files have already been downloaded to avoid duplicates.
 
-    Attributen:
-        supported_extensions (tuple): Lijst van ondersteunde bestandsextensies (.pdf, .docx, etc.)
-        base_download_dir (str): Basis directory waar de zip bestanden worden opgeslagen
-        downloaded_files_cache (dict): Cache van reeds gedownloade bestanden en hun locaties
-        session: Requests session voor het hergebruiken van verbindingen
-        headers (dict): HTTP headers voor requests
-
-    Methodes:
-        _build_existing_files_cache() -> dict:
-            Bouwt een cache op van alle bestanden die al gedownload zijn in zip bestanden.
-
-        _get_file_hash(url: str) -> str:
-            Genereert een unieke hash voor een bestands-URL om duplicaten te identificeren.
-
-        _is_file_downloaded(filename: str, url: str) -> tuple:
-            Controleert of een bestand al eerder is gedownload.
-
-        _is_supported_file(url: str) -> bool:
-            Controleert of een bestandstype ondersteund wordt voor download.
-
-        fetch_html(url: str) -> str:
-            Haalt de HTML content op van een pagina.
-
-        generate_metadata(html_content: str, url: str) -> dict:
-            Extraheert metadata uit de HTML content.
-
-        get_filename_from_url(url: str) -> str:
-            Genereert een unieke en geldige bestandsnaam uit een URL.
-
-        find_documents(html_content: str, url: str) -> list:
-            Vindt alle downloadbare documenten in de HTML content.
-
-        download_document(url: str, save_path: str) -> bool:
-            Download een document met foutafhandeling en retries.
-
-        create_metadata_file(metadata: dict, temp_dir: str) -> str:
-            Maakt een tekstbestand met metadata informatie.
-
-        scrape_document(url: str, index: int) -> None:
-            Hoofdfunctie die een document URL scraped en alle gevonden bestanden downloadt.
+    Attributes:
+        supported_extensions (tuple): List of supported file extensions (.pdf, .docx, etc.)
+        base_download_dir (str): Base directory where zip files are stored
+        downloaded_files_cache (dict): Cache of already downloaded files and their locations
+        session (requests.Session): Requests session for connection reuse
+        headers (dict): HTTP headers for requests
     """
 
     def __init__(self):
         """
-        Initialiseert de Scraper met de basis mapstructuur en houdt een cache bij van gedownloade bestanden.
+        Initializes the Scraper with the basic folder structure and maintains a cache of downloaded files.
         """
-        # Lijst met ondersteunde bestandsformaten
+        # List of supported file formats
         self.supported_extensions = (
             ".pdf",
             ".docx",
@@ -76,7 +42,7 @@ class Scraper:
             ".rtf",
         )
 
-        # Maak de basis download directory aan voor de zip files met provincie subfolder
+        # Create the base download directory for zip files with province subfolder
         # Fix the path to be relative to the script location
         script_dir = os.path.dirname(os.path.abspath(__file__))
         downloads_base = os.path.join(script_dir, "downloads")
@@ -85,18 +51,25 @@ class Scraper:
 
         print(f"Files will be saved to: {self.base_download_dir}")
 
-        # Cache voor het bijhouden van gedownloade bestanden
+        # Cache to keep track of downloaded files
         self.downloaded_files_cache = self._build_existing_files_cache()
 
-        # Requests sessie voor hergebruik van verbindingen
+        # Requests session for connection reuse
         self.session = requests.Session()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         }
 
-    def _build_existing_files_cache(self):
+    def _build_existing_files_cache(self) -> dict:
         """
-        Bouwt een cache op van bestaande bestanden in zip files.
+        Builds a cache of existing files in zip files.
+
+        Returns:
+            dict: A dictionary mapping filenames to their containing zip paths
+
+        Example:
+            cache = scraper._build_existing_files_cache()
+            print(len(cache))  # Output: Number of files found
         """
         cache = {}
         try:
@@ -110,18 +83,40 @@ class Scraper:
                             ):
                                 cache[file_info.filename] = zip_path
         except Exception as e:
-            print(f"Waarschuwing: Fout bij opbouwen cache: {e}")
+            print(f"Warning: Error building cache: {e}")
         return cache
 
-    def _get_file_hash(self, url):
+    def _get_file_hash(self, url: str) -> str:
         """
-        Genereert een unieke hash voor een bestands-URL.
+        Generates a unique hash for a file URL.
+
+        Args:
+            url (str): The URL of the file
+
+        Returns:
+            str: MD5 hash of the URL as a hexadecimal string
+
+        Example:
+            hash_value = scraper._get_file_hash("https://example.com/document.pdf")
+            print(hash_value)  # Output: a1b2c3d4...
         """
         return hashlib.md5(url.encode()).hexdigest()
 
-    def _is_file_downloaded(self, filename, url):
+    def _is_file_downloaded(self, filename: str, url: str) -> tuple:
         """
-        Controleert of een bestand al is gedownload.
+        Checks if a file has already been downloaded.
+
+        Args:
+            filename (str): The filename to check
+            url (str): The URL of the file
+
+        Returns:
+            tuple: (bool, str) - Whether the file is downloaded and its zip path if applicable
+
+        Example:
+            is_downloaded, zip_path = scraper._is_file_downloaded("document.pdf", "https://example.com/document.pdf")
+            if is_downloaded:
+                print(f"File already exists in {zip_path}")
         """
         if filename in self.downloaded_files_cache:
             return True, self.downloaded_files_cache[filename]
@@ -133,59 +128,100 @@ class Scraper:
 
         return False, None
 
-    def _is_supported_file(self, url):
+    def _is_supported_file(self, url: str) -> bool:
         """
-        Controleert of het bestandstype ondersteund wordt.
+        Checks if the file type is supported.
+
+        Args:
+            url (str): The URL of the file to check
+
+        Returns:
+            bool: True if the file extension is supported, False otherwise
+
+        Example:
+            if scraper._is_supported_file("https://example.com/document.pdf"):
+                print("This file type is supported")
         """
         return url.lower().endswith(self.supported_extensions)
 
-    def fetch_html(self, url):
+    def fetch_html(self, url: str) -> str:
         """
-        Haalt HTML content op met requests.
+        Retrieves HTML content using requests.
+
+        Args:
+            url (str): The URL to fetch HTML content from
+
+        Returns:
+            str: The HTML content as a string, or None if the fetch failed
+
+        Raises:
+            requests.exceptions.RequestException: If there's an issue with the request
+
+        Example:
+            html_content = scraper.fetch_html("https://example.com/page")
+            if html_content:
+                print(f"Successfully retrieved {len(html_content)} bytes")
         """
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                print(f"HTML ophalen (poging {attempt + 1}/{max_retries})")
+                print(f"Fetching HTML (attempt {attempt + 1}/{max_retries})")
                 response = self.session.get(url, headers=self.headers, timeout=30)
                 response.raise_for_status()
                 return response.text
 
             except Exception as e:
-                print(f"Fout bij ophalen HTML (poging {attempt + 1}): {e}")
+                print(f"Error fetching HTML (attempt {attempt + 1}): {e}")
                 if attempt == max_retries - 1:
                     return None
                 time.sleep(2)
         return None
 
-    def generate_metadata(self, html_content, url):
+    def generate_metadata(self, html_content: str, url: str) -> dict:
         """
-        Genereert metadata van de HTML content.
+        Generates metadata from HTML content.
+
+        Args:
+            html_content (str): The HTML content to extract metadata from
+            url (str): The URL of the page
+
+        Returns:
+            dict: A dictionary containing extracted metadata with keys:
+                - url: Original URL
+                - title: Document title
+                - summary: Document summary/description
+                - date: Document publication date
+                - woo_themes: List of WOO themes/categories
+
+        Example:
+            html = scraper.fetch_html("https://example.com/page")
+            metadata = scraper.generate_metadata(html, "https://example.com/page")
+            print(f"Title: {metadata['title']}")
         """
         try:
             soup = BeautifulSoup(html_content, "html.parser")
             metadata = {
                 "url": url,
-                "titel": "Onbekend",
-                "samenvatting": "Niet beschikbaar",
-                "datum": "Onbekend",
-                "woo_themas": [],
+                "title": "Unknown",
+                "summary": "Not available",
+                "date": "Unknown",
+                "woo_themes": [],
             }
 
-            # Probeer titel te vinden (h1 is meest waarschijnlijk)
+            # Try to find title (h1 is most likely)
             title_tag = soup.find("h1")
             if title_tag:
-                metadata["titel"] = title_tag.get_text(strip=True)
+                metadata["title"] = title_tag.get_text(strip=True)
             else:
-                # Als alternatief, probeer de titel uit de URL te halen
+                # As an alternative, try to get the title from the URL
                 parsed_url = urlparse(url)
                 path_segments = parsed_url.path.split("/")
                 if len(path_segments) > 2:
                     url_title = path_segments[-1].replace("-", " ")
                     if url_title:
-                        metadata["titel"] = url_title.capitalize()
+                        metadata["title"] = url_title.capitalize()
 
-            # Probeer samenvatting/beschrijving te vinden
+            # Try to find summary/description
             desc_candidates = [
                 soup.select_one(".field--name-field-intro-text"),
                 soup.select_one(".field--name-body"),
@@ -196,64 +232,74 @@ class Scraper:
             for candidate in desc_candidates:
                 if candidate:
                     if candidate.name == "meta":
-                        metadata["samenvatting"] = candidate.get("content", "").strip()
+                        metadata["summary"] = candidate.get("content", "").strip()
                     else:
-                        metadata["samenvatting"] = candidate.get_text(strip=True)
+                        metadata["summary"] = candidate.get_text(strip=True)
                     break
 
-            # Probeer datum te vinden
+            # Try to find date
             date_tag = soup.select_one(".field--name-field-datum, .date-display-single")
             if date_tag:
-                metadata["datum"] = date_tag.get_text(strip=True)
+                metadata["date"] = date_tag.get_text(strip=True)
             else:
-                # Als alternatief, zoek naar een datum in de tekst met regex
+                # As an alternative, search for a date in the text using regex
                 body_text = soup.get_text()
                 date_patterns = [
                     r"\d{1,2}[-/]\d{1,2}[-/]20\d{2}",  # 01-01-2023
-                    r"\d{1,2}\s+[a-z]+\s+20\d{2}",  # 1 januari 2023
+                    r"\d{1,2}\s+[a-z]+\s+20\d{2}",  # 1 January 2023
                     r"20\d{2}",  # 2023 (just year)
                 ]
 
                 for pattern in date_patterns:
                     date_match = re.search(pattern, body_text)
                     if date_match:
-                        metadata["datum"] = date_match.group(0)
+                        metadata["date"] = date_match.group(0)
                         break
 
-            # Probeer thema's/categorieën te vinden
+            # Try to find themes/categories
             theme_tags = soup.select(
                 ".field--name-field-thema a, .field--name-field-trefwoorden a"
             )
             if theme_tags:
-                metadata["woo_themas"] = [
+                metadata["woo_themes"] = [
                     tag.get_text(strip=True) for tag in theme_tags
                 ]
 
             return metadata
 
         except Exception as e:
-            print(f"Fout bij genereren metadata: {e}")
+            print(f"Error generating metadata: {e}")
             return {
                 "url": url,
-                "titel": "Onbekend",
-                "samenvatting": "Niet beschikbaar",
-                "datum": "Onbekend",
-                "woo_themas": [],
+                "title": "Unknown",
+                "summary": "Not available",
+                "date": "Unknown",
+                "woo_themes": [],
             }
 
-    def get_filename_from_url(self, url):
+    def get_filename_from_url(self, url: str) -> str:
         """
-        Haalt de originele bestandsnaam uit de URL en voegt hash toe voor uniekheid.
+        Extracts the original filename from the URL and adds a hash for uniqueness.
+
+        Args:
+            url (str): The URL of the file
+
+        Returns:
+            str: A unique filename based on the URL with added hash
+
+        Example:
+            filename = scraper.get_filename_from_url("https://example.com/documents/report.pdf")
+            print(filename)  # Output: a1b2c3d4_report.pdf
         """
         parsed_url = urlparse(url)
         original_filename = os.path.basename(unquote(parsed_url.path))
 
-        # Verwijder ongeldige karakters
+        # Remove invalid characters
         invalid_chars = '<>:"/\\|?*'
         for char in invalid_chars:
             original_filename = original_filename.replace(char, "_")
 
-        # Als bestandsnaam leeg of ongeldig is, probeer van Content-Disposition header
+        # If filename is empty or invalid, try from Content-Disposition header
         if (
             not original_filename
             or original_filename == "_"
@@ -271,16 +317,16 @@ class Scraper:
                         for char in invalid_chars:
                             original_filename = original_filename.replace(char, "_")
             except Exception as e:
-                print(f"Kon Content-Disposition niet ophalen: {e}")
+                print(f"Could not retrieve Content-Disposition: {e}")
 
-        # Als we nog steeds geen goede bestandsnaam hebben, gebruik generieke naam met extensie
+        # If we still don't have a good filename, use generic name with extension
         if (
             not original_filename
             or original_filename == "_"
             or "." not in original_filename
         ):
-            # Probeer extensie te bepalen uit URL
-            extension = ".pdf"  # Default extensie
+            # Try to determine extension from URL
+            extension = ".pdf"  # Default extension
             for ext in self.supported_extensions:
                 if url.lower().endswith(ext):
                     extension = ext
@@ -288,25 +334,37 @@ class Scraper:
 
             original_filename = f"document{extension}"
 
-        # Voeg hash toe aan bestandsnaam voor unieke identificatie
+        # Add hash to filename for unique identification
         file_hash = self._get_file_hash(url)
         filename_parts = os.path.splitext(original_filename)
         return f"{file_hash}_{filename_parts[0]}{filename_parts[1]}"
 
-    def find_documents(self, html_content, url):
+    def find_documents(self, html_content: str, url: str) -> list:
         """
-        Zoekt naar alle ondersteunde documenttypes in de HTML content.
+        Searches for all supported document types in the HTML content.
+
+        Args:
+            html_content (str): The HTML content to search in
+            url (str): The base URL for converting relative links to absolute
+
+        Returns:
+            list: A list of tuples containing (document_url, filename)
+
+        Example:
+            html = scraper.fetch_html("https://example.com/page")
+            documents = scraper.find_documents(html, "https://example.com/page")
+            print(f"Found {len(documents)} downloadable documents")
         """
         doc_links = []
         if not html_content:
             return doc_links
 
         soup = BeautifulSoup(html_content, "html.parser")
-        print("Document links zoeken...")
+        print("Searching for document links...")
         found_any = False  # Flag to track if we found any documents
 
-        # Zoek eerst in specifieke bijlage/download secties
-        # Zuid-Holland site gebruikt waarschijnlijk specifieke classes voor bijlagen
+        # First look in specific attachment/download sections
+        # Zuid-Holland site likely uses specific classes for attachments
         attachment_sections = [
             soup.select(
                 ".bijlagen, .downloads, .attachments, .field--name-field-bijlagen"
@@ -327,19 +385,19 @@ class Scraper:
                             filename = self.get_filename_from_url(absolute_url)
                             extension = os.path.splitext(absolute_url.lower())[1]
                             print(
-                                f"{extension.upper()[1:]} bestand gevonden in bijlagen: {filename}"
+                                f"{extension.upper()[1:]} file found in attachments: {filename}"
                             )
                             doc_links.append((absolute_url, filename))
                             found_any = True
 
-        # Als backup ook zoeken in hele document
+        # As backup, also search the entire document
         if not doc_links:
             print("Searching entire document for downloadable files...")
             for link in soup.find_all("a", href=True):
                 href = link["href"]
                 absolute_url = urljoin(url, href)
                 if self._is_supported_file(absolute_url):
-                    # Zoek naar context die suggereert dat het om een download gaat
+                    # Look for context suggesting it's a download
                     download_indicators = [
                         "download",
                         "bijlage",
@@ -375,7 +433,7 @@ class Scraper:
                         filename = self.get_filename_from_url(absolute_url)
                         extension = os.path.splitext(absolute_url.lower())[1]
                         print(
-                            f"{extension.upper()[1:]} bestand gevonden: {filename} - {absolute_url}"
+                            f"{extension.upper()[1:]} file found: {filename} - {absolute_url}"
                         )
                         doc_links.append((absolute_url, filename))
                         found_any = True
@@ -390,15 +448,30 @@ class Scraper:
 
         return doc_links
 
-    def download_document(self, url, save_path):
+    def download_document(self, url: str, save_path: str) -> bool:
         """
-        Download een document met verbeterde error handling.
+        Downloads a document with improved error handling.
+
+        Args:
+            url (str): The URL of the document to download
+            save_path (str): The path where the document should be saved
+
+        Returns:
+            bool: True if download was successful, False otherwise
+
+        Example:
+            success = scraper.download_document(
+                "https://example.com/document.pdf",
+                "/tmp/downloads/document.pdf"
+            )
+            if success:
+                print("Document downloaded successfully")
         """
         max_retries = 3
         for attempt in range(max_retries):
             try:
                 print(
-                    f"Document downloaden (poging {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
+                    f"Downloading document (attempt {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
                 )
                 response = self.session.get(
                     url, stream=True, headers=self.headers, timeout=30
@@ -413,72 +486,99 @@ class Scraper:
                 if os.path.getsize(save_path) > 0:
                     extension = os.path.splitext(save_path)[1].upper()[1:]
                     print(
-                        f"{extension} bestand succesvol gedownload: {os.path.basename(save_path)}"
+                        f"{extension} file successfully downloaded: {os.path.basename(save_path)}"
                     )
                     return True
                 else:
-                    print("Waarschuwing: Gedownload bestand is leeg")
+                    print("Warning: Downloaded file is empty")
                     os.remove(save_path)
 
             except Exception as e:
-                print(f"Fout bij downloaden (poging {attempt + 1}): {e}")
+                print(f"Error downloading (attempt {attempt + 1}): {e}")
                 if attempt == max_retries - 1:
                     return False
                 time.sleep(2)
         return False
 
-    def create_metadata_file(self, metadata, temp_dir):
+    def create_metadata_file(self, metadata: dict, temp_dir: str) -> str:
         """
-        Maakt een metadata tekstbestand aan.
+        Creates a metadata text file.
+
+        Args:
+            metadata (dict): The metadata to write to the file
+            temp_dir (str): The directory where the metadata file should be created
+
+        Returns:
+            str: The path to the created metadata file
+
+        Example:
+            metadata = {
+                "url": "https://example.com/page",
+                "title": "Example Document",
+                "summary": "An example document",
+                "date": "2023-01-01",
+                "woo_themes": ["Example Theme"]
+            }
+            metadata_path = scraper.create_metadata_file(metadata, "/tmp/downloads")
+            print(f"Metadata saved to {metadata_path}")
         """
         metadata_path = os.path.join(temp_dir, "metadata.txt")
         with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(f"URL: {metadata.get('url', 'Onbekend')}\n")
-            f.write(f"Titel: {metadata.get('titel', 'Onbekend')}\n")
-            f.write(
-                f"Samenvatting: {metadata.get('samenvatting', 'Niet beschikbaar')}\n"
-            )
-            f.write(f"Datum: {metadata.get('datum', 'Onbekend')}\n")
-            f.write(f"WOO thema's: {', '.join(metadata.get('woo_themas', []))}\n")
-            f.write(f"Verzameld op: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"URL: {metadata.get('url', 'Unknown')}\n")
+            f.write(f"Title: {metadata.get('title', 'Unknown')}\n")
+            f.write(f"Summary: {metadata.get('summary', 'Not available')}\n")
+            f.write(f"Date: {metadata.get('date', 'Unknown')}\n")
+            f.write(f"WOO themes: {', '.join(metadata.get('woo_themes', []))}\n")
+            f.write(f"Collected on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         return metadata_path
 
-    def scrape_document(self, url, index):
+    def scrape_document(self, url: str, index: int) -> None:
         """
-        Scraped een document URL en slaat alle gevonden bestanden op in een zip bestand.
-        """
-        print(f"\n{'='*80}\nDocument {index} verwerken: {url}\n{'='*80}")
+        Scrapes a document URL and saves all found files in a zip file.
 
-        # Controleer of zip bestand al bestaat
+        Args:
+            url (str): The URL of the document page to scrape
+            index (int): The index number for identifying the zip file
+
+        Returns:
+            None
+
+        Example:
+            scraper.scrape_document("https://example.com/woo/document123", 42)
+            # This will create woo-42.zip if documents are found
+        """
+        print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
+
+        # Check if zip file already exists
         zip_path = os.path.join(self.base_download_dir, f"woo-{index}.zip")
         if os.path.exists(zip_path):
-            print(f"Zip bestand woo-{index}.zip bestaat al")
+            print(f"Zip file woo-{index}.zip already exists")
             return
 
-        # Maak een tijdelijke directory voor de bestanden
+        # Create a temporary directory for the files
         with tempfile.TemporaryDirectory() as temp_dir:
             html_content = self.fetch_html(url)
             if not html_content:
-                print(f"Kon geen content ophalen voor {url}")
+                print(f"Could not retrieve content for {url}")
                 return
 
-            # Genereer en sla metadata op
+            # Generate and save metadata
             metadata = self.generate_metadata(html_content, url)
             metadata_path = self.create_metadata_file(metadata, temp_dir)
 
-            # Zoek alle document links
+            # Find all document links
             doc_links = self.find_documents(html_content, url)
             if not doc_links:
-                print("Geen documenten gevonden")
+                print("No documents found")
                 # Create a minimal zip with just metadata
                 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                     zipf.write(metadata_path, os.path.basename(metadata_path))
-                print(f"Zip bestand met alleen metadata aangemaakt: {zip_path}")
+                print(f"Zip file created with metadata only: {zip_path}")
                 return
 
-            print(f"{len(doc_links)} document(en) gevonden om te downloaden")
+            print(f"{len(doc_links)} document(s) found to download")
 
-            # Download alleen nieuwe bestanden
+            # Download only new files
             downloaded_files = []
             skipped_files = []
             for doc_url, filename in doc_links:
@@ -486,32 +586,36 @@ class Scraper:
                     filename, doc_url
                 )
                 if is_downloaded:
-                    print(f"Bestand {filename} is al gedownload in {existing_zip}")
+                    print(
+                        f"File {filename} has already been downloaded in {existing_zip}"
+                    )
                     skipped_files.append((filename, existing_zip))
                     continue
 
                 save_path = os.path.join(temp_dir, filename)
                 if self.download_document(doc_url, save_path):
                     downloaded_files.append(save_path)
-                    # Update cache met nieuw bestand
+                    # Update cache with new file
                     self.downloaded_files_cache[filename] = zip_path
 
-            # Maak een zip bestand met metadata en eventuele bestanden
+            # Create a zip file with metadata and any files
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                # Voeg metadata toe
+                # Add metadata
                 zipf.write(metadata_path, os.path.basename(metadata_path))
 
-                # Voeg nieuwe bestanden toe
+                # Add new files
                 for file_path in downloaded_files:
                     zipf.write(file_path, os.path.basename(file_path))
 
-            print(f"Zip bestand aangemaakt: woo-{index}.zip")
-            print(f"Aantal nieuwe bestanden: {len(downloaded_files)}")
-            print(f"Aantal overgeslagen bestanden: {len(skipped_files)}")
+            print(f"Zip file created: woo-{index}.zip")
+            print(f"Number of new files: {len(downloaded_files)}")
+            print(f"Number of skipped files: {len(skipped_files)}")
 
     def __del__(self):
         """
-        Cleanup bij afsluiten.
+        Cleanup when closing.
+
+        Ensures the session is properly closed to prevent resource leaks.
         """
         try:
             self.session.close()

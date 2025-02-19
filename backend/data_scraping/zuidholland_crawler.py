@@ -8,18 +8,31 @@ import sys
 
 class Crawler:
     """
-    Deze class is voor het crawlen van webpagina's en het verzamelen van WOO document URLs van Zuid-Holland.
-    De crawler gebruikt requests en BeautifulSoup voor het parsen van HTML.
+    A class for crawling web pages and collecting WOO document URLs from Zuid-Holland.
+    Uses requests and BeautifulSoup for HTML parsing.
+
+    Attributes:
+        base_url (str): The starting URL for crawling
+        max_urls (int): Maximum number of URLs to collect
+        pages_visited (int): Counter for visited pages
+        urls_per_page (dict): Dictionary mapping page numbers to collected URLs
+        seen_document_urls (set): Set of already seen document URLs
+        debug (bool): Whether to show debug information
+        session (requests.Session): Session for HTTP requests
+        headers (dict): HTTP headers for requests
     """
 
-    def __init__(self, base_url, max_urls=10, debug=True):
+    def __init__(self, base_url: str, max_urls: int = 10, debug: bool = True):
         """
-        Initialiseert de Crawler met een basis URL en maximum aantal te verzamelen URLs.
+        Initializes the Crawler with a base URL and maximum number of URLs to collect.
 
-        Parameters:
-            base_url (str): Start URL voor het crawlen
-            max_urls (int): Maximum aantal URLs dat verzameld moet worden
-            debug (bool): Of debug informatie getoond moet worden
+        Args:
+            base_url (str): Starting URL for crawling
+            max_urls (int): Maximum number of URLs to collect
+            debug (bool): Whether to show debug information
+
+        Example:
+            crawler = Crawler("https://www.zuid-holland.nl/path/to/documents", max_urls=100)
         """
         # Fix the base URL - remove fragment and keep query parameters
         # This is crucial for Zuid-Holland's site
@@ -43,23 +56,44 @@ class Crawler:
         self.seen_document_urls = set()
         self.debug = debug
 
-        self.log(f"Initialiseren crawler met max_urls={self.max_urls}")
+        self.log(f"Initializing crawler with max_urls={self.max_urls}")
         self.log(f"Fixed base URL: {self.base_url}")
 
-        # Initialiseer requests session
+        # Initialize requests session
         self.session = requests.Session()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         }
 
-    def log(self, message):
-        """Helper function for consistent logging"""
+    def log(self, message: str) -> None:
+        """
+        Helper function for consistent logging.
+
+        Args:
+            message (str): The message to log
+
+        Returns:
+            None
+
+        Example:
+            self.log("Processing page 1")
+        """
         if self.debug:
             print(f"[DEBUG] {message}")
 
-    def is_woo_document_url(self, url):
+    def is_woo_document_url(self, url: str) -> bool:
         """
-        Controleert of een URL een WOO document pagina is.
+        Checks if a URL is a WOO document page.
+
+        Args:
+            url (str): The URL to check
+
+        Returns:
+            bool: True if the URL is a WOO document page, False otherwise
+
+        Example:
+            if crawler.is_woo_document_url("https://www.zuid-holland.nl/besluiten/besluit/123"):
+                print("This is a WOO document URL")
         """
         if not url or not isinstance(url, str):
             return False
@@ -76,9 +110,19 @@ class Crawler:
             self.log(f"Valid WOO URL found: {url}")
         return result
 
-    def get_next_page_url(self, current_url):
+    def get_next_page_url(self, current_url: str) -> str:
         """
-        Bepaalt de URL van de volgende pagina door het paginanummer te verhogen.
+        Determines the URL of the next page by increasing the page number.
+
+        Args:
+            current_url (str): The URL of the current page
+
+        Returns:
+            str: The URL of the next page
+
+        Example:
+            next_url = crawler.get_next_page_url("https://example.com/page?pager_page=1")
+            # Returns "https://example.com/page?pager_page=2"
         """
         # Parse the URL properly
         parsed_url = urlparse(current_url)
@@ -110,9 +154,21 @@ class Crawler:
         self.log(f"Next page URL: {next_url} (current was page {current_page})")
         return next_url
 
-    def extract_page_links(self, html_content, page_url):
+    def extract_page_links(self, html_content: str, page_url: str) -> list:
         """
-        Extraheert document links uit HTML content.
+        Extracts document links from HTML content.
+
+        Args:
+            html_content (str): The HTML content to parse
+            page_url (str): The URL of the page (for resolving relative URLs)
+
+        Returns:
+            list: A list of absolute URLs to WOO documents
+
+        Example:
+            html = requests.get("https://www.zuid-holland.nl/page").text
+            links = crawler.extract_page_links(html, "https://www.zuid-holland.nl/page")
+            print(f"Found {len(links)} document links")
         """
         soup = BeautifulSoup(html_content, "html.parser")
         links = []
@@ -134,9 +190,20 @@ class Crawler:
         )
         return links
 
-    def test_page_content(self, html_content):
+    def test_page_content(self, html_content: str) -> bool:
         """
-        Tests page content to verify if we're getting the expected data structure
+        Tests page content to verify if we're getting the expected data structure.
+
+        Args:
+            html_content (str): The HTML content to test
+
+        Returns:
+            bool: True if the page contains expected structure, False otherwise
+
+        Example:
+            html = requests.get("https://www.zuid-holland.nl/page").text
+            if crawler.test_page_content(html):
+                print("Page structure is as expected")
         """
         soup = BeautifulSoup(html_content, "html.parser")
 
@@ -160,9 +227,19 @@ class Crawler:
 
         return len(besluit_links) > 0
 
-    def get_links(self):
+    def get_links(self) -> list:
         """
-        Hoofdfunctie voor het verzamelen van document links door pagina's te crawlen.
+        Main function for collecting document links by crawling pages.
+
+        Returns:
+            list: A list of collected document URLs
+
+        Raises:
+            Exception: If an error occurs during crawling
+
+        Example:
+            urls = crawler.get_links()
+            print(f"Collected {len(urls)} document URLs")
         """
         self.log(f"Starting URL collection with limit: {self.max_urls}")
         all_links = []
@@ -199,7 +276,7 @@ class Crawler:
                 # Extract links from this page
                 current_links = self.extract_page_links(html_content, current_url)
                 print(
-                    f"Gevonden {len(current_links)} document links op pagina {current_page}"
+                    f"Found {len(current_links)} document links on page {current_page}"
                 )
 
                 if not current_links:
@@ -274,28 +351,40 @@ class Crawler:
         finally:
             self.session.close()
 
-    def print_results(self, urls):
+    def print_results(self, urls: list) -> None:
         """
-        Print een overzicht van alle verzamelde URLs per pagina.
+        Prints an overview of all collected URLs per page.
+
+        Args:
+            urls (list): The list of collected URLs
+
+        Returns:
+            None
+
+        Example:
+            urls = crawler.get_links()
+            crawler.print_results(urls)
         """
         if not urls:
-            print("Geen URLs gevonden.")
+            print("No URLs found.")
             return
 
-        pages_text = "pagina" if self.pages_visited == 1 else "pagina's"
+        pages_text = "page" if self.pages_visited == 1 else "pages"
         print(
-            f"\n{self.pages_visited} {pages_text} bezocht en {len(urls)} URLs geëxtraheerd:"
+            f"\n{self.pages_visited} {pages_text} visited and {len(urls)} URLs extracted:"
         )
 
         for page_num in sorted(self.urls_per_page.keys()):
             page_urls = self.urls_per_page.get(page_num, [])
-            print(f"\nPagina {page_num} ({len(page_urls)} URLs):")
+            print(f"\nPage {page_num} ({len(page_urls)} URLs):")
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
 
     def __del__(self):
         """
-        Destructor om ervoor te zorgen dat de session wordt afgesloten.
+        Destructor to ensure the session is closed.
+
+        Ensures proper cleanup of resources when the object is destroyed.
         """
         try:
             self.session.close()
@@ -312,7 +401,7 @@ if __name__ == "__main__":
         except ValueError:
             print(f"Invalid max_urls value: {sys.argv[1]}, using default of 10")
 
-    # Configuratie voor het crawlen - CORRECTED URL FORMAT
+    # Configuration for crawling - CORRECTED URL FORMAT
     base_url = "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/?facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to="
 
     try:
@@ -321,6 +410,6 @@ if __name__ == "__main__":
         crawler.print_results(urls)
         print(f"\nFinal count: {len(urls)} URLs collected")
     except KeyboardInterrupt:
-        print("\nCrawlen onderbroken door gebruiker")
+        print("\nCrawling interrupted by user")
     except Exception as e:
-        print(f"\nEr is een fout opgetreden: {e}")
+        print(f"\nAn error occurred: {e}")
