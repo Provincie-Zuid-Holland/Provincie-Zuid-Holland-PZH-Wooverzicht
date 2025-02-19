@@ -1,38 +1,62 @@
-"""
+'''
 Streamlit Frontend for WOO Document Search and QA System
 
 This application provides a user interface for:
 1. Searching through WOO documents
 2. Asking questions about the documents
 3. Viewing document sources and metadata
-"""
+'''
 
 import streamlit as st
 from datetime import datetime
 from conversational_rag import ConversationalRAG
+from typing import Optional, Union  # Add this import for type hints
 
 # Initialize the RAG system
 @st.cache_resource
-def get_rag_system():
+def get_rag_system() -> ConversationalRAG:
+    """
+    Initializes and caches an instance of the ConversationalRAG system.
+
+    Returns:
+        ConversationalRAG: An instance of the document search and QA system.
+    """
     return ConversationalRAG()
 
-def display_chat_message(role: str, content: str, container=None):
-    """Display a chat message with the appropriate styling"""
+def display_chat_message(role: str, content: str, container: Optional[st.container] = None) -> Optional[Union[st.empty, None]]:
+    """
+    Displays a chat message with appropriate styling.
+
+    Args:
+        role (str): The role of the message sender ("user" or "assistant").
+        content (str): The content of the message.
+        container (st.container, optional): The Streamlit container to display the message in.
+
+    Returns:
+        Optional[Union[st.empty, None]]: A Streamlit placeholder for the assistant message, if applicable.
+    """
     if container is None:
         container = st
     
     if role == "user":
         container.write(f'🧑‍💼 **You:** {content}')
+        return None
     elif role == "assistant":
-        # For streaming responses, we'll use empty placeholder
         placeholder = container.empty()
         placeholder.markdown(f'🤖 **Assistant:** {content}')
         return placeholder
     else:
         container.write(content)
+        return None
 
-def display_sources(sources, container=None):
-    """Display source information in an organized way"""
+def display_sources(sources: list, container: Optional[st.container] = None) -> None:
+    """
+    Displays source information in an organized way.
+
+    Args:
+        sources (list): A list of source dictionaries containing metadata.
+        container (st.container, optional): The Streamlit container to display sources in.
+    """
     if container is None:
         container = st
         
@@ -42,11 +66,12 @@ def display_sources(sources, container=None):
             **Source {idx}:**
             - File: `{source['file_name']}`
             - Date: {source['date']}
-            - Theme: {source['theme']}"""
-            # - Relevance Score: {source['relevance_score']:.2f}
-            )
+            - Theme: {source['theme']}""")
 
-def main():
+def main() -> None:
+    """
+    Main function to run the Streamlit application.
+    """
     # Page configuration
     st.set_page_config(
         page_title="W👀verzicht",
