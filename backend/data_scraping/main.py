@@ -10,18 +10,18 @@ sys.path.insert(0, project_root)
 
 def main():
     """
-    Main program that integrates Crawler and Scraper for either Overijssel or Gelderland.
+    Main program that integrates Crawler and Scraper for either Overijssel, Gelderland, or Zuid-Holland.
     - Uses Crawler to collect URLs
     - Uses Scraper to download PDFs and organize them in folders
     """
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="Scrape WOO documents from Overijssel or Gelderland."
+        description="Scrape WOO documents from various provinces."
     )
     parser.add_argument(
         "--source",
         "-s",
-        choices=["overijssel", "gelderland"],
+        choices=["overijssel", "gelderland", "zuid_holland"],
         default="overijssel",
         help="Data source to scrape (default: overijssel)",
     )
@@ -34,23 +34,30 @@ def main():
     )
     args = parser.parse_args()
 
-    # Import the appropriate modules based on sources
+    # Import the appropriate modules based on source
     if args.source == "overijssel":
         from backend.data_scraping.overijssel_crawler import Crawler
         from backend.data_scraping.overijssel_scraper import Scraper
 
         base_url = "https://woo.dataportaaloverijssel.nl/list"
-    else:  # gelderland
+    elif args.source == "gelderland":
         from backend.data_scraping.gelderland_crawler import Crawler
         from backend.data_scraping.gelderland_scraper import Scraper
 
         base_url = "https://open.gelderland.nl/woo-documenten"
+    else:  # zuid_holland
+        from backend.data_scraping.zuidholland_crawler import Crawler
+        from backend.data_scraping.zuidholland_scraper import Scraper
+
+        base_url = "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/?facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to="
 
     # Configuration
     max_urls = args.max_urls
 
     try:
-        print(f"Starting {args.source.capitalize()} crawler to collect URLs...")
+        print(
+            f"Starting {args.source.replace('_', '-').capitalize()} crawler to collect URLs..."
+        )
         crawler = Crawler(base_url, max_urls)
         urls = crawler.get_links()
 
