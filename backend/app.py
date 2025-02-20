@@ -10,6 +10,7 @@ This application provides a user interface for:
 import streamlit as st
 from datetime import datetime
 from conversational_rag import ConversationalRAG
+from dotenv import load_dotenv
 
 # Initialize the RAG system
 @st.cache_resource
@@ -47,6 +48,7 @@ def display_sources(sources, container=None):
             )
 
 def main():
+    load_dotenv()
     # Page configuration
     st.set_page_config(
         page_title="W👀verzicht",
