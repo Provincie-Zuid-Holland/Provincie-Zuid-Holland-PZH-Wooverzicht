@@ -61,9 +61,9 @@ class ChunkData:
     Stores a chunk of text and its associated metadata.
     
     Attributes:
-        chunk_id: Unique identifier for the chunk
-        content: The text content of the chunk
-        metadata: Dictionary containing all metadata associated with the chunk
+        chunk_id (str): Unique identifier for the chunk.
+        content (str): The text content of the chunk.
+        metadata (Dict[str, Any]): Dictionary containing all metadata associated with the chunk.
     """
     chunk_id: str
     content: str
@@ -75,13 +75,24 @@ class EmbeddedChunk(ChunkData):
     Extends ChunkData to include the embedding vector.
     
     Attributes:
-        embedding: Vector representation of the chunk content
+        embedding (List[float]): Vector representation of the chunk content.
     """
     embedding: List[float]
 
 class DocumentProcessor:
     """
     Processes document content from JSON files into searchable vector database entries.
+
+    Attributes:
+        json_folder (Path): Path to folder containing JSON files.
+        client (OpenAI): OpenAI client for generating embeddings.
+        chroma_client (chromadb.PersistentClient): ChromaDB client for vector storage.
+
+    Functions:
+        flatten_json: Converts nested JSON structures into flat dictionary.
+        load_and_chunk_json_data: Processes JSON files into chunks while preserving metadata.
+        embed_chunks: Generates embeddings for chunks using OpenAI's API.
+        load_embedded_chunks_to_chromadb: Stores embedded chunks in ChromaDB for retrieval.
     """
     
     def __init__(self, json_folder: str, openai_api_key: Optional[str] = None):
@@ -89,11 +100,11 @@ class DocumentProcessor:
         Initializes the document processor.
         
         Args:
-            json_folder: Path to folder containing JSON files
-            openai_api_key: Optional API key (falls back to environment variable)
-        
+            json_folder (str): Path to folder containing JSON files.
+            openai_api_key (Optional[str]): Optional API key (falls back to environment variable).
+
         Raises:
-            ValueError: If no OpenAI API key is available
+            ValueError: If no OpenAI API key is available.
         """
         self.json_folder = Path(json_folder)
         self.client = OpenAI(api_key=openai_api_key or os.getenv('OPENAI_API_KEY'))
@@ -116,11 +127,11 @@ class DocumentProcessor:
         Converts nested JSON structures into flat dictionary with dot notation keys.
         
         Args:
-            prefix: Current key prefix for nested structures
-            obj: Dictionary to flatten
+            prefix (str): Current key prefix for nested structures.
+            obj (Dict): Dictionary to flatten.
             
         Returns:
-            Dictionary with flattened structure using dot notation
+            Dict[str, Any]: Dictionary with flattened structure using dot notation.
             
         Example:
             Input: {"a": {"b": 1}}
@@ -146,14 +157,14 @@ class DocumentProcessor:
         Processes JSON files into chunks while preserving all metadata.
         
         Args:
-            chunk_size: Maximum characters per chunk
-            chunk_overlap: Number of overlapping characters between chunks
+            chunk_size (int): Maximum characters per chunk.
+            chunk_overlap (int): Number of overlapping characters between chunks.
             
         Returns:
-            List of ChunkData objects containing processed chunks
+            List[ChunkData]: List of ChunkData objects containing processed chunks.
             
         Raises:
-            FileNotFoundError: If JSON folder doesn't exist
+            FileNotFoundError: If JSON folder doesn't exist.
         """
         if not self.json_folder.exists():
             raise FileNotFoundError(f"JSON folder not found: {self.json_folder}")
@@ -219,10 +230,10 @@ class DocumentProcessor:
         Generates embeddings for chunks using OpenAI's API in parallel.
         
         Args:
-            chunks: List of chunks to embed
+            chunks (List[ChunkData]): List of chunks to embed.
             
         Returns:
-            List of chunks with their embedding vectors
+            List[EmbeddedChunk]: List of chunks with their embedding vectors.
         """
         embedded_chunks = []
         
@@ -263,8 +274,8 @@ class DocumentProcessor:
         Stores embedded chunks in ChromaDB for later retrieval.
         
         Args:
-            embedded_chunks: List of chunks with embeddings to store
-            collection_name: Name of the ChromaDB collection to use
+            embedded_chunks (List[EmbeddedChunk]): List of chunks with embeddings to store.
+            collection_name (str): Name of the ChromaDB collection to use.
         """
         # Get or create the collection
         collection = self.chroma_client.get_or_create_collection(name=collection_name)
@@ -285,7 +296,17 @@ class DocumentProcessor:
                 continue
 
 def main():
-    """Main execution function that orchestrates the document processing pipeline."""
+    """
+    Main execution function that orchestrates the document processing pipeline.
+
+    This function coordinates the steps of:
+    1. Loading and chunking JSON documents
+    2. Generating embeddings
+    3. Storing embedded chunks in ChromaDB
+
+    Raises:
+        Any exceptions that occur during the processing pipeline.
+    """
     
     # Load environment variables from .env file
     load_dotenv()

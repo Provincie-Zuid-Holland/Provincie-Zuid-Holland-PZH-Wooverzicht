@@ -18,26 +18,36 @@ The workflow:
 4. Save combined data as numbered JSON files
 """
 
-def extract_zip_files(input_folder, output_folder):
+
+def extract_zip_files(input_folder: str, output_folder: str) -> None:
     """
     Extract ZIP files containing PDFs/DOCXs and a metadata.txt file into a structured folder.
 
     Args:
         input_folder (str): Folder containing ZIP files.
         output_folder (str): Destination folder for extracted files.
+
+    Raises:
+        OSError: If there are issues creating the output directory or extracting files.
+
+    Example:
+        extract_zip_files('/path/to/downloads', '/path/to/extracted')
     """
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
     for zip_file in os.listdir(input_folder):
         if zip_file.endswith(".zip"):
-            with zipfile.ZipFile(os.path.join(input_folder, zip_file), "r") as zf:
-                # Extract to a folder named after the ZIP file (minus extension)
-                extract_path = os.path.join(output_folder, os.path.splitext(zip_file)[0])
-                zf.extractall(extract_path)
+            try:
+                with zipfile.ZipFile(os.path.join(input_folder, zip_file), "r") as zf:
+                    # Extract to a folder named after the ZIP file (minus extension)
+                    extract_path = os.path.join(output_folder, os.path.splitext(zip_file)[0])
+                    zf.extractall(extract_path)
+            except Exception as e:
+                print(f"Error extracting {zip_file}: {e}")
 
 
-def extract_text_from_pdf(pdf_path):
+def extract_text_from_pdf(pdf_path: str) -> str:
     """
     Extract text content from a PDF file and clean it thoroughly for RAG applications.
 
@@ -46,6 +56,13 @@ def extract_text_from_pdf(pdf_path):
 
     Returns:
         str: Cleaned extracted text content with proper sentence structure.
+
+    Raises:
+        FileNotFoundError: If the PDF file does not exist.
+        Exception: For other PDF reading issues.
+
+    Example:
+        text = extract_text_from_pdf('/path/to/document.pdf')
     """
     reader = PdfReader(pdf_path)
     
@@ -55,7 +72,7 @@ def extract_text_from_pdf(pdf_path):
     return clean_text(extracted_text)
 
 
-def extract_text_from_docx(docx_path):
+def extract_text_from_docx(docx_path: str) -> str:
     """
     Extract text content from a DOCX file and clean it for RAG applications.
     
@@ -64,6 +81,13 @@ def extract_text_from_docx(docx_path):
     
     Returns:
         str: Cleaned extracted text content with proper sentence structure.
+
+    Raises:
+        FileNotFoundError: If the DOCX file does not exist.
+        Exception: For other DOCX reading issues.
+
+    Example:
+        text = extract_text_from_docx('/path/to/document.docx')
     """
     doc = Document(docx_path)
     
@@ -88,7 +112,7 @@ def extract_text_from_docx(docx_path):
     return clean_text(extracted_text)
 
 
-def clean_text(text):
+def clean_text(text: str) -> str:
     """
     Clean and standardize extracted text for better RAG processing.
     
@@ -97,6 +121,9 @@ def clean_text(text):
         
     Returns:
         str: Cleaned and standardized text.
+
+    Example:
+        cleaned_text = clean_text('Original messy text')
     """
     # 1. Preserve structured data format with colon (e.g., "Date: 02.12.2024")
     preserved_lines = []
@@ -128,7 +155,7 @@ def clean_text(text):
     return text.strip()
 
 
-def read_metadata_file(metadata_path):
+def read_metadata_file(metadata_path: str) -> dict:
     """
     Read and parse the metadata from the metadata.txt file.
 
@@ -137,6 +164,13 @@ def read_metadata_file(metadata_path):
 
     Returns:
         dict: Dictionary of metadata extracted from the file.
+
+    Raises:
+        FileNotFoundError: If the metadata file does not exist.
+        IOError: If there are issues reading the file.
+
+    Example:
+        metadata = read_metadata_file('/path/to/metadata.txt')
     """
     metadata = {}
     with open(metadata_path, "r", encoding="utf-8") as f:
@@ -150,7 +184,7 @@ def read_metadata_file(metadata_path):
     return metadata
 
 
-def combine_document_and_metadata(folder_path):
+def combine_document_and_metadata(folder_path: str) -> dict:
     """
     Combine document content (PDF or DOCX) and metadata into a single JSON-like structure.
     
@@ -159,6 +193,12 @@ def combine_document_and_metadata(folder_path):
     
     Returns:
         dict: Dictionary containing combined data for the folder.
+
+    Raises:
+        ValueError: If no PDF/DOCX or metadata file is found.
+
+    Example:
+        combined_data = combine_document_and_metadata('/path/to/extracted/folder')
     """
     # Look for PDF and DOCX files
     pdf_files = [f for f in os.listdir(folder_path) if f.endswith(".pdf")]
@@ -193,7 +233,7 @@ def combine_document_and_metadata(folder_path):
     return combined_data
 
 
-def save_combined_data(output_folder, combined_data, file_index):
+def save_combined_data(output_folder: str, combined_data: dict, file_index: int) -> None:
     """
     Save the combined data (document content + metadata) as a JSON file.
 
@@ -201,6 +241,12 @@ def save_combined_data(output_folder, combined_data, file_index):
         output_folder (str): Path to the folder where JSON file will be saved.
         combined_data (dict): Combined data to be saved.
         file_index (int): Unique number for the JSON file.
+
+    Raises:
+        IOError: If there are issues creating the directory or saving the file.
+
+    Example:
+        save_combined_data('/path/to/output', combined_data_dict, 1)
     """
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -211,9 +257,15 @@ def save_combined_data(output_folder, combined_data, file_index):
     print(f"Saved combined data to {output_path}")
 
 
-def main():
+def main() -> None:
     """
     Main function to process ZIP files, extract documents and metadata, and save combined data.
+
+    Raises:
+        Exception: For any unexpected errors during processing.
+
+    Example:
+        Run this script to process ZIP files in the downloads folder.
     """
     # Count total ZIP files
     total_files = len([f for f in os.listdir(DOWNLOADS_FOLDER) if f.endswith('.zip')])
