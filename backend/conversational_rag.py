@@ -44,6 +44,8 @@ class ConversationalRAG:
         self.model = model
         self.temperature = temperature
         self.max_context_chunks = max_context_chunks
+        self.chat_history = []
+        self.max_chat_history = 5
 
     def _format_context(self, chunks: List[SearchResult]) -> str:
        """Format retrieved chunks with metadata for context"""
@@ -102,58 +104,72 @@ class ConversationalRAG:
 
     def generate_response_stream(self, query: str) -> Generator[StreamingChunk, None, None]:
         """
-        Generate a streaming response using RAG with source citations.
-        
+        Generate a streaming response using RAG with source citations, incorporating chat history.
+
         Args:
-            query: User's question
-            
+            query: User's question.
+            chat_history: List of previous interactions.
+
         Yields:
-            StreamingChunk: Either a string chunk of the response or a dict containing sources
+            StreamingChunk: Either a string chunk of the response or a dict containing sources.
         """
         start_time = time.time()
-        
+
         try:
             # Retrieve relevant chunks
             context_chunks = self.query_engine.search(
                 query=query,
                 limit=self.max_context_chunks
             )
-            
+
             if not context_chunks:
                 yield "Ik kon geen relevante documenten vinden om je vraag te beantwoorden."
                 yield {"sources": []}
                 return
-            
+
             # Format context and create prompts
             context = self._format_context(context_chunks)
             system_prompt = self._create_system_prompt()
             user_prompt = self._format_user_prompt(query, context)
-            
+
+            # Build chat history (limiting to last few messages to prevent overflow)
+            self.chat_history = self.chat_history[-self.max_chat_history:]  # Keep recent messages
+
+            messages = [{"role": "system", "content": system_prompt}]
+            for entry in self.chat_history:
+                messages.append({"role": entry["role"], "content": entry["content"]})
+            messages.append({"role": "user", "content": user_prompt})
+            print(messages)
+
             # Generate streaming response using OpenAI
             stream = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+                messages=messages,
                 temperature=self.temperature,
                 max_tokens=1000,
                 stream=True  # Enable streaming
             )
-            
+
             # Stream the response chunks
+            response_text = ""
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
                     yield chunk.choices[0].delta.content
-            
+                    response_text += chunk.choices[0].delta.content
+
             # After text is complete, yield sources
             sources = self._format_sources(context_chunks)
             yield {"sources": sources}
-            
+
+            # Update chat history with latest interaction
+            self.chat_history.append({"role": "user", "content": query})
+            self.chat_history.append({"role": "system", "content": response_text})
+
         except Exception as e:
             logger.error(f"Error generating streaming response: {e}")
             yield f"Er is een fout opgetreden bij het verwerken van je vraag: {str(e)}"
             yield {"sources": []}
+
 
     def generate_response(self, query: str) -> RAGResponse:
         """
