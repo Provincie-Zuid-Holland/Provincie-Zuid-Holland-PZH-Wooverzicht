@@ -139,7 +139,6 @@ class ConversationalRAG:
             for entry in self.chat_history:
                 messages.append({"role": entry["role"], "content": entry["content"]})
             messages.append({"role": "user", "content": user_prompt})
-            print(messages)
 
             # Generate streaming response using OpenAI
             stream = self.client.chat.completions.create(
