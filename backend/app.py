@@ -173,7 +173,6 @@ def main() -> None:
     if st.button("🗑️ Nieuwe Chat", help="Wis de huidige chat en begin opnieuw"):
         clear_chat()
         st.rerun()
-        # st.experimental_rerun()
 
 
 if __name__ == "__main__":
