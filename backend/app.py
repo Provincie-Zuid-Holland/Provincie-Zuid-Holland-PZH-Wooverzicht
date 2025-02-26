@@ -55,13 +55,6 @@ def display_chat_message(
         return None
 
 
-def clear_chat():
-    """
-    Clears the chat history from the session state.
-    """
-    st.session_state.messages = []
-
-
 def display_sources(sources: list, container: Optional[st.container] = None) -> None:
     """
     Displays source information in an organized way.
@@ -84,6 +77,13 @@ def display_sources(sources: list, container: Optional[st.container] = None) -> 
             )
 
 
+def clear_chat_history() -> None:
+    """
+    Clears the chat history from the session state.
+    """
+    st.session_state.messages = []
+
+
 def main() -> None:
     """
     Main function to run the Streamlit application.
@@ -91,6 +91,45 @@ def main() -> None:
     load_dotenv()
     # Page configuration
     st.set_page_config(page_title="W👀verzicht", page_icon="📑", layout="wide")
+
+    # Initialize session state for chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Use CSS to fix input at bottom of page
+    st.markdown(
+        """
+    <style>
+    .stApp {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    
+    .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .block-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    footer {
+        position: sticky;
+        bottom: 0;
+        background-color: white;
+        padding: 10px 0;
+        border-top: 1px solid #e6e6e6;
+        z-index: 999;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Header
     st.title("🔍 W👀verzicht")
@@ -101,11 +140,7 @@ def main() -> None:
     """
     )
 
-    # Initialize session state for chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Create a container for chat messages
+    # Main chat display area (will expand to fill available space)
     chat_container = st.container()
 
     # Display chat history
@@ -115,12 +150,11 @@ def main() -> None:
             if "sources" in message:
                 display_sources(message["sources"])
 
-    # Chat input
-    user_input = st.chat_input(
-        'Stel je vraag hier (Voorbeeld: "Ik wil informatie over het windbeleid in provincie Overijssel")...'
-    )
+    # Process any existing user input before showing the input bar
+    if "user_input" in st.session_state and st.session_state.user_input:
+        user_input = st.session_state.user_input
+        st.session_state.user_input = None  # Clear the stored input
 
-    if user_input:
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": user_input})
 
@@ -164,15 +198,39 @@ def main() -> None:
                 }
             )
 
-    # Footer
+        # Rerun to show the new messages and reset the input
+        st.rerun()
+
+    # # Footer with input bar (fixed at bottom)
+    # st.markdown("<footer>", unsafe_allow_html=True)
+
+    # Create columns for input and button
+    col1, col2 = st.columns([5, 1])
+
+    # Chat input in left column
+    with col1:
+        user_input = st.chat_input(
+            'Stel je vraag hier (Voorbeeld: "Ik wil informatie over het windbeleid in provincie Overijssel")...'
+        )
+        if user_input:
+            # Store the input in session state to process it on the next rerun
+            st.session_state.user_input = user_input
+            st.rerun()
+
+    # New chat button in right column
+    with col2:
+        if st.button("🔄 Nieuwe Chat", key="new_chat", help="Begin een nieuwe chat"):
+            clear_chat_history()
+            st.rerun()
+
+    # st.markdown("</footer>", unsafe_allow_html=True)
+
+    # App footer content
     st.markdown("---")
     st.markdown(
         "Deze applicatie is ontwikkeld om WOO-verzoeken efficiënter te verwerken. "
         "Voor vragen of ondersteuning, neem contact op met de beheerder."
     )
-    if st.button("🗑️ Nieuwe Chat", help="Wis de huidige chat en begin opnieuw"):
-        clear_chat()
-        st.rerun()
 
 
 if __name__ == "__main__":
