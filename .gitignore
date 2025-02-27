@@ -63,3 +63,4 @@ backend/extracted/
 backend/json/*
 backend/jsontest/
 backend/test/
+backend/all_pdfs

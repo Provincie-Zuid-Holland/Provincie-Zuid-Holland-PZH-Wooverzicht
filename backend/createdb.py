@@ -201,6 +201,10 @@ class DocumentProcessor:
                         f"Available fields: {list(data.keys())}"
                     )
                     continue
+
+                content = data["pdf_content"]
+                metadata = data.get("metadata", {})
+                metadata["pdf_file"] = data.get("pdf_file", "Unknown")
                 
                 # Split content into chunks
                 chunks = text_splitter.split_text(content)

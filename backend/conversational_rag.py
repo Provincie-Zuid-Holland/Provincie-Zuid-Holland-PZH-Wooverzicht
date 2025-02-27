@@ -2,6 +2,7 @@ import logging
 from typing import List, Dict, Any, Optional, Generator, Union
 from dataclasses import dataclass
 import time
+import os
 
 from openai import OpenAI
 from chromadb_query import ChromadbQuery, SearchResult
@@ -83,17 +84,18 @@ class ConversationalRAG:
         context_parts = []
 
         for idx, chunk in enumerate(chunks, 1):
-            file_name = chunk.metadata.get("file_name", "Unknown document")
-            date = chunk.metadata.get("Creatie jaar", "Unknown date")
+            file_source = chunk.metadata.get("pdf_file", "Unkown source")
+            file_name = chunk.metadata.get("metadata.Titel", "Unknown document")
+            date = chunk.metadata.get("metadata.Creatie jaar", "Unknown date")
             theme = chunk.metadata.get("metadata.WOO thema's", "Unknown theme")
             context_parts.append(
                 f"Document {idx}:\n"
-                f"Source: {file_name}\n"
+                f"Bestandsnaam: {file_name}\n"
+                f"Source: {file_source}\n"
                 f"Date: {date}\n"
                 f"Theme: {theme}\n"
                 f"Content: {chunk.content}\n"
             )
-
         return "\n".join(context_parts)
 
     def _create_system_prompt(self) -> str:
@@ -106,7 +108,8 @@ class ConversationalRAG:
         return (
             "Je bent een behulpzame assistent die vragen beantwoordt over WOO (Wet Open Overheid) documenten. "
             "Gebruik de gegeven documenten om de vraag te beantwoorden. "
-            "- Citeer altijd je bronnen met [Bron: bestandsnaam] notatie. "
+            "- Citeer altijd je bronnen met [Bron: [bestandsnaam](download_link)] notatie. "
+            "- Vervang 'bestandsnaam' door de daadwerkelijke naam van het bestand en 'download_link' door de juiste URL. "
             "- Als je niet zeker bent of als de informatie niet in de documenten staat, geef dit dan aan. "
             "- Vat de informatie samen in een duidelijk, professioneel Nederlands antwoord. "
             "- Focus op feitelijke informatie uit de documenten. "
@@ -147,10 +150,14 @@ class ConversationalRAG:
         Returns:
             List[Dict[str, Any]]: List of formatted sources.
         """
+        local_folder = "all_pdfs"
         return [
             {
-                "file_name": chunk.metadata.get("file_name", "Unknown"),
-                "date": chunk.metadata.get("Creatie jaar", "Unknown"),
+                "file_name": chunk.metadata.get("metadata.Titel", "Unknown"),
+                "file_source": chunk.metadata.get("pdf_file", "Unknown"),
+                "pdf_file": f"[{chunk.metadata.get('pdf_file', 'Unknown PDF file')}]"
+                f"(file://{os.path.abspath(local_folder)}/{chunk.metadata.get('pdf_file', 'Unknown PDF file')})",
+                "date": chunk.metadata.get("metadata.Creatie jaar", "Unknown"),
                 "theme": chunk.metadata.get("metadata.WOO thema's", "Unknown"),
                 "relevance_score": chunk.score,
             }
@@ -173,7 +180,6 @@ class ConversationalRAG:
         start_time = time.time()
 
         try:
-            # Retrieve relevant chunks
             context_chunks = self.query_engine.search(
                 query=query, limit=self.max_context_chunks
             )
@@ -183,7 +189,6 @@ class ConversationalRAG:
                 yield {"sources": []}
                 return
 
-            # Format context and create prompts
             context = self._format_context(context_chunks)
             system_prompt = self._create_system_prompt()
             user_prompt = self._format_user_prompt(query, context)
