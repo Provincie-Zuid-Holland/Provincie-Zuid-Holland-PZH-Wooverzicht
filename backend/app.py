@@ -81,6 +81,7 @@ def clear_chat_history() -> None:
     """
     Clears the chat history from the session state.
     """
+    get_rag_system.clear()  # Clear cache
     st.session_state.messages = []
 
 

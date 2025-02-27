@@ -8,10 +8,10 @@ from chromadb_query import ChromadbQuery, SearchResult
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class RAGResponse:
@@ -25,13 +25,16 @@ class RAGResponse:
         context_used (Optional[List[str]]): List of context chunks used.
         processing_time (Optional[float]): Time taken to generate the response.
     """
+
     answer: str
     sources: List[Dict[str, Any]]
     error: Optional[str] = None
     context_used: Optional[List[str]] = None
     processing_time: Optional[float] = None
 
+
 StreamingChunk = Union[str, Dict[str, Any]]
+
 
 class ConversationalRAG:
     """
@@ -45,7 +48,12 @@ class ConversationalRAG:
         max_context_chunks (int): Maximum number of context chunks to use.
     """
 
-    def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.0, max_context_chunks: int = 10):
+    def __init__(
+        self,
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.0,
+        max_context_chunks: int = 10,
+    ):
         """
         Initialize the conversational RAG system.
 
@@ -60,7 +68,7 @@ class ConversationalRAG:
         self.temperature = temperature
         self.max_context_chunks = max_context_chunks
         self.chat_history = []
-        self.max_chat_history = 5
+        self.max_chat_history = 8  # Recommend an even number because each answer consists of 2 items in a list. (Question and response)
 
     def _format_context(self, chunks: List[SearchResult]) -> str:
         """
@@ -73,7 +81,7 @@ class ConversationalRAG:
             str: Formatted context string.
         """
         context_parts = []
-        
+
         for idx, chunk in enumerate(chunks, 1):
             file_name = chunk.metadata.get("file_name", "Unknown document")
             date = chunk.metadata.get("Creatie jaar", "Unknown date")
@@ -85,7 +93,7 @@ class ConversationalRAG:
                 f"Theme: {theme}\n"
                 f"Content: {chunk.content}\n"
             )
-        
+
         return "\n".join(context_parts)
 
     def _create_system_prompt(self) -> str:
@@ -127,7 +135,9 @@ class ConversationalRAG:
             f"Antwoord: "
         )
 
-    def _format_sources(self, context_chunks: List[SearchResult]) -> List[Dict[str, Any]]:
+    def _format_sources(
+        self, context_chunks: List[SearchResult]
+    ) -> List[Dict[str, Any]]:
         """
         Format source information from context chunks.
 
@@ -137,14 +147,19 @@ class ConversationalRAG:
         Returns:
             List[Dict[str, Any]]: List of formatted sources.
         """
-        return [{
-            "file_name": chunk.metadata.get("file_name", "Unknown"),
-            "date": chunk.metadata.get("Creatie jaar", "Unknown"),
-            "theme": chunk.metadata.get("metadata.WOO thema's", "Unknown"),
-            "relevance_score": chunk.score
-        } for chunk in context_chunks]
+        return [
+            {
+                "file_name": chunk.metadata.get("file_name", "Unknown"),
+                "date": chunk.metadata.get("Creatie jaar", "Unknown"),
+                "theme": chunk.metadata.get("metadata.WOO thema's", "Unknown"),
+                "relevance_score": chunk.score,
+            }
+            for chunk in context_chunks
+        ]
 
-    def generate_response_stream(self, query: str) -> Generator[StreamingChunk, None, None]:
+    def generate_response_stream(
+        self, query: str
+    ) -> Generator[StreamingChunk, None, None]:
         """
         Generate a streaming response using RAG with source citations, incorporating chat history.
 
@@ -160,10 +175,9 @@ class ConversationalRAG:
         try:
             # Retrieve relevant chunks
             context_chunks = self.query_engine.search(
-                query=query,
-                limit=self.max_context_chunks
+                query=query, limit=self.max_context_chunks
             )
-            
+
             if not context_chunks:
                 yield "Ik kon geen relevante documenten vinden om je vraag te beantwoorden."
                 yield {"sources": []}
@@ -175,7 +189,10 @@ class ConversationalRAG:
             user_prompt = self._format_user_prompt(query, context)
 
             # Build chat history (limiting to last few messages to prevent overflow)
-            self.chat_history = self.chat_history[-self.max_chat_history:]  # Keep recent messages
+            self.chat_history = self.chat_history[
+                -self.max_chat_history :
+            ]  # Keep recent messages
+            print("Lengte chat history:", len(self.chat_history))
 
             messages = [{"role": "system", "content": system_prompt}]
             for entry in self.chat_history:
@@ -188,7 +205,7 @@ class ConversationalRAG:
                 messages=messages,
                 temperature=self.temperature,
                 max_tokens=1000,
-                stream=True
+                stream=True,
             )
 
             # Stream the response chunks
@@ -211,7 +228,6 @@ class ConversationalRAG:
             yield f"Er is een fout opgetreden bij het verwerken van je vraag: {str(e)}"
             yield {"sources": []}
 
-
     def generate_response(self, query: str) -> RAGResponse:
         """
         Generate a complete response using RAG with source citations.
@@ -225,28 +241,26 @@ class ConversationalRAG:
         start_time = time.time()
         full_response = ""
         sources = []
-        
+
         try:
             for chunk in self.generate_response_stream(query):
                 if isinstance(chunk, str):
                     full_response += chunk
-                elif isinstance(chunk, dict) and 'sources' in chunk:
-                    sources = chunk['sources']
-            
+                elif isinstance(chunk, dict) and "sources" in chunk:
+                    sources = chunk["sources"]
+
             processing_time = time.time() - start_time
-            
+
             return RAGResponse(
-                answer=full_response,
-                sources=sources,
-                processing_time=processing_time
+                answer=full_response, sources=sources, processing_time=processing_time
             )
-            
+
         except Exception as e:
             logger.error(f"Error generating response: {e}")
             return RAGResponse(
                 answer="Er is een fout opgetreden bij het verwerken van je vraag. Probeer het later opnieuw.",
                 sources=[],
-                error=str(e)
+                error=str(e),
             )
 
     def format_response_with_sources(self, response: RAGResponse) -> str:
@@ -261,9 +275,9 @@ class ConversationalRAG:
         """
         if response.error:
             return f"Error: {response.error}"
-        
+
         formatted_response = response.answer + "\n\nBronnen:\n"
-        
+
         for idx, source in enumerate(response.sources, 1):
             formatted_response += (
                 f"{idx}. {source['file_name']}\n"
@@ -271,8 +285,10 @@ class ConversationalRAG:
                 f"   Thema: {source['theme']}\n"
                 f"   Relevantie: {source['relevance_score']:.2f}\n"
             )
-            
+
         if response.processing_time:
-            formatted_response += f"\nVerwerkingstijd: {response.processing_time:.2f} seconden"
-            
+            formatted_response += (
+                f"\nVerwerkingstijd: {response.processing_time:.2f} seconden"
+            )
+
         return formatted_response
