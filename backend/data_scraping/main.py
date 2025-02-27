@@ -1,49 +1,91 @@
 import sys
 import os
-from pathlib import Path
+import importlib
 import argparse
-from typing import List, Optional, Tuple
-
-
-# Add the project root to the Python path
-project_root = str(Path(__file__).parent.parent.parent)
-sys.path.insert(0, project_root)
+from typing import Tuple
 
 
 def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
     """
-    Imports the appropriate Crawler and Scraper classes based on the source.
+    Dynamically imports the appropriate Crawler and Scraper classes based on the source.
 
     Args:
-        source (str): The source province to scrape ('overijssel', 'gelderland', or 'zuid_holland')
+        source (str): The source province to scrape
 
     Returns:
         tuple: A tuple containing (Crawler class, Scraper class, base_url)
 
     Raises:
         ImportError: If the required modules cannot be imported
-
-    Example:
-        Crawler, Scraper, base_url = import_crawler_and_scraper('overijssel')
-        crawler = Crawler(base_url, 10)
     """
-    if source == "overijssel":
-        from backend.data_scraping.overijssel_crawler import Crawler
-        from backend.data_scraping.overijssel_scraper import Scraper
+    province_config = {
+        "overijssel": {
+            "crawler_module": "overijssel_crawler",
+            "scraper_module": "overijssel_scraper",
+            "base_url": "https://woo.dataportaaloverijssel.nl/list",
+        },
+        "gelderland": {
+            "crawler_module": "gelderland_crawler",
+            "scraper_module": "gelderland_scraper",
+            "base_url": "https://open.gelderland.nl/woo-documenten",
+        },
+        "noord_brabant": {
+            "crawler_module": "noordbrabant_crawler",
+            "scraper_module": "noordbrabant_scraper",
+            "base_url": "https://open.brabant.nl/woo-verzoeken",
+        },
+        "zuid_holland": {
+            "crawler_module": "zuidholland_crawler",
+            "scraper_module": "zuidholland_scraper",
+            "base_url": "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/?facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to=",
+        },
+    }
 
-        base_url = "https://woo.dataportaaloverijssel.nl/list"
-    elif source == "gelderland":
-        from backend.data_scraping.gelderland_crawler import Crawler
-        from backend.data_scraping.gelderland_scraper import Scraper
+    if source not in province_config:
+        raise ValueError(f"Unsupported source: {source}")
 
-        base_url = "https://open.gelderland.nl/woo-documenten"
-    else:  # zuid_holland
-        from backend.data_scraping.zuidholland_crawler import Crawler
-        from backend.data_scraping.zuidholland_scraper import Scraper
+    config = province_config[source]
 
-        base_url = "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/?facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to="
+    try:
+        # Attempt to import modules with multiple potential paths
+        import_paths = [
+            f"backend.data_scraping.{config['crawler_module']}",
+            f"data_scraping.{config['crawler_module']}",
+            config["crawler_module"],
+        ]
 
-    return Crawler, Scraper, base_url
+        for path in import_paths:
+            try:
+                crawler_module = importlib.import_module(path)
+                Crawler = getattr(crawler_module, "Crawler")
+                break
+            except (ImportError, AttributeError):
+                continue
+        else:
+            raise ImportError(f"Could not import Crawler for {source}")
+
+        # Repeat for Scraper
+        import_paths = [
+            f"backend.data_scraping.{config['scraper_module']}",
+            f"data_scraping.{config['scraper_module']}",
+            config["scraper_module"],
+        ]
+
+        for path in import_paths:
+            try:
+                scraper_module = importlib.import_module(path)
+                Scraper = getattr(scraper_module, "Scraper")
+                break
+            except (ImportError, AttributeError):
+                continue
+        else:
+            raise ImportError(f"Could not import Scraper for {source}")
+
+        return Crawler, Scraper, config["base_url"]
+
+    except Exception as e:
+        print(f"Import error for {source}: {e}")
+        raise
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -52,10 +94,6 @@ def parse_arguments() -> argparse.Namespace:
 
     Returns:
         argparse.Namespace: Parsed command line arguments
-
-    Example:
-        args = parse_arguments()
-        print(f"Source: {args.source}, Max URLs: {args.max_urls}")
     """
     parser = argparse.ArgumentParser(
         description="Scrape WOO documents from various provinces."
@@ -63,7 +101,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--source",
         "-s",
-        choices=["overijssel", "gelderland", "zuid_holland"],
+        choices=["overijssel", "gelderland", "zuid_holland", "noord_brabant"],
         default="overijssel",
         help="Data source to scrape (default: overijssel)",
     )
@@ -74,30 +112,30 @@ def parse_arguments() -> argparse.Namespace:
         default=10,
         help="Maximum number of URLs to process (default: 10)",
     )
+    parser.add_argument(
+        "--use-selenium",
+        "-u",
+        action="store_true",
+        help="Use Selenium for web scraping where needed (mainly for Noord-Brabant)",
+    )
+    parser.add_argument(
+        "--chromedriver",
+        type=str,
+        help="Path to chromedriver executable (if not in PATH)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     """
-    Main program that integrates Crawler and Scraper for either Overijssel, Gelderland, or Zuid-Holland.
-
-    The function performs the following steps:
-    1. Parse command line arguments to determine source and max URLs
-    2. Import appropriate Crawler and Scraper classes
-    3. Use Crawler to collect document URLs
-    4. Use Scraper to download documents and organize them in folders
-
-    Returns:
-        None
-
-    Raises:
-        KeyboardInterrupt: If the user interrupts the program
-        Exception: For any other errors during execution
-
-    Example:
-        # Run from command line
-        $ python script.py --source overijssel --max-urls 20
+    Main program that integrates Crawler and Scraper for all supported provinces.
     """
+    # Ensure current directory and parent are in Python path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    sys.path.insert(0, current_dir)
+    sys.path.insert(0, parent_dir)
+
     # Parse command line arguments
     args = parse_arguments()
 
@@ -108,14 +146,11 @@ def main() -> None:
         print(f"Error importing required modules: {e}")
         sys.exit(1)
 
-    # Configuration
-    max_urls = args.max_urls
-
     try:
         print(
             f"Starting {args.source.replace('_', '-').capitalize()} crawler to collect URLs..."
         )
-        crawler = Crawler(base_url, max_urls)
+        crawler = Crawler(base_url, args.max_urls)
         urls = crawler.get_links()
 
         if not urls:
@@ -125,7 +160,12 @@ def main() -> None:
         print(f"\nFound {len(urls)} URLs")
 
         # Initialize scraper
-        scraper = Scraper()
+        # Special case for Noord-Brabant with Selenium option
+        if args.source == "noord_brabant" and args.use_selenium:
+            print("Initializing Noord-Brabant scraper with Selenium support...")
+            scraper = Scraper(use_selenium=True, chromedriver_path=args.chromedriver)
+        else:
+            scraper = Scraper()
 
         # Process each URL the crawler found
         for i, url in enumerate(urls, 1):
