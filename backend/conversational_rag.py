@@ -192,7 +192,6 @@ class ConversationalRAG:
             self.chat_history = self.chat_history[
                 -self.max_chat_history :
             ]  # Keep recent messages
-            print("Lengte chat history:", len(self.chat_history))
 
             messages = [{"role": "system", "content": system_prompt}]
             for entry in self.chat_history:
