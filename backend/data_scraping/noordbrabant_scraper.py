@@ -7,6 +7,12 @@ import zipfile
 import tempfile
 import hashlib
 import re
+import json
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 
 
 class Scraper:
@@ -15,7 +21,7 @@ class Scraper:
     Documents are downloaded and stored in zip files along with their metadata.
     """
 
-    def __init__(self):
+    def __init__(self, download_dir=None):
         """
         Initializes the Scraper with the basic folder structure and maintains a cache of downloaded files.
         """
@@ -38,6 +44,9 @@ class Scraper:
         self.base_download_dir = os.path.join(downloads_base, "noord_brabant")
         os.makedirs(self.base_download_dir, exist_ok=True)
 
+        # Set the download directory for Selenium
+        self.selenium_download_dir = download_dir or self.base_download_dir
+
         print(f"Files will be saved to: {self.base_download_dir}")
 
         # Cache to track downloaded files
@@ -54,8 +63,37 @@ class Scraper:
             "Content-Type": "application/json",
         }
 
-        # API base URL
-        self.api_base_url = "https://api-brabant.iprox-open.nl/api/v1/public"
+        # Setup Selenium webdriver
+        self.driver = None
+
+    def setup_selenium_driver(self):
+        """
+        Sets up the Selenium webdriver with appropriate options.
+        """
+        chrome_options = Options()
+
+        # Set download directory
+        prefs = {
+            "download.default_directory": self.selenium_download_dir,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": False,
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
+
+        # Add additional options for headless mode if needed
+        # chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+
+        # Initialize the driver
+        self.driver = webdriver.Chrome(options=chrome_options)
+
+        # Set implicit wait
+        self.driver.implicitly_wait(10)
+
+        return self.driver
 
     def _build_existing_files_cache(self) -> dict:
         """
@@ -144,9 +182,96 @@ class Scraper:
             f.write(f"Verzameld op: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         return metadata_path
 
+    def select_all_and_download_with_selenium(self, url):
+        """
+        Uses Selenium to select all documents and download them.
+        """
+        if not self.driver:
+            self.setup_selenium_driver()
+
+        print(f"Opening page: {url}")
+        self.driver.get(url)
+
+        # Wait for page to load completely
+        WebDriverWait(self.driver, 20).until(
+            EC.presence_of_element_located((By.TAG_NAME, "h1"))
+        )
+
+        print("Page loaded, looking for 'Selecteer alles' checkbox")
+
+        try:
+            # Find and click the "Selecteer alles" checkbox
+            select_all_checkbox = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//label[contains(., 'Selecteer alles')]/input")
+                )
+            )
+            print("Found 'Selecteer alles' checkbox, clicking it")
+            select_all_checkbox.click()
+
+            # Wait for the download button to become enabled (no longer having opacity-50 class)
+            download_button = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        "//button[contains(., 'Downloaden') and not(contains(@class, 'opacity-50'))]",
+                    )
+                )
+            )
+
+            print("Download button is now enabled, clicking it")
+            download_button.click()
+
+            # Wait for download to start and complete
+            # This depends on the file size - adjust timeout as needed
+            print("Waiting for download to complete...")
+            time.sleep(10)  # Simple wait for download to start
+
+            # We could add more sophisticated download completion detection here
+
+            # Try to find the filename from browser downloads
+            return True
+
+        except Exception as e:
+            print(f"Error during Selenium automation: {e}")
+            return False
+
+    def wait_for_download_complete(self, timeout=60):
+        """
+        Waits for downloads to complete by checking for .crdownload or .tmp files.
+        """
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            downloading_files = [
+                f
+                for f in os.listdir(self.selenium_download_dir)
+                if f.endswith(".crdownload") or f.endswith(".tmp")
+            ]
+            if not downloading_files:
+                return True
+            time.sleep(1)
+        return False
+
+    def find_latest_download(self):
+        """
+        Finds the most recently downloaded file in the download directory.
+        """
+        files = [
+            os.path.join(self.selenium_download_dir, f)
+            for f in os.listdir(self.selenium_download_dir)
+            if os.path.isfile(os.path.join(self.selenium_download_dir, f))
+        ]
+
+        if not files:
+            return None
+
+        # Get the most recently modified file
+        latest_file = max(files, key=os.path.getmtime)
+        return latest_file
+
     def scrape_document(self, url: str, index: int) -> None:
         """
-        Scrapes a document URL and saves all found files in a zip file.
+        Scrapes a document URL, selects all documents, downloads them and saves metadata.
         """
         print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
 
@@ -155,29 +280,132 @@ class Scraper:
             print(f"Zip file woo-{index}.zip already exists")
             return
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            html_content = self.fetch_html(url)
-            if not html_content:
-                print(f"Could not retrieve content for {url}")
-                return
+        # Get HTML content and extract metadata
+        html_content = self.fetch_html(url)
+        if not html_content:
+            print(f"Could not retrieve content for {url}")
+            return
 
-            metadata = self.generate_metadata(html_content, url)
-            metadata_path = self.create_metadata_file(metadata, temp_dir)
+        metadata = self.generate_metadata(html_content, url)
 
-            # Create zip file without unnecessary folders
-            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                zipf.write(metadata_path, arcname="metadata.txt")
+        # Use Selenium to select all and download
+        download_success = self.select_all_and_download_with_selenium(url)
 
-            print(f"Zip file created: {zip_path}")
+        if download_success:
+            # Wait for download to complete
+            self.wait_for_download_complete()
+
+            # Find the most recently downloaded file
+            latest_file = self.find_latest_download()
+
+            if latest_file:
+                print(f"Download completed: {latest_file}")
+
+                # Move or rename the file to our target zip path if needed
+                if latest_file != zip_path:
+                    # Check if it's already a zip file
+                    if latest_file.endswith(".zip"):
+                        # Move/rename the file
+                        os.rename(latest_file, zip_path)
+                        print(f"Renamed downloaded file to: {zip_path}")
+                    else:
+                        # If it's not a zip, create a new zip and add the file
+                        with zipfile.ZipFile(
+                            zip_path, "w", zipfile.ZIP_DEFLATED
+                        ) as zipf:
+                            zipf.write(
+                                latest_file, arcname=os.path.basename(latest_file)
+                            )
+                        print(f"Added downloaded file to new zip: {zip_path}")
+
+                # Add metadata to the zip file
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    metadata_path = self.create_metadata_file(metadata, temp_dir)
+                    with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as zipf:
+                        zipf.write(metadata_path, arcname="metadata.txt")
+
+                print(f"Added metadata to: {zip_path}")
+            else:
+                print("No downloaded file found")
+        else:
+            print("Download via Selenium failed, saving metadata only")
+            # Save metadata only
+            with tempfile.TemporaryDirectory() as temp_dir:
+                metadata_path = self.create_metadata_file(metadata, temp_dir)
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                    zipf.write(metadata_path, arcname="metadata.txt")
 
     def __del__(self):
         """
         Cleanup when closing.
         """
         try:
+            if self.driver:
+                self.driver.quit()
             self.session.close()
         except:
             pass
+
+
+def find_api_endpoints(url):
+    """
+    Helper function to identify API endpoints by monitoring network traffic.
+    This can help understand the API structure for future improvements.
+    """
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+    # Setup Chrome to log network activity
+    capabilities = DesiredCapabilities.CHROME
+    capabilities["goog:loggingPrefs"] = {"performance": "ALL"}
+
+    chrome_options = Options()
+    # chrome_options.add_argument("--headless")
+
+    driver = webdriver.Chrome(options=chrome_options, desired_capabilities=capabilities)
+
+    try:
+        driver.get(url)
+        time.sleep(5)  # Allow page to load
+
+        # Find and click the "Selecteer alles" checkbox if present
+        try:
+            select_all = driver.find_element(
+                By.XPATH, "//label[contains(., 'Selecteer alles')]/input"
+            )
+            select_all.click()
+            time.sleep(2)
+
+            # Click download button if enabled
+            download_btn = driver.find_element(
+                By.XPATH, "//button[contains(., 'Downloaden')]"
+            )
+            if "opacity-50" not in download_btn.get_attribute("class"):
+                download_btn.click()
+                time.sleep(5)
+        except:
+            pass
+
+        # Extract network logs
+        logs = driver.get_log("performance")
+
+        # Filter for API calls
+        api_endpoints = []
+        for log in logs:
+            try:
+                network_log = json.loads(log["message"])["message"]
+                if "Network.requestWillBeSent" in network_log["method"]:
+                    url = network_log["params"]["request"]["url"]
+                    if "/api/" in url and url not in api_endpoints:
+                        api_endpoints.append(url)
+            except:
+                pass
+
+        return api_endpoints
+
+    finally:
+        driver.quit()
 
 
 if __name__ == "__main__":
@@ -185,8 +413,16 @@ if __name__ == "__main__":
 
     # Example document URL (replace with actual URL)
     EXAMPLE_DOC_URL = (
-        "https://open.brabant.nl/woo-verzoeken/a1fb965b-3c28-4abb-957f-29a0fb5a7700"
+        "https://open.brabant.nl/woo-verzoeken/e661cfe8-5f7a-49d5-8cf3-c8bcb65309d8"
     )
+
+    # Uncomment to discover API endpoints
+    # print("Discovering API endpoints...")
+    # endpoints = find_api_endpoints(EXAMPLE_DOC_URL)
+    # print("Found the following potential API endpoints:")
+    # for endpoint in endpoints:
+    #     print(f"  - {endpoint}")
+    # print("You can use these endpoints to improve the scraper in the future.")
 
     scraper = Scraper()
     scraper.scrape_document(EXAMPLE_DOC_URL, 1)
