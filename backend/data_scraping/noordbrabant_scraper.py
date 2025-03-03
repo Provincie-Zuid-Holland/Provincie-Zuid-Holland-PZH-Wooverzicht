@@ -8,11 +8,6 @@ import tempfile
 import hashlib
 import re
 import json
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
 
 
 class Scraper:
@@ -21,7 +16,7 @@ class Scraper:
     Documents are downloaded and stored in zip files along with their metadata.
     """
 
-    def __init__(self, download_dir=None):
+    def __init__(self):
         """
         Initializes the Scraper with the basic folder structure and maintains a cache of downloaded files.
         """
@@ -44,9 +39,6 @@ class Scraper:
         self.base_download_dir = os.path.join(downloads_base, "noord_brabant")
         os.makedirs(self.base_download_dir, exist_ok=True)
 
-        # Set the download directory for Selenium
-        self.selenium_download_dir = download_dir or self.base_download_dir
-
         print(f"Files will be saved to: {self.base_download_dir}")
 
         # Cache to track downloaded files
@@ -63,37 +55,8 @@ class Scraper:
             "Content-Type": "application/json",
         }
 
-        # Setup Selenium webdriver
-        self.driver = None
-
-    def setup_selenium_driver(self):
-        """
-        Sets up the Selenium webdriver with appropriate options.
-        """
-        chrome_options = Options()
-
-        # Set download directory
-        prefs = {
-            "download.default_directory": self.selenium_download_dir,
-            "download.prompt_for_download": False,
-            "download.directory_upgrade": True,
-            "safebrowsing.enabled": False,
-        }
-        chrome_options.add_experimental_option("prefs", prefs)
-
-        # Add additional options for headless mode if needed
-        # chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--no-sandbox")
-
-        # Initialize the driver
-        self.driver = webdriver.Chrome(options=chrome_options)
-
-        # Set implicit wait
-        self.driver.implicitly_wait(10)
-
-        return self.driver
+        # API base URL
+        self.api_base_url = "https://api-brabant.iprox-open.nl/api/v1/public"
 
     def _build_existing_files_cache(self) -> dict:
         """
@@ -125,6 +88,32 @@ class Scraper:
         except Exception as e:
             print(f"Error fetching HTML: {e}")
             return None
+
+    def extract_document_ids(self, html_content: str) -> dict:
+        """
+        Extracts document IDs from checkbox values in the HTML and returns them in a structured format.
+
+        Args:
+            html_content (str): HTML content containing the document checkboxes
+
+        Returns:
+            dict: A dictionary with "nodeIds" key containing the list of document IDs
+        """
+        soup = BeautifulSoup(html_content, "html.parser")
+
+        # Find all checkbox input elements
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+
+        # Extract the value attribute from each checkbox
+        document_ids = [
+            checkbox.get("value") for checkbox in checkboxes if checkbox.get("value")
+        ]
+
+        # Format as requested
+        payload = {"nodeIds": document_ids}
+
+        print(f"Found {len(document_ids)} document IDs")
+        return payload
 
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
@@ -182,96 +171,72 @@ class Scraper:
             f.write(f"Verzameld op: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         return metadata_path
 
-    def select_all_and_download_with_selenium(self, url):
+    def download_files(self, url, payload, temp_dir):
         """
-        Uses Selenium to select all documents and download them.
+        Downloads files using the API and extracts them to the temporary directory.
+
+        Args:
+            url (str): The API URL to download files
+            payload (dict): The payload containing nodeIds
+            temp_dir (str): Temporary directory to save downloaded files
+
+        Returns:
+            bool: True if successful, False otherwise
         """
-        if not self.driver:
-            self.setup_selenium_driver()
+        # Make the POST request with the required headers and payload
+        response = requests.post(url, headers=self.headers, json=payload)
 
-        print(f"Opening page: {url}")
-        self.driver.get(url)
+        # Check if the request was successful
+        if response.status_code == 200:
+            data = response.json()
+            zip_id = data.get("zipId")
+            if zip_id:
+                print(f"zipId: {zip_id}")
+                # Construct the URL to download the file using the zipId
+                file_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download-zip/{zip_id}"
+                print(f"Constructed file URL: {file_url}")
 
-        # Wait for page to load completely
-        WebDriverWait(self.driver, 20).until(
-            EC.presence_of_element_located((By.TAG_NAME, "h1"))
-        )
+                file_response = requests.get(file_url)
+                if file_response.status_code == 200:
+                    # Save the downloaded zip file to the temp directory
+                    temp_zip_path = os.path.join(temp_dir, "downloaded_files.zip")
+                    with open(temp_zip_path, "wb") as file:
+                        file.write(file_response.content)
 
-        print("Page loaded, looking for 'Selecteer alles' checkbox")
+                    # Create a directory to extract the files
+                    extract_dir = os.path.join(temp_dir, "extracted_files")
+                    os.makedirs(extract_dir, exist_ok=True)
 
-        try:
-            # Find and click the "Selecteer alles" checkbox
-            select_all_checkbox = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//label[contains(., 'Selecteer alles')]/input")
-                )
-            )
-            print("Found 'Selecteer alles' checkbox, clicking it")
-            select_all_checkbox.click()
-
-            # Wait for the download button to become enabled (no longer having opacity-50 class)
-            download_button = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        "//button[contains(., 'Downloaden') and not(contains(@class, 'opacity-50'))]",
-                    )
-                )
-            )
-
-            print("Download button is now enabled, clicking it")
-            download_button.click()
-
-            # Wait for download to start and complete
-            # This depends on the file size - adjust timeout as needed
-            print("Waiting for download to complete...")
-            time.sleep(10)  # Simple wait for download to start
-
-            # We could add more sophisticated download completion detection here
-
-            # Try to find the filename from browser downloads
-            return True
-
-        except Exception as e:
-            print(f"Error during Selenium automation: {e}")
+                    # Extract the downloaded zip file
+                    try:
+                        with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
+                            zip_ref.extractall(extract_dir)
+                        print(f"Files extracted to {extract_dir}")
+                        return True
+                    except zipfile.BadZipFile:
+                        print("Downloaded file is not a valid zip file")
+                        # Save the raw file anyway in case it's a direct file download
+                        with open(
+                            os.path.join(extract_dir, "downloaded_file"), "wb"
+                        ) as f:
+                            f.write(file_response.content)
+                        print("Saved raw downloaded file")
+                        return True
+                else:
+                    print(f"Error downloading file: {file_response.status_code}")
+                    print(file_response.text)
+                    return False
+            else:
+                print("zipId not found in the response")
+                return False
+        else:
+            print(f"Error: {response.status_code}")
+            print(response.text)
             return False
-
-    def wait_for_download_complete(self, timeout=60):
-        """
-        Waits for downloads to complete by checking for .crdownload or .tmp files.
-        """
-        end_time = time.time() + timeout
-        while time.time() < end_time:
-            downloading_files = [
-                f
-                for f in os.listdir(self.selenium_download_dir)
-                if f.endswith(".crdownload") or f.endswith(".tmp")
-            ]
-            if not downloading_files:
-                return True
-            time.sleep(1)
-        return False
-
-    def find_latest_download(self):
-        """
-        Finds the most recently downloaded file in the download directory.
-        """
-        files = [
-            os.path.join(self.selenium_download_dir, f)
-            for f in os.listdir(self.selenium_download_dir)
-            if os.path.isfile(os.path.join(self.selenium_download_dir, f))
-        ]
-
-        if not files:
-            return None
-
-        # Get the most recently modified file
-        latest_file = max(files, key=os.path.getmtime)
-        return latest_file
 
     def scrape_document(self, url: str, index: int) -> None:
         """
-        Scrapes a document URL, selects all documents, downloads them and saves metadata.
+        Scrapes a document URL and saves all found files in a zip file.
         """
         print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
 
@@ -280,132 +245,52 @@ class Scraper:
             print(f"Zip file woo-{index}.zip already exists")
             return
 
-        # Get HTML content and extract metadata
-        html_content = self.fetch_html(url)
-        if not html_content:
-            print(f"Could not retrieve content for {url}")
-            return
+        with tempfile.TemporaryDirectory() as temp_dir:
+            html_content = self.fetch_html(url)
+            if not html_content:
+                print(f"Could not retrieve content for {url}")
+                return
 
-        metadata = self.generate_metadata(html_content, url)
+            metadata = self.generate_metadata(html_content, url)
+            metadata_path = self.create_metadata_file(metadata, temp_dir)
 
-        # Use Selenium to select all and download
-        download_success = self.select_all_and_download_with_selenium(url)
+            # Extract document IDs and download files
+            payload = self.extract_document_ids(html_content)
+            download_id = url[url.rindex("/") + 1 :]
+            download_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download/{download_id}"
 
-        if download_success:
-            # Wait for download to complete
-            self.wait_for_download_complete()
+            # Download files to temp directory
+            download_success = self.download_files(download_url, payload, temp_dir)
 
-            # Find the most recently downloaded file
-            latest_file = self.find_latest_download()
+            # Create zip file with metadata and downloaded files
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                # Add metadata file
+                zipf.write(metadata_path, arcname="metadata.txt")
 
-            if latest_file:
-                print(f"Download completed: {latest_file}")
-
-                # Move or rename the file to our target zip path if needed
-                if latest_file != zip_path:
-                    # Check if it's already a zip file
-                    if latest_file.endswith(".zip"):
-                        # Move/rename the file
-                        os.rename(latest_file, zip_path)
-                        print(f"Renamed downloaded file to: {zip_path}")
-                    else:
-                        # If it's not a zip, create a new zip and add the file
-                        with zipfile.ZipFile(
-                            zip_path, "w", zipfile.ZIP_DEFLATED
-                        ) as zipf:
+                # Add downloaded files from the extracted directory
+                extract_dir = os.path.join(temp_dir, "extracted_files")
+                if download_success and os.path.exists(extract_dir):
+                    for root, dirs, files in os.walk(extract_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            # Calculate relative path for the archive
+                            arcname = os.path.relpath(file_path, extract_dir)
+                            # Add file to the zip
                             zipf.write(
-                                latest_file, arcname=os.path.basename(latest_file)
+                                file_path, arcname=os.path.join("files", arcname)
                             )
-                        print(f"Added downloaded file to new zip: {zip_path}")
+                            print(f"Added to zip: {arcname}")
 
-                # Add metadata to the zip file
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    metadata_path = self.create_metadata_file(metadata, temp_dir)
-                    with zipfile.ZipFile(zip_path, "a", zipfile.ZIP_DEFLATED) as zipf:
-                        zipf.write(metadata_path, arcname="metadata.txt")
-
-                print(f"Added metadata to: {zip_path}")
-            else:
-                print("No downloaded file found")
-        else:
-            print("Download via Selenium failed, saving metadata only")
-            # Save metadata only
-            with tempfile.TemporaryDirectory() as temp_dir:
-                metadata_path = self.create_metadata_file(metadata, temp_dir)
-                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                    zipf.write(metadata_path, arcname="metadata.txt")
+            print(f"Zip file created: {zip_path}")
 
     def __del__(self):
         """
         Cleanup when closing.
         """
         try:
-            if self.driver:
-                self.driver.quit()
             self.session.close()
         except:
             pass
-
-
-def find_api_endpoints(url):
-    """
-    Helper function to identify API endpoints by monitoring network traffic.
-    This can help understand the API structure for future improvements.
-    """
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-
-    # Setup Chrome to log network activity
-    capabilities = DesiredCapabilities.CHROME
-    capabilities["goog:loggingPrefs"] = {"performance": "ALL"}
-
-    chrome_options = Options()
-    # chrome_options.add_argument("--headless")
-
-    driver = webdriver.Chrome(options=chrome_options, desired_capabilities=capabilities)
-
-    try:
-        driver.get(url)
-        time.sleep(5)  # Allow page to load
-
-        # Find and click the "Selecteer alles" checkbox if present
-        try:
-            select_all = driver.find_element(
-                By.XPATH, "//label[contains(., 'Selecteer alles')]/input"
-            )
-            select_all.click()
-            time.sleep(2)
-
-            # Click download button if enabled
-            download_btn = driver.find_element(
-                By.XPATH, "//button[contains(., 'Downloaden')]"
-            )
-            if "opacity-50" not in download_btn.get_attribute("class"):
-                download_btn.click()
-                time.sleep(5)
-        except:
-            pass
-
-        # Extract network logs
-        logs = driver.get_log("performance")
-
-        # Filter for API calls
-        api_endpoints = []
-        for log in logs:
-            try:
-                network_log = json.loads(log["message"])["message"]
-                if "Network.requestWillBeSent" in network_log["method"]:
-                    url = network_log["params"]["request"]["url"]
-                    if "/api/" in url and url not in api_endpoints:
-                        api_endpoints.append(url)
-            except:
-                pass
-
-        return api_endpoints
-
-    finally:
-        driver.quit()
 
 
 if __name__ == "__main__":
@@ -415,14 +300,5 @@ if __name__ == "__main__":
     EXAMPLE_DOC_URL = (
         "https://open.brabant.nl/woo-verzoeken/e661cfe8-5f7a-49d5-8cf3-c8bcb65309d8"
     )
-
-    # Uncomment to discover API endpoints
-    # print("Discovering API endpoints...")
-    # endpoints = find_api_endpoints(EXAMPLE_DOC_URL)
-    # print("Found the following potential API endpoints:")
-    # for endpoint in endpoints:
-    #     print(f"  - {endpoint}")
-    # print("You can use these endpoints to improve the scraper in the future.")
-
     scraper = Scraper()
     scraper.scrape_document(EXAMPLE_DOC_URL, 1)
