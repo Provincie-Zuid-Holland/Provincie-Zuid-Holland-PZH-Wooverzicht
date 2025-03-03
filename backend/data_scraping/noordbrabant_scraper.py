@@ -279,7 +279,7 @@ class Scraper:
                             zipf.write(
                                 file_path, arcname=os.path.join("files", arcname)
                             )
-                            # print(f"Added to zip: {arcname}")
+                            print(f"Added to zip: {arcname}")
 
             print(f"Zip file created: {zip_path}")
 
