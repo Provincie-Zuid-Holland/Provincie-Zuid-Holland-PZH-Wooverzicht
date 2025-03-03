@@ -239,10 +239,12 @@ class Scraper:
         Scrapes a document URL and saves all found files in a zip file.
         """
         print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
-
-        zip_path = os.path.join(self.base_download_dir, f"woo-{index}.zip")
+        download_id = url[
+            url.rindex("/") + 1 :
+        ]  # Get unique ID after last slash in url "e.g. https://open.brabant.nl/woo-verzoeken/e661cfe8-5f7a-49d5-8cf3-c8bcb65309d8"
+        zip_path = os.path.join(self.base_download_dir, f"woo-{download_id}.zip")
         if os.path.exists(zip_path):
-            print(f"Zip file woo-{index}.zip already exists")
+            print(f"Zip file woo-{download_id}.zip already exists")
             return
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -256,7 +258,7 @@ class Scraper:
 
             # Extract document IDs and download files
             payload = self.extract_document_ids(html_content)
-            download_id = url[url.rindex("/") + 1 :]
+
             download_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download/{download_id}"
 
             # Download files to temp directory
