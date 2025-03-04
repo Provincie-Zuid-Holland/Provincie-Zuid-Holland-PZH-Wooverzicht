@@ -34,7 +34,7 @@ class Crawler:
             Print een overzicht van gevonden URLs per pagina
     """
 
-    def __init__(self, base_url, api_url, max_urls=20, page_size=15):
+    def __init__(self, base_url, max_urls=20, page_size=15):
         """
         Initialiseert de Crawler met een basis URL, API URL en maximum aantal te verzamelen URLs.
 
@@ -45,13 +45,11 @@ class Crawler:
             page_size (int): Aantal resultaten per pagina
         """
         self.base_url = base_url.rstrip("/")
-        self.api_url = api_url
         self.max_urls = max_urls
         self.page_size = page_size
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
-
         # Initialiseer requests session
         self.session = requests.Session()
         self.headers = {
