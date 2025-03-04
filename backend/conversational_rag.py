@@ -171,7 +171,7 @@ class ConversationalRAG:
 
         try:
             context_chunks = self.query_engine.search(
-                query=query, limit=self.max_context_chunks
+                query=query, limit=self.max_context_chunks, min_relevance_score=0.52
             )
 
             if not context_chunks:
