@@ -53,7 +53,7 @@ Thumbs.db
 
 # env
 .env
-backend/data_scraping/daownloads/
+backend/data_scraping/downloads/
 /database
 backend/database/
 backend/downloads/
