@@ -278,9 +278,7 @@ class Scraper:
                             # Calculate relative path for the archive
                             arcname = os.path.relpath(file_path, extract_dir)
                             # Add file to the zip
-                            zipf.write(
-                                file_path, arcname=os.path.join("files", arcname)
-                            )
+                            zipf.write(file_path, arcname=arcname)
                             print(f"Added to zip: {arcname}")
 
             print(f"Zip file created: {zip_path}")
