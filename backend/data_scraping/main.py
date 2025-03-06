@@ -1,27 +1,118 @@
 import sys
 import os
-from pathlib import Path
+import importlib
 import argparse
-
-# Add the project root to the Python path
-project_root = str(Path(__file__).parent.parent.parent)
-sys.path.insert(0, project_root)
+from typing import Tuple
 
 
-def main():
+def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
     """
-    Main program that integrates Crawler and Scraper for various provinces.
-    - Uses Crawler to collect URLs
-    - Uses Scraper to download PDFs and organize them in folders
+    Dynamically imports the appropriate Crawler and Scraper classes based on the source.
+
+    Args:
+        source (str): The source province to scrape
+
+    Returns:
+        tuple: A tuple containing (Crawler class, Scraper class, base_url)
+
+    Raises:
+        ImportError: If the required modules cannot be imported
     """
-    # Parse command line arguments
+    province_config = {
+        "overijssel": {
+            "crawler_module": "overijssel_crawler",
+            "scraper_module": "overijssel_scraper",
+            "base_url": "https://woo.dataportaaloverijssel.nl/list",
+        },
+        "gelderland": {
+            "crawler_module": "gelderland_crawler",
+            "scraper_module": "gelderland_scraper",
+            "base_url": "https://open.gelderland.nl/woo-documenten",
+        },
+        "noord_brabant": {
+            "crawler_module": "noordbrabant_crawler",
+            "scraper_module": "noordbrabant_scraper",
+            "base_url": "https://open.brabant.nl/woo-verzoeken",
+        },
+        "zuid_holland": {
+            "crawler_module": "zuidholland_crawler",
+            "scraper_module": "zuidholland_scraper",
+            "base_url": "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/?facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to=",
+        },
+        "flevoland": {
+            "crawler_module": "flevoland_crawler",
+            "scraper_module": "flevoland_scraper",
+            "base_url": "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief",
+        },
+    }
+
+    if source not in province_config:
+        raise ValueError(f"Unsupported source: {source}")
+
+    config = province_config[source]
+
+    try:
+        # Attempt to import modules with multiple potential paths
+        import_paths = [
+            f"backend.data_scraping.{config['crawler_module']}",
+            f"data_scraping.{config['crawler_module']}",
+            config["crawler_module"],
+        ]
+
+        for path in import_paths:
+            try:
+                crawler_module = importlib.import_module(path)
+                Crawler = getattr(crawler_module, "Crawler")
+                break
+            except (ImportError, AttributeError):
+                continue
+        else:
+            raise ImportError(f"Could not import Crawler for {source}")
+
+        # Repeat for Scraper
+        import_paths = [
+            f"backend.data_scraping.{config['scraper_module']}",
+            f"data_scraping.{config['scraper_module']}",
+            config["scraper_module"],
+        ]
+
+        for path in import_paths:
+            try:
+                scraper_module = importlib.import_module(path)
+                Scraper = getattr(scraper_module, "Scraper")
+                break
+            except (ImportError, AttributeError):
+                continue
+        else:
+            raise ImportError(f"Could not import Scraper for {source}")
+
+        return Crawler, Scraper, config["base_url"]
+
+    except Exception as e:
+        print(f"Import error for {source}: {e}")
+        raise
+
+
+def parse_arguments() -> argparse.Namespace:
+    """
+    Parses command line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed command line arguments
+    """
     parser = argparse.ArgumentParser(
         description="Scrape WOO documents from various provinces."
     )
     parser.add_argument(
         "--source",
         "-s",
-        choices=["overijssel", "gelderland", "zuid_holland", "flevoland"],
+        choices=[
+            "overijssel",
+            "gelderland",
+            "zuid_holland",
+            "noord_brabant",
+            "flevoland",
+        ],
         default="overijssel",
         help="Data source to scrape (default: overijssel)",
     )
@@ -32,29 +123,39 @@ def main():
         default=10,
         help="Maximum number of URLs to process (default: 10)",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--use-selenium",
+        "-u",
+        action="store_true",
+        help="Use Selenium for web scraping where needed (mainly for Noord-Brabant)",
+    )
+    parser.add_argument(
+        "--chromedriver",
+        type=str,
+        help="Path to chromedriver executable (if not in PATH)",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    """
+    Main program that integrates Crawler and Scraper for all supported provinces.
+    """
+    # Ensure current directory and parent are in Python path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    sys.path.insert(0, current_dir)
+    sys.path.insert(0, parent_dir)
+
+    # Parse command line arguments
+    args = parse_arguments()
 
     # Import the appropriate modules based on source
-    if args.source == "overijssel":
-        from backend.data_scraping.overijssel_crawler import Crawler
-        from backend.data_scraping.overijssel_scraper import Scraper
-
-        base_url = "https://woo.dataportaaloverijssel.nl/list"
-    elif args.source == "gelderland":
-        from backend.data_scraping.gelderland_crawler import Crawler
-        from backend.data_scraping.gelderland_scraper import Scraper
-
-        base_url = "https://open.gelderland.nl/woo-documenten"
-    elif args.source == "zuid_holland":
-        from backend.data_scraping.zuidholland_crawler import Crawler
-        from backend.data_scraping.zuidholland_scraper import Scraper
-
-        base_url = "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/?facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to="
-    else:  # flevoland
-        from backend.data_scraping.flevoland_crawler import Crawler
-        from backend.data_scraping.flevoland_scraper import Scraper
-
-        base_url = "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief"
+    try:
+        Crawler, Scraper, base_url = import_crawler_and_scraper(args.source)
+    except ImportError as e:
+        print(f"Error importing required modules: {e}")
+        sys.exit(1)
 
     try:
         print(

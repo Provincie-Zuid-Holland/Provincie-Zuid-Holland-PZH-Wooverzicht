@@ -53,6 +53,7 @@ Thumbs.db
 
 # env
 .env
+backend/data_scraping/downloads/
 
 # database
 /database
