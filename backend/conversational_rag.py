@@ -96,7 +96,6 @@ class ConversationalRAG:
                 f"Theme: {theme}\n"
                 f"Content: {chunk.content}\n"
             )
-        print(context_parts)
         return "\n".join(context_parts)
 
     def _create_system_prompt(self) -> str:
@@ -195,7 +194,9 @@ class ConversationalRAG:
             user_prompt = self._format_user_prompt(query, context)
 
             # Build chat history (limiting to last few messages to prevent overflow)
-            self.chat_history = self.chat_history[-self.max_chat_history:]  # Keep recent messages
+            self.chat_history = self.chat_history[
+                -self.max_chat_history :
+            ]  # Keep recent messages
 
             messages = [{"role": "system", "content": system_prompt}]
             for entry in self.chat_history:
@@ -230,7 +231,6 @@ class ConversationalRAG:
             logger.error(f"Error generating streaming response: {e}")
             yield f"Er is een fout opgetreden bij het verwerken van je vraag: {str(e)}"
             yield {"sources": []}
-
 
     def generate_response(self, query: str) -> RAGResponse:
         """
