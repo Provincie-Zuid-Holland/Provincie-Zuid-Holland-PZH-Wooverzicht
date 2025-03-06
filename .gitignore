@@ -57,7 +57,7 @@ backend/data_scraping/downloads/
 
 # database
 /database
-
+backend/data_scraping/downloads/
 backend/database/
 backend/downloads/
 backend/extracted/
