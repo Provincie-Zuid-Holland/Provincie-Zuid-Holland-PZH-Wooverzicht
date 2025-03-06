@@ -2,6 +2,7 @@ import logging
 from typing import List, Dict, Any, Optional, Generator, Union
 from dataclasses import dataclass
 import time
+import os
 
 from openai import OpenAI
 from chromadb_query import ChromadbQuery, SearchResult
@@ -67,6 +68,8 @@ class ConversationalRAG:
         self.model = model
         self.temperature = temperature
         self.max_context_chunks = max_context_chunks
+        self.chat_history = []
+        self.max_chat_history = 5
 
     def _format_context(self, chunks: List[SearchResult]) -> str:
         """
@@ -81,17 +84,18 @@ class ConversationalRAG:
         context_parts = []
 
         for idx, chunk in enumerate(chunks, 1):
-            file_name = chunk.metadata.get("file_name", "Unknown document")
-            date = chunk.metadata.get("Creatie jaar", "Unknown date")
+            file_source = chunk.metadata.get("pdf_file", "Unkown source")
+            file_name = chunk.metadata.get("metadata.Titel", "Unknown document")
+            date = chunk.metadata.get("metadata.Creatie jaar", "Unknown date")
             theme = chunk.metadata.get("metadata.WOO thema's", "Unknown theme")
             context_parts.append(
                 f"Document {idx}:\n"
-                f"Source: {file_name}\n"
+                f"Bestandsnaam: {file_name}\n"
+                f"Source: {file_source}\n"
                 f"Date: {date}\n"
                 f"Theme: {theme}\n"
                 f"Content: {chunk.content}\n"
             )
-
         return "\n".join(context_parts)
 
     def _create_system_prompt(self) -> str:
@@ -104,7 +108,8 @@ class ConversationalRAG:
         return (
             "Je bent een behulpzame assistent die vragen beantwoordt over WOO (Wet Open Overheid) documenten. "
             "Gebruik de gegeven documenten om de vraag te beantwoorden. "
-            "- Citeer altijd je bronnen met [Bron: bestandsnaam] notatie. "
+            "- Citeer altijd je bronnen met [Bron: [bestandsnaam](download_link)] notatie. "
+            "- Vervang 'bestandsnaam' door de daadwerkelijke naam van het bestand en 'download_link' door de juiste URL. "
             "- Als je niet zeker bent of als de informatie niet in de documenten staat, geef dit dan aan. "
             "- Vat de informatie samen in een duidelijk, professioneel Nederlands antwoord. "
             "- Focus op feitelijke informatie uit de documenten. "
@@ -145,10 +150,14 @@ class ConversationalRAG:
         Returns:
             List[Dict[str, Any]]: List of formatted sources.
         """
+        local_folder = "all_pdfs"
         return [
             {
-                "file_name": chunk.metadata.get("file_name", "Unknown"),
-                "date": chunk.metadata.get("Creatie jaar", "Unknown"),
+                "file_name": chunk.metadata.get("metadata.Titel", "Unknown"),
+                "file_source": chunk.metadata.get("pdf_file", "Unknown"),
+                "pdf_file": f"[{chunk.metadata.get('pdf_file', 'Unknown PDF file')}]"
+                f"(file://{os.path.abspath(local_folder)}/{chunk.metadata.get('pdf_file', 'Unknown PDF file')})",
+                "date": chunk.metadata.get("metadata.Creatie jaar", "Unknown"),
                 "theme": chunk.metadata.get("metadata.WOO thema's", "Unknown"),
                 "relevance_score": chunk.score,
             }
@@ -159,10 +168,11 @@ class ConversationalRAG:
         self, query: str
     ) -> Generator[StreamingChunk, None, None]:
         """
-        Generate a streaming response using RAG with source citations.
+        Generate a streaming response using RAG with source citations, incorporating chat history.
 
         Args:
-            query (str): User's question.
+            query: User's question.
+            chat_history: List of previous interactions.
 
         Yields:
             StreamingChunk: Either a string chunk of the response or a dict containing sources.
@@ -183,23 +193,39 @@ class ConversationalRAG:
             system_prompt = self._create_system_prompt()
             user_prompt = self._format_user_prompt(query, context)
 
+            # Build chat history (limiting to last few messages to prevent overflow)
+            self.chat_history = self.chat_history[
+                -self.max_chat_history :
+            ]  # Keep recent messages
+
+            messages = [{"role": "system", "content": system_prompt}]
+            for entry in self.chat_history:
+                messages.append({"role": entry["role"], "content": entry["content"]})
+            messages.append({"role": "user", "content": user_prompt})
+
+            # Generate streaming response using OpenAI
             stream = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                messages=messages,
                 temperature=self.temperature,
                 max_tokens=1000,
                 stream=True,
             )
 
+            # Stream the response chunks
+            response_text = ""
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
                     yield chunk.choices[0].delta.content
+                    response_text += chunk.choices[0].delta.content
 
+            # After text is complete, yield sources
             sources = self._format_sources(context_chunks)
             yield {"sources": sources}
+
+            # Update chat history with latest interaction
+            self.chat_history.append({"role": "user", "content": query})
+            self.chat_history.append({"role": "system", "content": response_text})
 
         except Exception as e:
             logger.error(f"Error generating streaming response: {e}")
