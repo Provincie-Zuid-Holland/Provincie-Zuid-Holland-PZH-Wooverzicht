@@ -69,7 +69,7 @@ class ConversationalRAG:
         self.temperature = temperature
         self.max_context_chunks = max_context_chunks
         self.chat_history = []
-        self.max_chat_history = 5
+        self.max_chat_history = 8  # Recommend an even number because each answer consists of 2 items in a list. (Question and response)
 
     def _format_context(self, chunks: List[SearchResult]) -> str:
         """
