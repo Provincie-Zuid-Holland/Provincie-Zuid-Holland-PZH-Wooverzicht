@@ -184,11 +184,6 @@ class ConversationalRAG:
                 query=query, limit=self.max_context_chunks, min_relevance_score=0.52
             )
 
-            if not context_chunks:
-                yield "Ik kon geen relevante documenten vinden om je vraag te beantwoorden."
-                yield {"sources": []}
-                return
-
             context = self._format_context(context_chunks)
             system_prompt = self._create_system_prompt()
             user_prompt = self._format_user_prompt(query, context)
