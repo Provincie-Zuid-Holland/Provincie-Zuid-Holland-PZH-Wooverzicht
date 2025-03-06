@@ -49,15 +49,19 @@ Thumbs.db
 *.wmv
 
 # Venv
-/venv 
+/venv
 
 # env
 .env
 backend/data_scraping/downloads/
+
+# database
 /database
+
 backend/database/
 backend/downloads/
 backend/extracted/
 backend/json/*
 backend/jsontest/
 backend/test/
+backend/all_pdfs

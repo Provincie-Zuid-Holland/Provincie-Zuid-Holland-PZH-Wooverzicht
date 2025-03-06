@@ -39,6 +39,11 @@ def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
             "scraper_module": "zuidholland_scraper",
             "base_url": "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/?facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to=",
         },
+        "flevoland": {
+            "crawler_module": "flevoland_crawler",
+            "scraper_module": "flevoland_scraper",
+            "base_url": "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief",
+        },
     }
 
     if source not in province_config:
@@ -101,7 +106,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--source",
         "-s",
-        choices=["overijssel", "gelderland", "zuid_holland", "noord_brabant"],
+        choices=[
+            "overijssel",
+            "gelderland",
+            "zuid_holland",
+            "noord_brabant",
+            "flevoland",
+        ],
         default="overijssel",
         help="Data source to scrape (default: overijssel)",
     )
@@ -160,12 +171,7 @@ def main() -> None:
         print(f"\nFound {len(urls)} URLs")
 
         # Initialize scraper
-        # Special case for Noord-Brabant with Selenium option
-        if args.source == "noord_brabant" and args.use_selenium:
-            print("Initializing Noord-Brabant scraper with Selenium support...")
-            scraper = Scraper(use_selenium=True, chromedriver_path=args.chromedriver)
-        else:
-            scraper = Scraper()
+        scraper = Scraper()
 
         # Process each URL the crawler found
         for i, url in enumerate(urls, 1):
