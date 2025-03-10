@@ -5,6 +5,6 @@ python-docx
 python-dotenv
 langchain
 requests==2.31.0
-beautifulsoup4=4.12.2
+beautifulsoup4==4.12.2
 selenium==4.16.0
 webdriver-manager==4.0.1
