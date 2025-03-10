@@ -3,6 +3,7 @@ import zipfile
 import json
 from PyPDF2 import PdfReader
 from docx import Document
+import tempfile
 from config import DOWNLOADS_FOLDER, EXTRACTED_FOLDER, JSON_FOLDER
 
 """
@@ -17,34 +18,6 @@ The workflow:
 3. Clean and standardize the extracted text
 4. Save combined data as numbered JSON files
 """
-
-
-def extract_zip_files(input_folder: str, output_folder: str) -> None:
-    """
-    Extract ZIP files containing PDFs/DOCXs and a metadata.txt file into a structured folder.
-
-    Args:
-        input_folder (str): Folder containing ZIP files.
-        output_folder (str): Destination folder for extracted files.
-
-    Raises:
-        OSError: If there are issues creating the output directory or extracting files.
-
-    Example:
-        extract_zip_files('/path/to/downloads', '/path/to/extracted')
-    """
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    for zip_file in os.listdir(input_folder):
-        if zip_file.endswith(".zip"):
-            try:
-                with zipfile.ZipFile(os.path.join(input_folder, zip_file), "r") as zf:
-                    # Extract to a folder named after the ZIP file (minus extension)
-                    extract_path = os.path.join(output_folder, os.path.splitext(zip_file)[0])
-                    zf.extractall(extract_path)
-            except Exception as e:
-                print(f"Error extracting {zip_file}: {e}")
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -65,20 +38,22 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         text = extract_text_from_pdf('/path/to/document.pdf')
     """
     reader = PdfReader(pdf_path)
-    
+
     # Extract text from each page
-    extracted_text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
-    
+    extracted_text = "\n".join(
+        page.extract_text() for page in reader.pages if page.extract_text()
+    )
+
     return clean_text(extracted_text)
 
 
 def extract_text_from_docx(docx_path: str) -> str:
     """
     Extract text content from a DOCX file and clean it for RAG applications.
-    
+
     Args:
         docx_path (str): Path to the DOCX file.
-    
+
     Returns:
         str: Cleaned extracted text content with proper sentence structure.
 
@@ -90,35 +65,37 @@ def extract_text_from_docx(docx_path: str) -> str:
         text = extract_text_from_docx('/path/to/document.docx')
     """
     doc = Document(docx_path)
-    
+
     # Extract text from paragraphs and tables
     text_parts = []
-    
+
     # Get text from paragraphs
     for paragraph in doc.paragraphs:
         if paragraph.text.strip():
             text_parts.append(paragraph.text.strip())
-    
+
     # Get text from tables
     for table in doc.tables:
         for row in table.rows:
-            row_text = ' '.join(cell.text.strip() for cell in row.cells if cell.text.strip())
+            row_text = " ".join(
+                cell.text.strip() for cell in row.cells if cell.text.strip()
+            )
             if row_text:
                 text_parts.append(row_text)
-    
+
     # Join all parts and clean
-    extracted_text = '\n'.join(text_parts)
-    
+    extracted_text = "\n".join(text_parts)
+
     return clean_text(extracted_text)
 
 
 def clean_text(text: str) -> str:
     """
     Clean and standardize extracted text for better RAG processing.
-    
+
     Args:
         text (str): Raw extracted text.
-        
+
     Returns:
         str: Cleaned and standardized text.
 
@@ -127,31 +104,33 @@ def clean_text(text: str) -> str:
     """
     # 1. Preserve structured data format with colon (e.g., "Date: 02.12.2024")
     preserved_lines = []
-    for line in text.split('\n'):
-        if ':' in line and len(line.split(':')[0].strip()) < 30:  # Preserve short key-value pairs
+    for line in text.split("\n"):
+        if (
+            ":" in line and len(line.split(":")[0].strip()) < 30
+        ):  # Preserve short key-value pairs
             preserved_lines.append(line.strip())
         else:
-            preserved_lines.append(line.strip().replace('\n', ' '))
-    
+            preserved_lines.append(line.strip().replace("\n", " "))
+
     # 2. Join all lines with space
-    text = ' '.join(preserved_lines)
-    
+    text = " ".join(preserved_lines)
+
     # 3. Fix multiple spaces
-    text = ' '.join(text.split())
-    
+    text = " ".join(text.split())
+
     # 4. Ensure proper spacing after punctuation
-    for punct in ['.', '!', '?']:
+    for punct in [".", "!", "?"]:
         text = text.replace(f"{punct} ", f"{punct} ")
         text = text.replace(f"{punct}", f"{punct} ")
-    
+
     # 5. Fix common PDF artifacts
     text = text.replace(" ,", ",")
     text = text.replace(" .", ".")
     text = text.replace(" :", ":")
-    
+
     # 6. Remove paragraph breaks for RAG
     text = text.replace(".\n", ". ")
-    
+
     return text.strip()
 
 
@@ -187,10 +166,10 @@ def read_metadata_file(metadata_path: str) -> dict:
 def combine_document_and_metadata(folder_path: str) -> dict:
     """
     Combine document content (PDF or DOCX) and metadata into a single JSON-like structure.
-    
+
     Args:
         folder_path (str): Path to the folder containing extracted files.
-    
+
     Returns:
         dict: Dictionary containing combined data for the folder.
 
@@ -233,7 +212,9 @@ def combine_document_and_metadata(folder_path: str) -> dict:
     return combined_data
 
 
-def save_combined_data(output_folder: str, combined_data: dict, file_index: int) -> None:
+def save_combined_data(
+    output_folder: str, combined_data: dict, file_index: int
+) -> None:
     """
     Save the combined data (document content + metadata) as a JSON file.
 
@@ -257,9 +238,15 @@ def save_combined_data(output_folder: str, combined_data: dict, file_index: int)
     print(f"Saved combined data to {output_path}")
 
 
-def main() -> None:
+def extract_data(temp_dir: tempfile.TemporaryDirectory):
     """
-    Main function to process ZIP files, extract documents and metadata, and save combined data.
+    Extract data from tempdir and return list of dictionaries.
+
+    Args:
+        temp_dir (tempfile.TemporaryDirectory): Temporary directory containing downloaded files.
+
+    Returns:
+        Python list of dictionaries containing extracted data.
 
     Raises:
         Exception: For any unexpected errors during processing.
@@ -267,46 +254,30 @@ def main() -> None:
     Example:
         Run this script to process ZIP files in the downloads folder.
     """
-    # Count total ZIP files
-    total_files = len([f for f in os.listdir(DOWNLOADS_FOLDER) if f.endswith('.zip')])
-    print(f"Found {total_files} ZIP files in downloads folder")
 
-    extract_zip_files(DOWNLOADS_FOLDER, EXTRACTED_FOLDER)
-    
-    # Get folders and sort them numerically
-    folders = [f for f in os.listdir(EXTRACTED_FOLDER) if os.path.isdir(os.path.join(EXTRACTED_FOLDER, f))]
-    folders.sort(key=lambda x: int(x.split('-')[1]))  # Sort by the number after 'woo-'
-    print(f"Extracted {len(folders)} folders")
+    folder_path = temp_dir.name
+    try:
+        # List files in the folder for debugging
+        files_in_folder = os.listdir(folder_path)
+        print(f"\nProcessing folder {folder_path}:")
+        print(f"Files found: {files_in_folder}")
+        combined_data = []
+        for file in files_in_folder:
+            combined_data.append(
+                combine_document_and_metadata(os.path.join(folder_path, file))
+            )
+        return combined_data
 
-    file_index = 1  # Start file numbering from 1
-    processed_count = 0
-    error_count = 0
-    
-    for folder in folders:  # Use the sorted folders list
-        folder_path = os.path.join(EXTRACTED_FOLDER, folder)
-        try:
-            # List files in the folder for debugging
-            files_in_folder = os.listdir(folder_path)
-            print(f"\nProcessing folder {folder}:")
-            print(f"Files found: {files_in_folder}")
-            
-            combined_data = combine_document_and_metadata(folder_path)
-            save_combined_data(JSON_FOLDER, combined_data, file_index)
-            file_index += 1
-            processed_count += 1
-            
-        except ValueError as e:
-            print(f"Error processing folder {folder_path}: {e}")
-            error_count += 1
-        except Exception as e:
-            print(f"Unexpected error in folder {folder_path}: {str(e)}")
-            error_count += 1
-    
-    print(f"\nProcessing complete:")
-    print(f"Total ZIP files: {total_files}")
-    print(f"Successfully processed: {processed_count}")
-    print(f"Errors encountered: {error_count}")
-    print(f"Final file index: {file_index - 1}")
+    except ValueError as e:
+        print(f"Error processing folder {folder_path}: {e}")
+        error_count += 1
+    except Exception as e:
+        print(f"Unexpected error in folder {folder_path}: {str(e)}")
+        error_count += 1
+
+
+def main() -> None:
+    extract_data()
 
 
 if __name__ == "__main__":
