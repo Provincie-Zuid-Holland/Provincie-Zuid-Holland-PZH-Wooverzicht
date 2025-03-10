@@ -410,70 +410,62 @@ class Scraper:
             f.write(f"Verzameld op: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         return metadata_path
 
-    def scrape_document(self, url, index):
+    def scrape_document(self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int) -> None:
         """
         Scraped een document URL en slaat alle gevonden bestanden op in een zip bestand.
         """
         print(f"\n{'='*80}\nDocument {index} verwerken: {url}\n{'='*80}")
-
-        # Controleer of zip bestand al bestaat
-        zip_path = os.path.join(self.base_download_dir, f"woo-{index}.zip")
-        if os.path.exists(zip_path):
-            print(f"Zip bestand woo-{index}.zip bestaat al")
+        
+        html_content = self.fetch_html(url)
+        if not html_content:
+            print(f"Kon geen content ophalen voor {url}")
             return
 
-        # Maak een tijdelijke directory voor de bestanden
-        with tempfile.TemporaryDirectory() as temp_dir:
-            html_content = self.fetch_html(url)
-            if not html_content:
-                print(f"Kon geen content ophalen voor {url}")
-                return
+        # Genereer en sla metadata op
+        metadata = self.generate_metadata(html_content, url)
+        _ = self.create_metadata_file(metadata, temp_dir)
 
-            # Genereer en sla metadata op
-            metadata = self.generate_metadata(html_content, url)
-            metadata_path = self.create_metadata_file(metadata, temp_dir)
+        # Zoek alle document links
+        doc_links = self.find_documents(html_content, url)
+        if not doc_links:
+            print("Geen documenten gevonden")
+            return
 
-            # Zoek alle document links
-            doc_links = self.find_documents(html_content, url)
-            if not doc_links:
-                print("Geen documenten gevonden")
-                return
+        print(f"{len(doc_links)} document(en) gevonden om te downloaden")
 
-            print(f"{len(doc_links)} document(en) gevonden om te downloaden")
+        # Download alleen nieuwe bestanden
+        downloaded_files = []
+        # skipped_files = []
+        for doc_url, filename in doc_links:
+            # is_downloaded, existing_zip = self._is_file_downloaded(
+            #     filename, doc_url
+            # )
+            # if is_downloaded:
+                # print(f"Bestand {filename} is al gedownload in {existing_zip}")
+                # skipped_files.append((filename, existing_zip))
+                # continue
 
-            # Download alleen nieuwe bestanden
-            downloaded_files = []
-            skipped_files = []
-            for doc_url, filename in doc_links:
-                is_downloaded, existing_zip = self._is_file_downloaded(
-                    filename, doc_url
-                )
-                if is_downloaded:
-                    print(f"Bestand {filename} is al gedownload in {existing_zip}")
-                    skipped_files.append((filename, existing_zip))
-                    continue
+            save_path = os.path.join(temp_dir, filename)
+            if self.download_document(doc_url, save_path):
+                downloaded_files.append(save_path)
+                # # Update cache met nieuw bestand
+                # self.downloaded_files_cache[filename] = zip_path
 
-                save_path = os.path.join(temp_dir, filename)
-                if self.download_document(doc_url, save_path):
-                    downloaded_files.append(save_path)
-                    # Update cache met nieuw bestand
-                    self.downloaded_files_cache[filename] = zip_path
+        # Maak alleen een zip bestand als er nieuwe bestanden zijn
+        # if downloaded_files:
+        #     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        #         # Voeg metadata toe
+        #         zipf.write(metadata_path, os.path.basename(metadata_path))
 
-            # Maak alleen een zip bestand als er nieuwe bestanden zijn
-            if downloaded_files:
-                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                    # Voeg metadata toe
-                    zipf.write(metadata_path, os.path.basename(metadata_path))
+        #         # Voeg nieuwe bestanden toe
+        #         for file_path in downloaded_files:
+        #             zipf.write(file_path, os.path.basename(file_path))
 
-                    # Voeg nieuwe bestanden toe
-                    for file_path in downloaded_files:
-                        zipf.write(file_path, os.path.basename(file_path))
-
-                print(f"Zip bestand aangemaakt: woo-{index}.zip")
-                print(f"Aantal nieuwe bestanden: {len(downloaded_files)}")
-                print(f"Aantal overgeslagen bestanden: {len(skipped_files)}")
-            else:
-                print("Geen nieuwe bestanden om te downloaden")
+        #     print(f"Zip bestand aangemaakt: woo-{index}.zip")
+        #     print(f"Aantal nieuwe bestanden: {len(downloaded_files)}")
+        #     print(f"Aantal overgeslagen bestanden: {len(skipped_files)}")
+        # else:
+        #         print("Geen nieuwe bestanden om te downloaden")
 
     def __del__(self):
         """
@@ -483,3 +475,41 @@ class Scraper:
             self.session.close()
         except:
             pass
+
+if __name__ == "__main__":
+    BASE_URL = "https://open.gelderland.nl/woo-documenten"
+
+    # Example document URL (replace with actual URL)
+    EXAMPLE_DOC_URL = (
+        "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"
+    )
+    scraper = Scraper()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
+
+        # Verify the temp directory is created, and still exists
+        print("\nTemp directory:", temp_dir)
+        assert os.path.exists(temp_dir)
+
+        # Verify that the downloaded files are in the temp directory
+        print("\nTemp directory contents:")
+        for filename in os.listdir(temp_dir):
+            print(filename)
+        
+        # Verify that the metadata file was created
+        metadata_file = os.path.join(temp_dir, "metadata.txt")
+        if os.path.exists(metadata_file):
+            print("\nMetadata file contents:")
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                print(f.read())
+        else:
+            print("\nMetadata file not found")
+
+        # Verify that the downloaded files are not empty
+        print("\nDownloaded files:")
+        for filename in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, filename)
+            if os.path.getsize(file_path) > 0:
+                print(f"{filename} - OK")
+            else:
+                print(f"{filename} - Empty file")
