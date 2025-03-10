@@ -262,8 +262,10 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         print(f"\nProcessing folder {folder_path}:")
         print(f"Files found: {files_in_folder}")
         combined_data = []
-        for i in files_in_folder:
-            combined_data.append(combine_document_and_metadata(folder_path))
+        for file in files_in_folder:
+            combined_data.append(
+                combine_document_and_metadata(os.path.join(folder_path, file))
+            )
         return combined_data
 
     except ValueError as e:
@@ -272,12 +274,6 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
     except Exception as e:
         print(f"Unexpected error in folder {folder_path}: {str(e)}")
         error_count += 1
-
-    print(f"\nProcessing complete:")
-    print(f"Total ZIP files: {total_files}")
-    print(f"Successfully processed: {processed_count}")
-    print(f"Errors encountered: {error_count}")
-    print(f"Final file index: {file_index - 1}")
 
 
 def main() -> None:
