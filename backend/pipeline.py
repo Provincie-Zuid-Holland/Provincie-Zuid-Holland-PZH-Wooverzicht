@@ -140,17 +140,8 @@ def main() -> None:
                 print(f"\nProcessing URL {i}/{len(urls)}")
                 try:
                     with tempfile.TemporaryDirectory() as temp_dir:
-                        print("&&&&", os.listdir(temp_dir))
                         scraper.scrape_document(temp_dir, url, i)  # SCRAPE
-                        test = os.listdir(temp_dir)
-                        print("#######################")
-                        for i in test:
-                            print(i)
-                        print(len(test))
-                        print("#########")
                         combined_data = extract_data(temp_dir)  # EXTRACT
-                        print(combined_data)
-                        # EXTRACT.PY / OMZETTEN NAAR JSON
                         # CREATEDB.PY / CHUNKEN EN VECTORISEREN
                         # CLEANUP TEMPDIR
 
