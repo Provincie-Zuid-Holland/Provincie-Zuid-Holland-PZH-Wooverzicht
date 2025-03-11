@@ -113,7 +113,7 @@ def main() -> None:
     #     "noord_brabant",
     #     "flevoland",
     # ]
-    provinces = ["flevoland"]
+    provinces = ["overijssel"]
     # Import the appropriate modules based on source
     for province in provinces:
         try:
@@ -145,7 +145,7 @@ def main() -> None:
                         combined_data_list = extract_data(temp_dir)  # EXTRACT
                         for combined_data in combined_data_list:
                             db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
-
+                        print("")
                 except Exception as e:
                     print(f"Error processing URL {url}: {e}")
                     continue
