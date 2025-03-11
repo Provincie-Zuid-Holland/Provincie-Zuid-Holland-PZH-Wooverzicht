@@ -356,15 +356,20 @@ class Crawler:
 
         # Filter links that already exist in the URLs.txt file
         new_links = []
-        with open(urls_txt_file_loc, "r") as f:
+        with open(urls_txt_file_loc, "a+") as f:
             # Only keep links that are not already in the file
-            new_links = [link for link in all_links if link not in f.read()]
-            self.log(f"Found {len(new_links)} new URLs")
+            new_links = [] #[link for link in all_links if link not in f.read()]
+            f.seek(0)
+            all_seen_links = f.read()
+            seen_links = all_seen_links.split("\n")
+            for link in all_links:
+                if link not in seen_links:
+                    new_links.append(link)
+            self.log(f"Found {len(new_links)} *NEW* URLs")
 
             # Update the URLs.txt file with the new links
-            with open(urls_txt_file_loc, "a") as f:
-                for link in new_links:
-                    f.write(f"{link}\n")
+            for link in new_links:
+                f.write(f"{link}\n")
 
         return new_links
 
@@ -442,7 +447,7 @@ if __name__ == "__main__":
 
     try:
         crawler = Crawler(base_url, max_urls=max_urls, debug=True)
-        urls = crawler.get_links()
+        urls = crawler.get_new_links()
         crawler.print_results(urls)
         print(f"\nFinal count: {len(urls)} URLs collected")
     except KeyboardInterrupt:
