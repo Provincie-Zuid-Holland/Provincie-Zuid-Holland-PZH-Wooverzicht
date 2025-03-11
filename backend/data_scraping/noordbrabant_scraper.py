@@ -234,7 +234,7 @@ class Scraper:
             print(response.text)
             return False
 
-    def scrape_document(self, url: str, index: int) -> None:
+    def scrape_document(self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int) -> None:
         """
         Scrapes a document URL and saves all found files in a zip file.
         """
@@ -242,46 +242,60 @@ class Scraper:
         download_id = url[
             url.rindex("/") + 1 :
         ]  # Get unique ID after last slash in url "e.g. https://open.brabant.nl/woo-verzoeken/e661cfe8-5f7a-49d5-8cf3-c8bcb65309d8"
-        zip_path = os.path.join(self.base_download_dir, f"woo-{download_id}.zip")
-        if os.path.exists(zip_path):
-            print(f"Zip file woo-{download_id}.zip already exists")
+        # zip_path = os.path.join(self.base_download_dir, f"woo-{download_id}.zip")
+        # if os.path.exists(zip_path):
+        #     print(f"Zip file woo-{download_id}.zip already exists")
+        #     return
+
+        html_content = self.fetch_html(url)
+        if not html_content:
+            print(f"Could not retrieve content for {url}")
             return
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            html_content = self.fetch_html(url)
-            if not html_content:
-                print(f"Could not retrieve content for {url}")
-                return
+        metadata = self.generate_metadata(html_content, url)
+        _ = self.create_metadata_file(metadata, temp_dir)
 
-            metadata = self.generate_metadata(html_content, url)
-            metadata_path = self.create_metadata_file(metadata, temp_dir)
+        # Extract document IDs and download files
+        payload = self.extract_document_ids(html_content)
 
-            # Extract document IDs and download files
-            payload = self.extract_document_ids(html_content)
+        download_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download/{download_id}"
 
-            download_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download/{download_id}"
+        # Download files to temp directory
+        _ = self.download_files(download_url, payload, temp_dir)
 
-            # Download files to temp directory
-            download_success = self.download_files(download_url, payload, temp_dir)
+        # # Create zip file with metadata and downloaded files
+        # with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        #     # Add metadata file
+        #     zipf.write(metadata_path, arcname="metadata.txt")
 
-            # Create zip file with metadata and downloaded files
-            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                # Add metadata file
-                zipf.write(metadata_path, arcname="metadata.txt")
+        # Move all downloaded files (where in subdirectory `extracted_files`) to the temp directory
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if file_path != os.path.join(temp_dir, file):
+                    os.rename(file_path, os.path.join(temp_dir, file))
+        
+        # Remove the empty extracted_files directory (if it is empty), and remove the downloaded_files.zip
+        try:
+            os.rmdir(os.path.join(temp_dir, "extracted_files"))
+            os.remove(os.path.join(temp_dir, "downloaded_files.zip"))
 
-                # Add downloaded files from the extracted directory
-                extract_dir = os.path.join(temp_dir, "extracted_files")
-                if download_success and os.path.exists(extract_dir):
-                    for root, dirs, files in os.walk(extract_dir):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            # Calculate relative path for the archive
-                            arcname = os.path.relpath(file_path, extract_dir)
-                            # Add file to the zip
-                            zipf.write(file_path, arcname=arcname)
-                            print(f"Added to zip: {arcname}")
+        except:
+            pass
 
-            print(f"Zip file created: {zip_path}")
+        # # Add all files to the zip
+        # extract_dir = os.path.join(temp_dir, "extracted_files")
+        # if download_success and os.path.exists(extract_dir):
+        #     for root, dirs, files in os.walk(extract_dir):
+        #         for file in files:
+        #             file_path = os.path.join(root, file)
+        #             # Calculate relative path for the archive
+        #             arcname = os.path.relpath(file_path, extract_dir)
+        #             # Add file to the zip
+        #             zipf.write(file_path, arcname=arcname)
+        #             print(f"Added to zip: {arcname}")
+
+        # print(f"Zip file created: {zip_path}")
 
     def __del__(self):
         """
@@ -301,4 +315,32 @@ if __name__ == "__main__":
         "https://open.brabant.nl/woo-verzoeken/e661cfe8-5f7a-49d5-8cf3-c8bcb65309d8"
     )
     scraper = Scraper()
-    scraper.scrape_document(EXAMPLE_DOC_URL, 1)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
+        
+        # Verify the temp directory is created, and still exists
+        print("\nTemp directory:", temp_dir)
+        assert os.path.exists(temp_dir)
+
+        # Verify that the downloaded files are in the temp directory
+        print("\nTemp directory contents:")
+        for filename in os.listdir(temp_dir):
+            print(filename)
+        
+        # Verify that the metadata file was created
+        metadata_file = os.path.join(temp_dir, "metadata.txt")
+        if os.path.exists(metadata_file):
+            print("\nMetadata file contents:")
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                print(f.read())
+        else:
+            print("\nMetadata file not found")
+
+        # Verify that the downloaded files are not empty
+        print("\nDownloaded files:")
+        for filename in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, filename)
+            if os.path.getsize(file_path) > 0:
+                print(f"{filename} - OK")
+            else:
+                print(f"{filename} - Empty file")
