@@ -266,12 +266,12 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         files_in_folder = os.listdir(folder_path)
         print(f"\nProcessing folder {folder_path}:")
         print(f"Files found: {files_in_folder}")
-        combined_data = []
+        combined_data_list = []
         for file in files_in_folder:
             if file == "metadata.txt":
                 continue
-            combined_data.append(combine_document_and_metadata(folder_path, file))
-        return combined_data
+            combined_data_list.append(combine_document_and_metadata(folder_path, file))
+        return combined_data_list
 
     except ValueError as e:
         print(f"Error processing folder {folder_path}: {e}")

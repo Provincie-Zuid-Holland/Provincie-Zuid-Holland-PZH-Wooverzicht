@@ -5,6 +5,7 @@ import argparse
 from typing import Tuple
 import tempfile
 from extract import extract_data
+from createdb import db_pipeline
 
 
 def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
@@ -141,7 +142,9 @@ def main() -> None:
                 try:
                     with tempfile.TemporaryDirectory() as temp_dir:
                         scraper.scrape_document(temp_dir, url, i)  # SCRAPE
-                        combined_data = extract_data(temp_dir)  # EXTRACT
+                        combined_data_list = extract_data(temp_dir)  # EXTRACT
+                        for combined_data in combined_data_list:
+                            db_pipeline(combined_data)
                         # CREATEDB.PY / CHUNKEN EN VECTORISEREN
                         # CLEANUP TEMPDIR
 
