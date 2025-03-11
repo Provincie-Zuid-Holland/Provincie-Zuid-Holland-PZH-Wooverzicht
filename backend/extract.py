@@ -178,7 +178,7 @@ def combine_document_and_metadata(folder_path: str, file: str) -> dict:
         ValueError: If no PDF/DOCX or metadata file is found.
 
     Example:
-        combined_data = combine_document_and_metadata('/path/to/extracted/folder')
+        combined_data = combine_document_and_metadata('/path/to/extracted/folder', 'filename')
     """
     # Look for PDF and DOCX files
     # pdf_files = [f for f in os.listdir(folder_path) if f.endswith(".pdf")]
@@ -200,11 +200,9 @@ def combine_document_and_metadata(folder_path: str, file: str) -> dict:
     if doc_type == "pdf":
         doc_path = os.path.join(folder_path, file)
         content = extract_text_from_pdf(doc_path)
-        doc_type = "pdf"
     elif doc_type == "docx":
         doc_path = os.path.join(folder_path, file)
         content = extract_text_from_docx(doc_path)
-        doc_type = "docx"
 
     metadata = read_metadata_file(metadata_file)
 
