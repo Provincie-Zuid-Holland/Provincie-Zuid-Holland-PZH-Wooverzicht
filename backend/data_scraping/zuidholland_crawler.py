@@ -351,6 +351,25 @@ class Crawler:
         finally:
             self.session.close()
 
+    def get_new_links(self, urls_txt_file_loc: str = "URLs.txt") -> list:
+        all_links = self.get_links()
+
+        # Filter links that already exist in the URLs.txt file
+        new_links = []
+        with open(urls_txt_file_loc, "r") as f:
+            # Only keep links that are not already in the file
+            new_links = [link for link in all_links if link not in f.read()]
+            self.log(f"Found {len(new_links)} new URLs")
+
+            # Update the URLs.txt file with the new links
+            with open(urls_txt_file_loc, "a") as f:
+                for link in new_links:
+                    f.write(f"{link}\n")
+
+        return new_links
+
+
+
     def print_results(self, urls: list) -> None:
         """
         Prints an overview of all collected URLs per page.
@@ -379,6 +398,23 @@ class Crawler:
             print(f"\nPage {page_num} ({len(page_urls)} URLs):")
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
+
+    def _is_url_scraped(self, url: str, urls_txt_file_loc: str = "URLs.txt") -> bool:
+        """
+        Checks if a URL has already been scraped.
+
+        Args:
+            url (str): The URL to check
+
+        Returns:
+            bool: True if the URL has been scraped, False otherwise
+
+        Example:
+            if scraper._is_url_scraped("https://example.com/page"):
+                print("This URL has already been scraped")
+        """
+        with open(urls_txt_file_loc, "r") as f:
+            return url in f.read()
 
     def __del__(self):
         """
