@@ -4,6 +4,8 @@ import importlib
 import argparse
 from typing import Tuple
 import tempfile
+from extract import extract_data
+from createdb import db_pipeline
 
 
 def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
@@ -104,13 +106,14 @@ def main() -> None:
     sys.path.insert(0, current_dir)
     sys.path.insert(0, parent_dir)
 
-    provinces = [
-        "overijssel",
-        "gelderland",
-        "zuid_holland",
-        "noord_brabant",
-        "flevoland",
-    ]
+    # provinces = [
+    #     "overijssel",
+    #     "gelderland",
+    #     "zuid_holland",
+    #     "noord_brabant",
+    #     "flevoland",
+    # ]
+    provinces = ["flevoland"]
     # Import the appropriate modules based on source
     for province in provinces:
         try:
@@ -139,10 +142,9 @@ def main() -> None:
                 try:
                     with tempfile.TemporaryDirectory() as temp_dir:
                         scraper.scrape_document(temp_dir, url, i)  # SCRAPE
-
-                        # EXTRACT.PY / OMZETTEN NAAR JSON
-                        # CREATEDB.PY / CHUNKEN EN VECTORISEREN
-                        # CLEANUP TEMPDIR
+                        combined_data_list = extract_data(temp_dir)  # EXTRACT
+                        for combined_data in combined_data_list:
+                            db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
 
                 except Exception as e:
                     print(f"Error processing URL {url}: {e}")
