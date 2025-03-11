@@ -144,9 +144,7 @@ def main() -> None:
                         scraper.scrape_document(temp_dir, url, i)  # SCRAPE
                         combined_data_list = extract_data(temp_dir)  # EXTRACT
                         for combined_data in combined_data_list:
-                            db_pipeline(combined_data)
-                        # CREATEDB.PY / CHUNKEN EN VECTORISEREN
-                        # CLEANUP TEMPDIR
+                            db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
 
                 except Exception as e:
                     print(f"Error processing URL {url}: {e}")
