@@ -163,12 +163,13 @@ def read_metadata_file(metadata_path: str) -> dict:
     return metadata
 
 
-def combine_document_and_metadata(folder_path: str) -> dict:
+def combine_document_and_metadata(folder_path: str, file: str) -> dict:
     """
     Combine document content (PDF or DOCX) and metadata into a single JSON-like structure.
 
     Args:
         folder_path (str): Path to the folder containing extracted files.
+        file_path (str): Path to the file to be processed.
 
     Returns:
         dict: Dictionary containing combined data for the folder.
@@ -180,22 +181,28 @@ def combine_document_and_metadata(folder_path: str) -> dict:
         combined_data = combine_document_and_metadata('/path/to/extracted/folder')
     """
     # Look for PDF and DOCX files
-    pdf_files = [f for f in os.listdir(folder_path) if f.endswith(".pdf")]
-    docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx")]
+    # pdf_files = [f for f in os.listdir(folder_path) if f.endswith(".pdf")]
+    # docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx")]
+    # Check extentsion of file is pdf or docx. If not raise error
+    if file.endswith(".pdf"):
+        doc_type = "pdf"
+    elif file.endswith(".docx"):
+        doc_type = "docx"
+    else:
+        raise ValueError(f"Unsupported file type for {file}")
     metadata_file = os.path.join(folder_path, "metadata.txt")
 
-    if not pdf_files and not docx_files:
-        raise ValueError(f"No PDF or DOCX file found in folder: {folder_path}")
+    # Check if metadata file exists
     if not os.path.exists(metadata_file):
         raise ValueError(f"No metadata.txt file found in folder: {folder_path}")
 
     # Handle either PDF or DOCX
-    if pdf_files:
-        doc_path = os.path.join(folder_path, pdf_files[0])
+    if doc_type == "pdf":
+        doc_path = os.path.join(folder_path, file)
         content = extract_text_from_pdf(doc_path)
         doc_type = "pdf"
-    else:
-        doc_path = os.path.join(folder_path, docx_files[0])
+    elif doc_type == "docx":
+        doc_path = os.path.join(folder_path, file)
         content = extract_text_from_docx(doc_path)
         doc_type = "docx"
 
@@ -255,7 +262,7 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         Run this script to process ZIP files in the downloads folder.
     """
 
-    folder_path = temp_dir.name
+    folder_path = temp_dir
     try:
         # List files in the folder for debugging
         files_in_folder = os.listdir(folder_path)
@@ -263,9 +270,9 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         print(f"Files found: {files_in_folder}")
         combined_data = []
         for file in files_in_folder:
-            combined_data.append(
-                combine_document_and_metadata(os.path.join(folder_path, file))
-            )
+            if file == "metadata.txt":
+                continue
+            combined_data.append(combine_document_and_metadata(folder_path, file))
         return combined_data
 
     except ValueError as e:
