@@ -404,23 +404,6 @@ class Crawler:
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
 
-    def _is_url_scraped(self, url: str, urls_txt_file_loc: str = "URLs.txt") -> bool:
-        """
-        Checks if a URL has already been scraped.
-
-        Args:
-            url (str): The URL to check
-
-        Returns:
-            bool: True if the URL has been scraped, False otherwise
-
-        Example:
-            if scraper._is_url_scraped("https://example.com/page"):
-                print("This URL has already been scraped")
-        """
-        with open(urls_txt_file_loc, "r") as f:
-            return url in f.read()
-
     def __del__(self):
         """
         Destructor to ensure the session is closed.
