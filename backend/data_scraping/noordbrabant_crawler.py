@@ -270,7 +270,7 @@ class Crawler:
             urls (List[str]): List of collected URLs
         """
         if not urls:
-            print("No URLs found.")
+            print("No (new) URLs found.")
             return
 
         print(f"\n{self.pages_visited} pages visited and {len(urls)} URLs extracted:")
