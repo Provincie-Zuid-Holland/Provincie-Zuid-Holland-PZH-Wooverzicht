@@ -110,7 +110,7 @@ class Crawler:
             str: URL van de volgende pagina of None
         """
         # Probeer eerst een 'Volgende' knop te vinden
-        next_button = soup.select_one('a.next, a[rel="next"], a:contains("Volgende")')
+        next_button = soup.select_one('a.next, a[rel="next"], a:-soup-contains("Volgende")')
         if next_button and "href" in next_button.attrs:
             return urljoin(current_url, next_button["href"])
 
@@ -289,7 +289,7 @@ class Crawler:
             urls (list): Lijst met alle verzamelde URLs
         """
         if not urls:
-            print("Geen URLs gevonden.")
+            print("Geen (nieuwe) URLs gevonden.")
             return
 
         pages_text = "pagina" if self.pages_visited == 1 else "pagina's"
