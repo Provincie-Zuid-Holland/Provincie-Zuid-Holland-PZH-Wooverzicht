@@ -326,7 +326,7 @@ if __name__ == "__main__":
         crawler = Crawler(base_url, max_urls=max_urls, debug=True)
         urls = crawler.get_new_links()
         crawler.print_results(urls)
-        print(f"\nFinal count: {len(urls)} URLs collected")
+        print(f"\nFinal count: {len(urls)} (new) URLs collected")
     except KeyboardInterrupt:
         print("\nCrawling interrupted by user")
     except Exception as e:
