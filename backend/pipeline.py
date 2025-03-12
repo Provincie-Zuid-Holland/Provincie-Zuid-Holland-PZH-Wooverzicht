@@ -106,14 +106,15 @@ def main() -> None:
     sys.path.insert(0, current_dir)
     sys.path.insert(0, parent_dir)
 
-    # provinces = [
-    #     "overijssel",
-    #     "gelderland",
-    #     "zuid_holland",
-    #     "noord_brabant",
-    #     "flevoland",
-    # ]
-    provinces = ["overijssel"]
+    provinces = [
+        "overijssel",
+        "zuid_holland",
+        "noord_brabant",
+        "flevoland",
+    ]  # Todo: add Gelderland ones fixed
+    # Werkt: overijssel, ZH, Noord-Brabant, Flevoland
+    # Kapot gelderland
+    # provinces = ["flevoland"] # For debugging
     # Import the appropriate modules based on source
     for province in provinces:
         try:
@@ -124,7 +125,7 @@ def main() -> None:
 
         try:
             print(f"Starting {province} crawler to collect URLs...")
-            crawler = Crawler(base_url)
+            crawler = Crawler(base_url, max_urls=15)
             urls = crawler.get_links()
 
             if not urls:
