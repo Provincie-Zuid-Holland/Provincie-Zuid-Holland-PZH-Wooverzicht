@@ -273,9 +273,13 @@ class Crawler:
             print("No (new) URLs found.")
             return
 
-        print(f"\n{self.pages_visited} pages visited and {len(urls)} URLs extracted:")
+        print(f"\n{self.pages_visited} pages visited and {len(urls)} new URLs extracted:")
 
         for page_num, page_urls in self.urls_per_page.items():
+            # Print only new URLs (in urls parameter) per page
+            page_urls = [url for url in page_urls if url in urls]
+            if not page_urls:
+                continue
             print(f"\nPage {page_num} ({len(page_urls)} URLs):")
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
