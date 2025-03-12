@@ -35,25 +35,46 @@ class Crawler:
             Print een overzicht van gevonden URLs per pagina
     """
 
-    def __init__(self, base_url, max_urls=10):
+    def __init__(self, base_url: str, max_urls: int = 10, debug: bool = True):
         """
         Initialiseert de Crawler met een basis URL en maximum aantal te verzamelen URLs.
 
         Parameters:
             base_url (str): Start URL voor het crawlen
             max_urls (int): Maximum aantal URLs dat verzameld moet worden
+            debug (bool): Schakel gedetailleerde logging in
+
+        Voorbeeld:
+            crawler = Crawler("https://open.gelderland.nl/woo-documenten", 10)
         """
         self.base_url = base_url.rstrip("/")
         self.max_urls = max_urls
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
+        self.debug = debug
 
         # Initialiseer requests session
         self.session = requests.Session()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         }
+
+    def log(self, message: str) -> None:
+        """
+        Helper function for consistent logging.
+
+        Args:
+            message (str): The message to log
+
+        Returns:
+            None
+
+        Example:
+            self.log("Processing page 1")
+        """
+        if self.debug:
+            print(f"[DEBUG] {message}")
 
     def is_woo_document_url(self, url):
         """
