@@ -248,7 +248,7 @@ class Crawler:
             urls (list): Lijst met alle verzamelde URLs
         """
         if not urls:
-            print("Geen URLs gevonden.")
+            print("Geen (nieuwe) URLs gevonden.")
             return
 
         pages_text = "pagina" if self.pages_visited == 1 else "pagina's"
@@ -258,6 +258,8 @@ class Crawler:
 
         for page_num in range(1, self.pages_visited + 1):
             page_urls = self.urls_per_page.get(page_num, [])
+            # Only print URLs that are new
+            page_urls = [url for url in page_urls if url in urls]
             print(f"\nPagina {page_num} ({len(page_urls)} URLs):")
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
