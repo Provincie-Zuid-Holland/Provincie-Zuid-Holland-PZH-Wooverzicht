@@ -34,7 +34,7 @@ class Crawler:
             Print een overzicht van gevonden URLs per pagina
     """
 
-    def __init__(self, base_url, max_urls=20, page_size=15):
+    def __init__(self, base_url: str, max_urls: int = 20, page_size: int = 15, debug: bool = True):
         """
         Initialiseert de Crawler met een basis URL, API URL en maximum aantal te verzamelen URLs.
 
@@ -50,6 +50,7 @@ class Crawler:
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
+        self.debug = debug
         # Initialiseer requests session
         self.session = requests.Session()
         self.headers = {
@@ -62,6 +63,22 @@ class Crawler:
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "cross-site",
         }
+
+    def log(self, message: str) -> None:
+        """
+        Helper function for consistent logging.
+
+        Args:
+            message (str): The message to log
+
+        Returns:
+            None
+
+        Example:
+            self.log("Processing page 1")
+        """
+        if self.debug:
+            print(f"[DEBUG] {message}")
 
     def build_document_url(self, uuid):
         """
@@ -266,7 +283,7 @@ if __name__ == "__main__":
     print(f"API URL: {api_url}")
 
     try:
-        crawler = Crawler(base_url, api_url, max_urls, page_size)
+        crawler = Crawler(base_url, max_urls, page_size)
         urls = crawler.get_new_links()
         crawler.print_results(urls)
     except KeyboardInterrupt:
