@@ -55,6 +55,7 @@ class Crawler:
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
+        self.debug = debug
 
         # Create requests session
         self.session = requests.Session()
@@ -63,6 +64,22 @@ class Crawler:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7",
         }
+
+    def log(self, message: str) -> None:
+        """
+        Helper function for consistent logging.
+
+        Args:
+            message (str): The message to log
+
+        Returns:
+            None
+
+        Example:
+            self.log("Processing page 1")
+        """
+        if self.debug:
+            print(f"[DEBUG] {message}")
 
     def is_woo_document_url(self, url: str) -> bool:
         """
