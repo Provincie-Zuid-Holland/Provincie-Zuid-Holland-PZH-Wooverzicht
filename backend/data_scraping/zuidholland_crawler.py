@@ -351,12 +351,25 @@ class Crawler:
         finally:
             self.session.close()
 
-    def get_new_links(self, urls_txt_file_loc: str = "URLs.txt") -> list:
+    def get_new_links(self, urls_txt_file_path: str = "URLs.txt") -> list:
+        """
+        Gets new document links that are not already in the URLs.txt file.
+
+        Args:
+            urls_txt_file_path (str): The relative path to the URLs.txt file (from the root directory)
+
+        Returns:
+            list: A list of new document links
+
+        Example:
+            new_urls = crawler.get_new_links()
+            print(f"Found {len(new_urls)} new URLs")
+        """
         all_links = self.get_links()
 
         # Filter links that already exist in the URLs.txt file
         new_links = []
-        with open(urls_txt_file_loc, "a+") as f:
+        with open(urls_txt_file_path, "a+") as f:
             # Only keep links that are not already in the file
             new_links = [] #[link for link in all_links if link not in f.read()]
             f.seek(0)
