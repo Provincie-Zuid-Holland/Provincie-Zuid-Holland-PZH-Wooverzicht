@@ -34,7 +34,7 @@ class Crawler:
             Print een overzicht van gevonden URLs per pagina
     """
 
-    def __init__(self, base_url, max_urls=20, page_size=15):
+    def __init__(self, base_url: str, max_urls: int = 20, page_size: int = 15, debug: bool = True):
         """
         Initialiseert de Crawler met een basis URL, API URL en maximum aantal te verzamelen URLs.
 
@@ -50,6 +50,7 @@ class Crawler:
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
+        self.debug = debug
         # Initialiseer requests session
         self.session = requests.Session()
         self.headers = {
@@ -62,6 +63,22 @@ class Crawler:
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "cross-site",
         }
+
+    def log(self, message: str) -> None:
+        """
+        Helper function for consistent logging.
+
+        Args:
+            message (str): The message to log
+
+        Returns:
+            None
+
+        Example:
+            self.log("Processing page 1")
+        """
+        if self.debug:
+            print(f"[DEBUG] {message}")
 
     def build_document_url(self, uuid):
         """
@@ -188,6 +205,41 @@ class Crawler:
         finally:
             self.session.close()
 
+    def get_new_links(self, urls_txt_file_path: str = "URLs.txt") -> list:
+        """
+        Gets new document links that are not already in the URLs.txt file.
+
+        Args:
+            urls_txt_file_path (str): The relative path to the URLs.txt file (from the root directory)
+
+        Returns:
+            list: A list of new document links
+
+        Example:
+            new_urls = crawler.get_new_links()
+            print(f"Found {len(new_urls)} new URLs")
+        """
+        all_links = self.get_links()
+
+        # Filter links that already exist in the URLs.txt file
+        new_links = []
+        with open(urls_txt_file_path, "a+") as f:
+            # Only keep links that are not already in the file
+            new_links = [] #[link for link in all_links if link not in f.read()]
+            f.seek(0)
+            all_seen_links = f.read()
+            seen_links = all_seen_links.split("\n")
+            for link in all_links:
+                if link not in seen_links:
+                    new_links.append(link)
+            self.log(f"Found {len(new_links)} *NEW* URLs")
+
+            # Update the URLs.txt file with the new links
+            for link in new_links:
+                f.write(f"{link}\n")
+
+        return new_links
+
     def print_results(self, urls):
         """
         Print een overzicht van alle verzamelde URLs per pagina.
@@ -196,7 +248,7 @@ class Crawler:
             urls (list): Lijst met alle verzamelde URLs
         """
         if not urls:
-            print("Geen URLs gevonden.")
+            print("Geen (nieuwe) URLs gevonden.")
             return
 
         pages_text = "pagina" if self.pages_visited == 1 else "pagina's"
@@ -206,6 +258,8 @@ class Crawler:
 
         for page_num in range(1, self.pages_visited + 1):
             page_urls = self.urls_per_page.get(page_num, [])
+            # Only print URLs that are new
+            page_urls = [url for url in page_urls if url in urls]
             print(f"\nPagina {page_num} ({len(page_urls)} URLs):")
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
@@ -231,8 +285,8 @@ if __name__ == "__main__":
     print(f"API URL: {api_url}")
 
     try:
-        crawler = Crawler(base_url, api_url, max_urls, page_size)
-        urls = crawler.get_links()
+        crawler = Crawler(base_url, max_urls, page_size)
+        urls = crawler.get_new_links()
         crawler.print_results(urls)
     except KeyboardInterrupt:
         print("\nCrawlen onderbroken door gebruiker")
