@@ -239,6 +239,41 @@ class Crawler:
         finally:
             self.session.close()
 
+    def get_new_links(self, urls_txt_file_path: str = "URLs.txt") -> list:
+        """
+        Gets new document links that are not already in the URLs.txt file.
+
+        Args:
+            urls_txt_file_path (str): The relative path to the URLs.txt file (from the root directory)
+
+        Returns:
+            list: A list of new document links
+
+        Example:
+            new_urls = crawler.get_new_links()
+            print(f"Found {len(new_urls)} new URLs")
+        """
+        all_links = self.get_links()
+
+        # Filter links that already exist in the URLs.txt file
+        new_links = []
+        with open(urls_txt_file_path, "a+") as f:
+            # Only keep links that are not already in the file
+            new_links = [] #[link for link in all_links if link not in f.read()]
+            f.seek(0)
+            all_seen_links = f.read()
+            seen_links = all_seen_links.split("\n")
+            for link in all_links:
+                if link not in seen_links:
+                    new_links.append(link)
+            self.log(f"Found {len(new_links)} *NEW* URLs")
+
+            # Update the URLs.txt file with the new links
+            for link in new_links:
+                f.write(f"{link}\n")
+
+        return new_links
+
     def print_results(self, urls: list) -> None:
         """
         Prints an overview of all collected URLs.
@@ -289,9 +324,9 @@ if __name__ == "__main__":
 
     try:
         crawler = Crawler(base_url, max_urls=max_urls, debug=True)
-        urls = crawler.get_links()
+        urls = crawler.get_new_links()
         crawler.print_results(urls)
-        print(f"\nFinal count: {len(urls)} URLs collected")
+        print(f"\nFinal count: {len(urls)} (new) URLs collected")
     except KeyboardInterrupt:
         print("\nCrawling interrupted by user")
     except Exception as e:
