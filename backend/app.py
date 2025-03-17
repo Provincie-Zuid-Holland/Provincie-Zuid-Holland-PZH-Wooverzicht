@@ -216,7 +216,6 @@ def main() -> None:
             max_chars=max_input_chars,
         )
         if user_input:
-            print(len(user_input))
             if len(user_input) > max_input_chars:
                 st.error("Je vraag is te lang. Probeer het opnieuw met minder tekens")
             else:
