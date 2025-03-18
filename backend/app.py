@@ -208,15 +208,20 @@ def main() -> None:
     # Create columns for input and button
     col1, col2 = st.columns([5, 1])
 
+    max_input_chars = 200
     # Chat input in left column
     with col1:
         user_input = st.chat_input(
-            'Stel je vraag hier (Voorbeeld: "Ik wil informatie over het windbeleid in provincie Overijssel")...'
+            'Stel je vraag hier (Voorbeeld: "Ik wil informatie over het windbeleid in provincie Overijssel")...',
+            max_chars=max_input_chars,
         )
         if user_input:
-            # Store the input in session state to process it on the next rerun
-            st.session_state.user_input = user_input
-            st.rerun()
+            if len(user_input) > max_input_chars:
+                st.error("Je vraag is te lang. Probeer het opnieuw met minder tekens")
+            else:
+                # Store the input in session state to process it on the next rerun
+                st.session_state.user_input = user_input
+                st.rerun()
 
     # New chat button in right column
     with col2:
