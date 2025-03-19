@@ -1,64 +1,58 @@
 import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
 import time
+from urllib.parse import urlparse, urljoin
 
 
 class Crawler:
     """
-    Deze class is voor het crawlen van webpagina's en het verzamelen van WOO document URLs van Gelderland.
-    De crawler gebruikt requests en BeautifulSoup voor het parsen van HTML.
-    In tegenstelling tot Overijssel heeft Gelderland geen JavaScript-gerenderde content, dus Selenium is niet nodig.
+    Deze class is voor het crawlen van WOO document URLs van Gelderland via de Algolia API.
+    De crawler gebruikt direct de Algolia API in plaats van BeautifulSoup parsing.
 
     Attributen:
-        base_url (str): De basis URL waar het crawlen start
+        base_url (str): De basis URL voor de WOO documenten pagina
         max_urls (int): Maximum aantal URLs dat verzameld moet worden
         pages_visited (int): Aantal bezochte pagina's
         urls_per_page (dict): Dictionary die URLs per pagina opslaat
         seen_document_urls (set): Set van reeds geziene document URLs
-        session: Requests session voor het hergebruiken van verbindingen
-
-    Methodes:
-        is_woo_document_url(url: str) -> bool:
-            Controleert of een URL een WOO document pagina is
-
-        get_next_page_url(current_url: str, soup: BeautifulSoup) -> str:
-            Bepaalt de URL van de volgende pagina
-
-        extract_page_links(html_content: str, page_url: str) -> list:
-            Extraheert document links uit HTML content
-
-        get_links() -> list:
-            Verzamelt alle document links door de pagina's te crawlen
-
-        print_results(urls: list) -> None:
-            Print een overzicht van gevonden URLs per pagina
     """
 
-    def __init__(self, base_url: str, max_urls: int = 10, debug: bool = True):
+    def __init__(self, max_urls: int = 10, debug: bool = False):
         """
-        Initialiseert de Crawler met een basis URL en maximum aantal te verzamelen URLs.
+        Initialiseert de Crawler met maximum aantal te verzamelen URLs.
 
         Parameters:
-            base_url (str): Start URL voor het crawlen
             max_urls (int): Maximum aantal URLs dat verzameld moet worden
             debug (bool): Schakel gedetailleerde logging in
 
         Voorbeeld:
-            crawler = Crawler("https://open.gelderland.nl/woo-documenten", 10)
+            crawler = Crawler(10)
         """
-        self.base_url = base_url.rstrip("/")
+        self.base_url = "https://open.gelderland.nl"
+        # Base API URL without query parameters
+        self.api_base_url = "https://w247fahdn6-dsn.algolia.net/1/indexes/*/queries"
+        # API URL with authentication parameters
+        self.api_url = f"{self.api_base_url}?x-algolia-agent=Algolia%20for%20JavaScript%20(4.22.1)%3B%20Browser%20(lite)&x-algolia-api-key=5d7761fa3eeb21d473e7fdea7de0e2bd&x-algolia-application-id=W247FAHDN6"
         self.max_urls = max_urls
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
         self.debug = debug
-        self.max_page_number = 1000
 
-        # Initialiseer requests session
-        self.session = requests.Session()
+        # API headers
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Origin": "https://open.gelderland.nl",
+            "Referer": "https://open.gelderland.nl/woo-documenten",
+            "Accept": "*/*",
+            "Accept-Language": "nl,en;q=0.9,en-GB;q=0.8,en-US;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "sec-ch-ua": '"Chromium";v="134", "Not:A-Brand";v="24", "Microsoft Edge";v="134"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "cross-site",
         }
 
     def log(self, message: str) -> None:
@@ -67,17 +61,11 @@ class Crawler:
 
         Args:
             message (str): The message to log
-
-        Returns:
-            None
-
-        Example:
-            self.log("Processing page 1")
         """
         if self.debug:
             print(f"[DEBUG] {message}")
 
-    def is_woo_document_url(self, url):
+    def is_valid_document_url(self, url):
         """
         Controleert of een URL een WOO document pagina is.
 
@@ -85,7 +73,7 @@ class Crawler:
             url (str): De te controleren URL
 
         Returns:
-            bool: True als het een WOO document URL is
+            bool: True als het een geldige WOO document URL is
         """
         if not url or not isinstance(url, str):
             return False
@@ -96,177 +84,119 @@ class Crawler:
         return (
             parsed_url.netloc == base_domain
             and parsed_url.path.startswith("/woo-documenten/")
-            and len(parsed_url.path) > 16
-        )  # '/woo-documenten/' is 16 chars
+            and len(parsed_url.path) > 16  # '/woo-documenten/' is 16 chars
+        )
 
-    def get_max_page_number(html_content):
+    def get_page_data(self, page_number):
         """
-        Extract the maximum page number from pagination HTML.
+        Haal data op via de Algolia API voor een specifieke pagina.
 
         Args:
-            html_content (str): The full HTML content of the page
+            page_number (int): Het paginanummer om op te halen
 
         Returns:
-            int: The maximum page number found in the pagination
+            dict: JSON data van de API response
         """
-        # Parse the HTML with BeautifulSoup
-        soup = BeautifulSoup(html_content, "html.parser")
+        # Define payload with page number (displayed page is +1)
+        payload = {
+            "requests": [
+                {
+                    "indexName": "woo-request_desc",
+                    "query": "",
+                    "params": f"hitsPerPage=8&page={page_number}&facetFilters=%5B%5D&numericFilters=%5B%5D",
+                }
+            ]
+        }
 
-        # Find all the pagination number buttons
-        # Look for the specific class names from your example
-        pagination_buttons = soup.find_all(
-            "button",
-            class_=lambda c: c
-            and (
-                "pagination_pageNumber__xLchi" in c
-                or "pagination_pageNumber__8t0u3" in c
-            ),
+        # Update referer for the specific page (displayed page is +1)
+        display_page = page_number + 1
+        self.headers["Referer"] = (
+            f"https://open.gelderland.nl/woo-documenten?pagina={display_page}"
         )
 
-        max_page = 0
+        # Send POST request - using json parameter correctly converts to proper content type
+        try:
+            self.log(f"Sending request to: {self.api_url}")
+            self.log(f"Payload: {payload}")
+            response = requests.post(self.api_url, headers=self.headers, json=payload)
 
-        # Iterate through all buttons and extract the numbers
-        for button in pagination_buttons:
-            # Get the text inside the button
-            button_text = button.text.strip()
+            if response.status_code != 200:
+                self.log(f"Error response code: {response.status_code}")
+                self.log(f"Response: {response.text}")
 
-            # Try to convert to integer (will fail for "..." or non-numeric values)
-            try:
-                page_num = int(button_text)
-                if page_num > max_page:
-                    max_page = page_num
-            except ValueError:
-                # Skip non-numeric values like "..."
-                continue
-
-        return max_page
-
-    def get_next_page_url(self, current_url, soup):
-        """
-        Bepaalt de URL van de volgende pagina.
-
-        Parameters:
-            current_url (str): Huidige pagina URL
-            soup (BeautifulSoup): Geparseerde HTML content
-
-        Returns:
-            str: URL van de volgende pagina of None
-        """
-
-        split_url = current_url.rpartition(
-            "="
-        )  # https://open.gelderland.nl/woo-documenten?pagina=1
-        print(type(split_url))
-        print(split_url[2])
-        # Convert part after url into int and add 1
-        next_page = int(split_url[2]) + 1
-        # Construct the new URL
-        next_url = split_url[0] + "=" + str(next_page)
-        print(next_url)
-        return next_url
-        # Probeer eerst een 'Volgende' knop te vinden
-        next_button = soup.select_one(
-            'a.next, a[rel="next"], a:-soup-contains("Volgende")'
-        )
-        if next_button and "href" in next_button.attrs:
-            return urljoin(current_url, next_button["href"])
-
-        # Als alternatief, kijk naar de pagina parameter
-        parsed_url = urlparse(current_url)
-        query_params = {}
-
-        # Parse bestaande query parameters
-        if parsed_url.query:
-            for param in parsed_url.query.split("&"):
-                if "=" in param:
-                    key, value = param.split("=", 1)
-                    query_params[key] = value
-
-        # Bepaal huidige pagina
-        current_page = (
-            int(query_params.get("pagina", 1))
-            if query_params.get("pagina", "").isdigit()
-            else 1
-        )
-        next_page = current_page + 1
-
-        # Check of er nog resultaten zijn
-        results = soup.select(".document-item, article, .woo-item")
-        if not results:
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            self.log(f"Error fetching page {page_number}: {e}")
+            if "response" in locals():
+                self.log(
+                    f"Response status: {response.status_code}, Text: {response.text[:200]}"
+                )
             return None
 
-        # Bouw de volgende pagina URL
-        if "pagina" in query_params:
-            query_params["pagina"] = str(next_page)
-            new_query = "&".join(f"{k}={v}" for k, v in query_params.items())
-        else:
-            if parsed_url.query:
-                new_query = f"{parsed_url.query}&pagina={next_page}"
-            else:
-                new_query = f"pagina={next_page}"
-
-        # Construct de nieuwe URL
-        url_parts = list(parsed_url)
-        url_parts[4] = new_query  # index 4 is query
-        return urlparse("").geturl().join(url_parts)
-
-    def extract_page_links(self, html_content, page_url):
+    def extract_document_urls(self, api_data):
         """
-        Extraheert document links uit HTML content.
+        Extraheert document URLs uit de Algolia API response.
 
         Parameters:
-            html_content (str): HTML content om te parsen
-            page_url (str): URL van de huidige pagina
+            api_data (dict): De API response data
 
         Returns:
             list: Lijst met document URLs
         """
-        soup = BeautifulSoup(html_content, "html.parser")
-        links = []
+        document_urls = []
 
-        for a_tag in soup.find_all("a", href=True):
-            href = a_tag["href"]
-            if not href:
-                continue
+        if not api_data or "results" not in api_data or not api_data["results"]:
+            return document_urls
 
-            absolute_url = urljoin(page_url, href)
-            if self.is_woo_document_url(absolute_url):
-                links.append(absolute_url)
+        # Extract hits from the first result
+        hits = api_data["results"][0].get("hits", [])
 
-        return links
+        for hit in hits:
+            # Extract slug or other identifiers that form the URL
+            if "slug" in hit:
+                document_url = f"{self.base_url}/woo-documenten/{hit['slug']}"
+                if self.is_valid_document_url(document_url):
+                    document_urls.append(document_url)
+
+        return document_urls
 
     def get_links(self):
         """
-        Hoofdfunctie voor het verzamelen van document links door pagina's te crawlen.
+        Hoofdfunctie voor het verzamelen van document links via de Algolia API.
 
         Returns:
             list: Lijst met alle verzamelde document URLs
         """
         all_links = []
-        current_page = 1
-        current_url = self.base_url
+        current_page = 0  # Algolia API uses 0-based indexing
 
         try:
-            while len(all_links) < self.max_urls and current_url:
-                print(f"\nVerwerken van pagina {current_page}...")
+            while len(all_links) < self.max_urls:
+                print(f"\nVerwerken van pagina {current_page + 1}...")  # +1 for display
 
-                # Haal de pagina op
-                try:
-                    response = self.session.get(
-                        current_url, headers=self.headers, timeout=20
-                    )
-                    response.raise_for_status()
-                    html_content = response.text
-                except Exception as e:
-                    print(f"Fout bij ophalen pagina {current_url}: {e}")
+                # Haal de pagina data op via de API
+                api_data = self.get_page_data(current_page)
+
+                if not api_data:
+                    print(f"Geen data gevonden voor pagina {current_page + 1}")
                     break
 
-                # Extraheer links en update tellers
-                soup = BeautifulSoup(html_content, "html.parser")
-                current_links = self.extract_page_links(html_content, current_url)
+                # Extraheer document URLs
+                current_links = self.extract_document_urls(api_data)
                 print(
-                    f"Gevonden {len(current_links)} document links op pagina {current_page}"
+                    f"Gevonden {len(current_links)} document links op pagina {current_page + 1}"
                 )
+
+                if not current_links:
+                    print("Geen document links gevonden op deze pagina")
+                    # Check if we've reached the end of results
+                    if (
+                        api_data["results"][0].get("nbHits", 0)
+                        <= (current_page + 1) * 8
+                    ):  # hitsPerPage is 8
+                        print("Einde van resultaten bereikt")
+                        break
 
                 # Sla unieke URLs voor deze pagina op
                 page_urls = []
@@ -278,65 +208,56 @@ class Crawler:
                         page_urls.append(link)
                         self.seen_document_urls.add(link)
 
-                self.urls_per_page[current_page] = page_urls
-                self.pages_visited = current_page
+                self.urls_per_page[current_page + 1] = page_urls  # +1 for display
+                self.pages_visited = current_page + 1
 
                 if len(all_links) >= self.max_urls:
                     print(f"Maximum aantal URLs bereikt ({self.max_urls})")
                     break
 
-                # Bepaal volgende pagina URL
-                next_url = self.get_next_page_url(current_url, soup)
-                if not next_url or next_url == current_url:
-                    print("Geen volgende pagina gevonden")
-                    break
-
-                current_url = next_url
                 current_page += 1
-                time.sleep(1)  # Wees netjes voor de server
+                time.sleep(1)  # Wees netjes voor de API
 
             return all_links
 
         except Exception as e:
-            print(f"Er is een fout opgetreden tijdens het crawlen: {e}")
+            print(f"Er is een fout opgetreden tijdens het ophalen: {e}")
             return all_links
-        finally:
-            self.session.close()
 
     def get_new_links(self, urls_txt_file_path: str = "URLs.txt") -> list:
         """
         Gets new document links that are not already in the URLs.txt file.
 
         Args:
-            urls_txt_file_path (str): The relative path to the URLs.txt file (from the root directory)
+            urls_txt_file_path (str): The relative path to the URLs.txt file
 
         Returns:
             list: A list of new document links
-
-        Example:
-            new_urls = crawler.get_new_links()
-            print(f"Found {len(new_urls)} new URLs")
         """
         all_links = self.get_links()
 
         # Filter links that already exist in the URLs.txt file
-        new_links = []
-        with open(urls_txt_file_path, "a+") as f:
-            # Only keep links that are not already in the file
-            new_links = []  # [link for link in all_links if link not in f.read()]
-            f.seek(0)
-            all_seen_links = f.read()
-            seen_links = all_seen_links.split("\n")
-            for link in all_links:
-                if link not in seen_links:
-                    new_links.append(link)
-            self.log(f"Found {len(new_links)} *NEW* URLs")
+        try:
+            with open(urls_txt_file_path, "a+") as f:
+                f.seek(0)
+                all_seen_links = f.read()
+                seen_links = all_seen_links.split("\n")
 
-            # Update the URLs.txt file with the new links
-            for link in new_links:
-                f.write(f"{link}\n")
+                new_links = []
+                for link in all_links:
+                    if link not in seen_links:
+                        new_links.append(link)
+                self.log(f"Found {len(new_links)} *NEW* URLs")
 
-        return new_links
+                # Update the URLs.txt file with the new links
+                for link in new_links:
+                    f.write(f"{link}\n")
+
+            return new_links
+
+        except Exception as e:
+            print(f"Error reading or writing to URLs file: {e}")
+            return all_links  # Return all links if file operations fail
 
     def print_results(self, urls):
         """
@@ -360,23 +281,13 @@ class Crawler:
             for i, url in enumerate(page_urls, 1):
                 print(f"{i}. {url}")
 
-    def __del__(self):
-        """
-        Destructor om ervoor te zorgen dat de session wordt afgesloten.
-        """
-        try:
-            self.session.close()
-        except:
-            pass
-
 
 if __name__ == "__main__":
-    # Coniguratie voor het crawlen
-    base_url = "https://open.gelderland.nl/woo-documenten?pagina=57"
-    max_urls = 10
+    # Configuratie voor het crawlen
+    max_urls = 999
 
     try:
-        crawler = Crawler(base_url, max_urls)
+        crawler = Crawler(max_urls)
         urls = crawler.get_new_links()
         crawler.print_results(urls)
     except KeyboardInterrupt:
