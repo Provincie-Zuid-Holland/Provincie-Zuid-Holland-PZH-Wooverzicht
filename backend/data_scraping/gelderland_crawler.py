@@ -53,6 +53,7 @@ class Crawler:
         self.urls_per_page = {}
         self.seen_document_urls = set()
         self.debug = debug
+        self.max_page_number = 1000
 
         # Initialiseer requests session
         self.session = requests.Session()
@@ -98,6 +99,48 @@ class Crawler:
             and len(parsed_url.path) > 16
         )  # '/woo-documenten/' is 16 chars
 
+    def get_max_page_number(html_content):
+        """
+        Extract the maximum page number from pagination HTML.
+
+        Args:
+            html_content (str): The full HTML content of the page
+
+        Returns:
+            int: The maximum page number found in the pagination
+        """
+        # Parse the HTML with BeautifulSoup
+        soup = BeautifulSoup(html_content, "html.parser")
+
+        # Find all the pagination number buttons
+        # Look for the specific class names from your example
+        pagination_buttons = soup.find_all(
+            "button",
+            class_=lambda c: c
+            and (
+                "pagination_pageNumber__xLchi" in c
+                or "pagination_pageNumber__8t0u3" in c
+            ),
+        )
+
+        max_page = 0
+
+        # Iterate through all buttons and extract the numbers
+        for button in pagination_buttons:
+            # Get the text inside the button
+            button_text = button.text.strip()
+
+            # Try to convert to integer (will fail for "..." or non-numeric values)
+            try:
+                page_num = int(button_text)
+                if page_num > max_page:
+                    max_page = page_num
+            except ValueError:
+                # Skip non-numeric values like "..."
+                continue
+
+        return max_page
+
     def get_next_page_url(self, current_url, soup):
         """
         Bepaalt de URL van de volgende pagina.
@@ -109,8 +152,22 @@ class Crawler:
         Returns:
             str: URL van de volgende pagina of None
         """
+
+        split_url = current_url.rpartition(
+            "="
+        )  # https://open.gelderland.nl/woo-documenten?pagina=1
+        print(type(split_url))
+        print(split_url[2])
+        # Convert part after url into int and add 1
+        next_page = int(split_url[2]) + 1
+        # Construct the new URL
+        next_url = split_url[0] + "=" + str(next_page)
+        print(next_url)
+        return next_url
         # Probeer eerst een 'Volgende' knop te vinden
-        next_button = soup.select_one('a.next, a[rel="next"], a:-soup-contains("Volgende")')
+        next_button = soup.select_one(
+            'a.next, a[rel="next"], a:-soup-contains("Volgende")'
+        )
         if next_button and "href" in next_button.attrs:
             return urljoin(current_url, next_button["href"])
 
@@ -266,7 +323,7 @@ class Crawler:
         new_links = []
         with open(urls_txt_file_path, "a+") as f:
             # Only keep links that are not already in the file
-            new_links = [] #[link for link in all_links if link not in f.read()]
+            new_links = []  # [link for link in all_links if link not in f.read()]
             f.seek(0)
             all_seen_links = f.read()
             seen_links = all_seen_links.split("\n")
@@ -315,7 +372,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Coniguratie voor het crawlen
-    base_url = "https://open.gelderland.nl/woo-documenten"
+    base_url = "https://open.gelderland.nl/woo-documenten?pagina=57"
     max_urls = 10
 
     try:
