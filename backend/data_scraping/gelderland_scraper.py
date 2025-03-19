@@ -289,7 +289,9 @@ class Scraper:
     def find_documents(self, html_content, url):
         """
         Zoekt naar alle ondersteunde documenttypes in de HTML content.
+        Algemene aanpak die zoekt naar links die eindigen op .pdf, .docx, etc.
         """
+
         doc_links = []
         if not html_content:
             return doc_links
@@ -297,64 +299,24 @@ class Scraper:
         soup = BeautifulSoup(html_content, "html.parser")
         print("Document links zoeken...")
 
-        # Zoek eerst in specifieke bijlage/download secties
-        attachment_sections = [
-            soup.select(".attachments, .bijlagen, .downloads, .documenten"),
-            soup.select(".document-list, .files-list, .downloads-list"),
-        ]
+        # Zoek naar alle links in de pagina
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            absolute_url = urljoin(url, href)
 
-        for section_list in attachment_sections:
-            if section_list:
-                for section in section_list:
-                    links = section.find_all("a", href=True)
-                    for link in links:
-                        href = link["href"]
-                        absolute_url = urljoin(url, href)
-                        if self._is_supported_file(absolute_url):
-                            filename = self.get_filename_from_url(absolute_url)
-                            extension = os.path.splitext(absolute_url.lower())[1]
-                            print(
-                                f"{extension.upper()[1:]} bestand gevonden in bijlagen: {filename}"
-                            )
-                            doc_links.append((absolute_url, filename))
+            # Skip ReadSpeaker DocReader links om dubbele downloads te voorkomen
+            if "docreader-eu.readspeaker.com" in absolute_url:
+                continue
 
-        # Als backup ook zoeken in hele document
-        if not doc_links:
-            for link in soup.find_all("a", href=True):
-                href = link["href"]
-                absolute_url = urljoin(url, href)
-                if self._is_supported_file(absolute_url):
-                    # Zoek naar context die suggereert dat het om een download gaat
-                    download_indicators = [
-                        "download",
-                        "bijlage",
-                        "document",
-                        "bestand",
-                        "pdf",
-                        "doc",
-                        "xls",
-                    ]
-
-                    link_text = link.get_text(strip=True).lower()
-                    link_classes = (
-                        " ".join(link.get("class", [])).lower()
-                        if link.get("class")
-                        else ""
-                    )
-
-                    is_download_link = any(
-                        indicator in link_text
-                        or indicator in link_classes
-                        or indicator in href.lower()
-                        for indicator in download_indicators
-                    )
-
-                    if is_download_link:
-                        filename = self.get_filename_from_url(absolute_url)
-                        extension = os.path.splitext(absolute_url.lower())[1]
-                        print(f"{extension.upper()[1:]} bestand gevonden: {filename}")
-                        doc_links.append((absolute_url, filename))
-
+            # Check of de URL eindigt op een ondersteunde extensie
+            if (
+                self._is_supported_file(absolute_url)
+                and "media.gelderland.nl" in absolute_url
+            ):
+                filename = self.get_filename_from_url(absolute_url)
+                extension = os.path.splitext(absolute_url.lower())[1]
+                print(f"{extension[1:].upper()} bestand gevonden: {filename}")
+                doc_links.append((absolute_url, filename))
         return doc_links
 
     def download_document(self, url, save_path):
@@ -410,12 +372,14 @@ class Scraper:
             f.write(f"Verzameld op: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         return metadata_path
 
-    def scrape_document(self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int) -> None:
+    def scrape_document(
+        self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
+    ) -> None:
         """
         Scraped een document URL en slaat alle gevonden bestanden op in een zip bestand.
         """
         print(f"\n{'='*80}\nDocument {index} verwerken: {url}\n{'='*80}")
-        
+
         html_content = self.fetch_html(url)
         if not html_content:
             print(f"Kon geen content ophalen voor {url}")
@@ -441,9 +405,9 @@ class Scraper:
             #     filename, doc_url
             # )
             # if is_downloaded:
-                # print(f"Bestand {filename} is al gedownload in {existing_zip}")
-                # skipped_files.append((filename, existing_zip))
-                # continue
+            # print(f"Bestand {filename} is al gedownload in {existing_zip}")
+            # skipped_files.append((filename, existing_zip))
+            # continue
 
             save_path = os.path.join(temp_dir, filename)
             if self.download_document(doc_url, save_path):
@@ -476,13 +440,12 @@ class Scraper:
         except:
             pass
 
+
 if __name__ == "__main__":
     BASE_URL = "https://open.gelderland.nl/woo-documenten"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = (
-        "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"
-    )
+    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
@@ -495,7 +458,7 @@ if __name__ == "__main__":
         print("\nTemp directory contents:")
         for filename in os.listdir(temp_dir):
             print(filename)
-        
+
         # Verify that the metadata file was created
         metadata_file = os.path.join(temp_dir, "metadata.txt")
         if os.path.exists(metadata_file):
