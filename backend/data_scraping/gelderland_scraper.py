@@ -7,6 +7,10 @@ import zipfile
 import tempfile
 import hashlib
 import re
+import zipfile, io
+
+# TODO
+# Modify code so it downloads everything using the download all as zip button. Then unzip in tempdir and remove zip file itself
 
 
 class Scraper:
@@ -309,15 +313,62 @@ class Scraper:
                 continue
 
             # Check of de URL eindigt op een ondersteunde extensie
-            if (
-                self._is_supported_file(absolute_url)
-                and "media.gelderland.nl" in absolute_url
-            ):
+            if absolute_url.endswith(".zip") and "media.gelderland.nl" in absolute_url:
                 filename = self.get_filename_from_url(absolute_url)
                 extension = os.path.splitext(absolute_url.lower())[1]
                 print(f"{extension[1:].upper()} bestand gevonden: {filename}")
                 doc_links.append((absolute_url, filename))
         return doc_links
+
+    def find_zip(self, html_content, url):
+        """
+        Zoekt naar een zip bestand op de pagina. Gelderland heeft namelijk een knop waarmee je alle bestanden in een zip kan downloaden.
+        """
+        if not html_content:
+            return []
+
+        soup = BeautifulSoup(html_content, "html.parser")
+
+        # Zoek naar alle links in de pagina
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            absolute_url = urljoin(url, href)
+
+            # Check of de URL eindigt op een ondersteunde extensie
+            if absolute_url.endswith(".zip") and "media.gelderland.nl" in absolute_url:
+                # filename = self.get_filename_from_url(absolute_url)
+                # get filename after last '/' in url
+                filename = absolute_url.split("/")[-1]
+                # extension = os.path.splitext(absolute_url.lower())[1]
+                # print(f"{extension[1:].upper()} bestand gevonden: {filename}")
+                return absolute_url, filename
+        return []
+
+    def download_zip(self, url, save_path):
+        """
+        Download een zip bestand van de site en zet deze in save_path.
+        """
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(
+                    f"Document downloaden naar (poging {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
+                )
+                response = self.session.get(
+                    url, stream=True, headers=self.headers, timeout=30
+                )
+                response.raise_for_status()
+                if response.status_code == 200:
+                    z = zipfile.ZipFile(io.BytesIO(response.content))
+                    z.extractall(save_path)
+                    print(
+                        f"Zip bestand succesvol gedownload naar: {os.path.basename(save_path)}"
+                    )
+                    return True
+            except Exception as e:
+                print(f"Fout bij downloaden (poging {attempt + 1}): {e}")
+                return False
+        return False
 
     def download_document(self, url, save_path):
         """
@@ -389,47 +440,18 @@ class Scraper:
         metadata = self.generate_metadata(html_content, url)
         _ = self.create_metadata_file(metadata, temp_dir)
 
-        # Zoek alle document links
-        doc_links = self.find_documents(html_content, url)
-        if not doc_links:
-            print("Geen documenten gevonden")
+        # Zoek naar zip bestand
+        zip_link = self.find_zip(html_content, url)
+        if not zip_link:
+            print("Geen zip bestand gevonden")
             return
 
-        print(f"{len(doc_links)} document(en) gevonden om te downloaden")
-
-        # Download alleen nieuwe bestanden
-        downloaded_files = []
-        # skipped_files = []
-        for doc_url, filename in doc_links:
-            # is_downloaded, existing_zip = self._is_file_downloaded(
-            #     filename, doc_url
-            # )
-            # if is_downloaded:
-            # print(f"Bestand {filename} is al gedownload in {existing_zip}")
-            # skipped_files.append((filename, existing_zip))
-            # continue
-
-            save_path = os.path.join(temp_dir, filename)
-            if self.download_document(doc_url, save_path):
-                downloaded_files.append(save_path)
-                # # Update cache met nieuw bestand
-                # self.downloaded_files_cache[filename] = zip_path
-
-        # Maak alleen een zip bestand als er nieuwe bestanden zijn
-        # if downloaded_files:
-        #     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        #         # Voeg metadata toe
-        #         zipf.write(metadata_path, os.path.basename(metadata_path))
-
-        #         # Voeg nieuwe bestanden toe
-        #         for file_path in downloaded_files:
-        #             zipf.write(file_path, os.path.basename(file_path))
-
-        #     print(f"Zip bestand aangemaakt: woo-{index}.zip")
-        #     print(f"Aantal nieuwe bestanden: {len(downloaded_files)}")
-        #     print(f"Aantal overgeslagen bestanden: {len(skipped_files)}")
-        # else:
-        #         print("Geen nieuwe bestanden om te downloaden")
+        # Download zip bestand
+        downloaded = self.download_zip(zip_link[0], temp_dir)
+        if not downloaded:
+            print("Fout bij downloaden zip bestand")
+            return
+        return
 
     def __del__(self):
         """
@@ -445,19 +467,23 @@ if __name__ == "__main__":
     BASE_URL = "https://open.gelderland.nl/woo-documenten"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"
+    # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957" # Klein Woo verzoek (3 bestanden)
+    # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-projectplan-hagenbeek-2024-2024-014129" # Groot Woo verzoek (140 bestanden)
+    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-het-convenant-nedersaksisch-2024-015084"  # Middel Woo verzoek (25 bestanden)
+
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
 
+        print("### VERIFY SCRAPER DOWNLOADS ###")
         # Verify the temp directory is created, and still exists
         print("\nTemp directory:", temp_dir)
         assert os.path.exists(temp_dir)
 
         # Verify that the downloaded files are in the temp directory
-        print("\nTemp directory contents:")
-        for filename in os.listdir(temp_dir):
-            print(filename)
+        print(f"\nTemp directory contents: [{len(os.listdir(temp_dir))} files]")
+        for iter, filename in enumerate(os.listdir(temp_dir), start=1):
+            print(f"{iter}. {filename}")
 
         # Verify that the metadata file was created
         metadata_file = os.path.join(temp_dir, "metadata.txt")
@@ -469,10 +495,8 @@ if __name__ == "__main__":
             print("\nMetadata file not found")
 
         # Verify that the downloaded files are not empty
-        print("\nDownloaded files:")
-        for filename in os.listdir(temp_dir):
+        print("\nDownloaded empty files:")
+        for iter, filename in enumerate(os.listdir(temp_dir), start=1):
             file_path = os.path.join(temp_dir, filename)
-            if os.path.getsize(file_path) > 0:
-                print(f"{filename} - OK")
-            else:
-                print(f"{filename} - Empty file")
+            if os.path.getsize(file_path) <= 0:
+                print(f"{iter}. {filename} - Empty file")
