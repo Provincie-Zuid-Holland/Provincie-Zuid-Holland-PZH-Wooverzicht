@@ -34,12 +34,6 @@ class Scraper:
         generate_metadata(html_content: str, url: str) -> dict:
             Extraheert metadata uit de HTML content.
 
-        find_documents(html_content: str, url: str) -> list:
-            Vindt alle downloadbare documenten in de HTML content.
-
-        download_document(url: str, save_path: str) -> bool:
-            Download een document met foutafhandeling en retries.
-
         create_metadata_file(metadata: dict, temp_dir: str) -> str:
             Maakt een tekstbestand met metadata informatie.
 
