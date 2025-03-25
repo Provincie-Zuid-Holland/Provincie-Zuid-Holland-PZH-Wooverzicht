@@ -27,9 +27,7 @@ class Scraper:
         wait (WebDriverWait): WebDriverWait instance for waiting for elements
 
     Functions:
-        _build_existing_files_cache: Builds a cache of all files already downloaded in zip files
         _get_file_hash: Generates a unique hash for a file URL to identify duplicates
-        _is_file_downloaded: Checks if a file has already been downloaded
         _is_supported_file: Checks if a file type is supported for download
         fetch_html: Retrieves HTML content from a page, including JavaScript-rendered content
         generate_metadata: Extracts metadata from HTML content
@@ -59,16 +57,6 @@ class Scraper:
             ".zip",
         )
 
-        # Create the base download directory for zip files with province subfolder
-        downloads_base = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "data_scraping", "downloads"
-        )
-        self.base_download_dir = os.path.join(downloads_base, "overijssel")
-        os.makedirs(self.base_download_dir, exist_ok=True)
-
-        # Cache to keep track of downloaded files
-        self.downloaded_files_cache = self._build_existing_files_cache()
-
         # Selenium configuration
         options = webdriver.ChromeOptions()
         options.add_argument("--headless")
@@ -77,35 +65,6 @@ class Scraper:
         options.add_argument("--disable-dev-shm-usage")
         self.driver = webdriver.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 20)
-
-    def _build_existing_files_cache(self) -> dict:
-        """
-        Builds a cache of existing files in zip files.
-
-        Returns:
-            dict: A dictionary mapping filenames to their containing zip paths
-
-        Raises:
-            Exception: If there's an error accessing the zip files or directory
-
-        Example:
-            cache = scraper._build_existing_files_cache()
-            print(f"Found {len(cache)} previously downloaded files")
-        """
-        cache = {}
-        try:
-            for filename in os.listdir(self.base_download_dir):
-                if filename.endswith(".zip"):
-                    zip_path = os.path.join(self.base_download_dir, filename)
-                    with zipfile.ZipFile(zip_path, "r") as zipf:
-                        for file_info in zipf.filelist:
-                            if file_info.filename.lower().endswith(
-                                self.supported_extensions
-                            ):
-                                cache[file_info.filename] = zip_path
-        except Exception as e:
-            print(f"Warning: Error building cache: {e}")
-        return cache
 
     def _get_file_hash(self, url: str) -> str:
         """
@@ -122,32 +81,6 @@ class Scraper:
             print(hash_value)  # Output: a1b2c3d4...
         """
         return hashlib.md5(url.encode()).hexdigest()
-
-    def _is_file_downloaded(self, filename: str, url: str) -> tuple:
-        """
-        Checks if a file has already been downloaded.
-
-        Args:
-            filename (str): The filename to check
-            url (str): The URL of the file
-
-        Returns:
-            tuple: (bool, str) - Whether the file is downloaded and its zip path if applicable
-
-        Example:
-            is_downloaded, zip_path = scraper._is_file_downloaded("document.pdf", "https://example.com/document.pdf")
-            if is_downloaded:
-                print(f"File already exists in {zip_path}")
-        """
-        if filename in self.downloaded_files_cache:
-            return True, self.downloaded_files_cache[filename]
-
-        file_hash = self._get_file_hash(url)
-        for existing_file, zip_path in self.downloaded_files_cache.items():
-            if existing_file.startswith(file_hash):
-                return True, zip_path
-
-        return False, None
 
     def _is_supported_file(self, url: str) -> bool:
         """
@@ -490,23 +423,12 @@ class Scraper:
             if self.download_document(doc_url, save_path):
                 downloaded_files.append(save_path)
 
-    def __del__(self):
-        """
-        Cleanup Selenium driver when closing.
-
-        Ensures the Selenium driver is properly closed to prevent resource leaks.
-        """
-        try:
-            self.driver.quit()
-        except:
-            pass
-
 
 if __name__ == "__main__":
     BASE_URL = "https://woo.dataportaaloverijssel.nl/list"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/ecd38cde-3f64-4ead-90de-b379ba3e86ee"
+    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/8cac19dc-4a5c-4d51-b31b-936bc45db154"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
