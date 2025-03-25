@@ -56,6 +56,7 @@ class Scraper:
             ".txt",
             ".csv",
             ".rtf",
+            ".zip",
         )
 
         # Create the base download directory for zip files with province subfolder
@@ -391,9 +392,20 @@ class Scraper:
 
                 if os.path.getsize(save_path) > 0:
                     extension = os.path.splitext(save_path)[1].upper()[1:]
-                    print(
-                        f"{extension} file successfully downloaded: {os.path.basename(save_path)}"
-                    )
+                    if extension == "ZIP":
+                        with zipfile.ZipFile(save_path, "r") as zip_ref:
+                            folder_path = os.path.dirname(
+                                save_path
+                            )  # Extract folder location from save path by removing last part of path behind / or \\
+                            zip_ref.extractall(folder_path)
+                        os.remove(save_path)
+                        print(
+                            f"{extension} file successfully downloaded and extracted: {os.path.basename(save_path)}"
+                        )
+                    else:
+                        print(
+                            f"{extension} file successfully downloaded: {os.path.basename(save_path)}"
+                        )
                     return True
                 else:
                     print("Warning: Downloaded file is empty")
@@ -435,7 +447,9 @@ class Scraper:
             f.write(f"WOO themes: {', '.join(metadata['woo_themes'])}\n")
         return metadata_path
 
-    def scrape_document(self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int) -> None:
+    def scrape_document(
+        self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
+    ) -> None:
         """
         Scrapes a document URL and saves all found files in a zip file.
 
@@ -451,12 +465,6 @@ class Scraper:
             # This will create woo-42.zip if documents are found
         """
         print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
-
-        # # Check if zip file already exists
-        # zip_path = os.path.join(self.base_download_dir, f"woo-{index}.zip")
-        # if os.path.exists(zip_path):
-        #     print(f"Zip file woo-{index}.zip already exists")
-        #     return
 
         html_content = self.fetch_html(url)
         if not html_content:
@@ -477,39 +485,10 @@ class Scraper:
 
         # Download only new files
         downloaded_files = []
-        skipped_files = []
         for doc_url, filename in doc_links:
-            # is_downloaded, existing_zip = self._is_file_downloaded(
-            #     filename, doc_url
-            # )
-            # if is_downloaded:
-            #     print(
-            #         f"File {filename} has already been downloaded in {existing_zip}"
-            #     )
-            #     skipped_files.append((filename, existing_zip))
-            #     continue
-
             save_path = os.path.join(temp_dir, filename)
             if self.download_document(doc_url, save_path):
                 downloaded_files.append(save_path)
-                # # Update cache with new file
-                # self.downloaded_files_cache[filename] = zip_path
-
-        # # Only create a zip file if there are new files
-        # if downloaded_files:
-        #     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        #         # Add metadata
-        #         zipf.write(metadata_path, os.path.basename(metadata_path))
-
-        #         # Add new files
-        #         for file_path in downloaded_files:
-        #             zipf.write(file_path, os.path.basename(file_path))
-
-        #     print(f"Zip file created: woo-{index}.zip")
-        #     print(f"Number of new files: {len(downloaded_files)}")
-        #     print(f"Number of skipped files: {len(skipped_files)}")
-        # else:
-        #     print("No new files to download")
 
     def __del__(self):
         """
@@ -522,13 +501,12 @@ class Scraper:
         except:
             pass
 
+
 if __name__ == "__main__":
     BASE_URL = "https://woo.dataportaaloverijssel.nl/list"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = (
-        "https://woo.dataportaaloverijssel.nl/list/document/cd16950c-e62e-4b63-b275-60d29481c343"
-    )
+    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/ecd38cde-3f64-4ead-90de-b379ba3e86ee"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
@@ -541,7 +519,7 @@ if __name__ == "__main__":
         print("\nTemp directory contents:")
         for filename in os.listdir(temp_dir):
             print(filename)
-        
+
         # Verify that the metadata file was created
         metadata_file = os.path.join(temp_dir, "metadata.txt")
         if os.path.exists(metadata_file):
