@@ -428,7 +428,7 @@ if __name__ == "__main__":
     BASE_URL = "https://woo.dataportaaloverijssel.nl/list"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/8cac19dc-4a5c-4d51-b31b-936bc45db154"
+    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/ecd38cde-3f64-4ead-90de-b379ba3e86ee"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
