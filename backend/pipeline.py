@@ -113,7 +113,7 @@ def execute_pipeline() -> None:
         "flevoland",
         "gelderland",
     ]  # All provinces
-    provinces = ["gelderland"]  # For debugging
+    # provinces = ["gelderland"]  # For debugging
     # Import the appropriate modules based on source
     for province in provinces:
         try:
