@@ -184,9 +184,9 @@ def combine_document_and_metadata(folder_path: str, file: str) -> dict:
     # pdf_files = [f for f in os.listdir(folder_path) if f.endswith(".pdf")]
     # docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx")]
     # Check extentsion of file is pdf or docx. If not raise error
-    if file.endswith(".pdf"):
+    if file.lower().endswith(".pdf"):
         doc_type = "pdf"
-    elif file.endswith(".docx"):
+    elif file.lower().endswith(".docx"):
         doc_type = "docx"
     else:
         raise ValueError(f"Unsupported file type for {file}")
