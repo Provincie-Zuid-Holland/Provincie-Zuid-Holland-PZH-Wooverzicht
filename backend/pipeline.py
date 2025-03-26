@@ -30,7 +30,7 @@ def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
         "gelderland": {
             "crawler_module": "gelderland_crawler",
             "scraper_module": "gelderland_scraper",
-            "base_url": "https://open.gelderland.nl/woo-documenten",
+            "base_url": "https://open.gelderland.nl",
         },
         "noord_brabant": {
             "crawler_module": "noordbrabant_crawler",
@@ -96,7 +96,7 @@ def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
         raise
 
 
-def main() -> None:
+def execute_pipeline() -> None:
     """
     Main program that integrates Crawler and Scraper for all supported provinces.
     """
@@ -111,10 +111,9 @@ def main() -> None:
         "zuid_holland",
         "noord_brabant",
         "flevoland",
-    ]  # Todo: add Gelderland ones fixed
-    # Werkt: overijssel, ZH, Noord-Brabant, Flevoland
-    # Kapot gelderland
-    # provinces = ["flevoland"] # For debugging
+        "gelderland",
+    ]  # All provinces
+    provinces = ["gelderland"]  # For debugging
     # Import the appropriate modules based on source
     for province in provinces:
         try:
@@ -163,4 +162,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    execute_pipeline()
