@@ -264,13 +264,19 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
     try:
         # List files in the folder for debugging
         files_in_folder = os.listdir(folder_path)
+        len_files = len(files_in_folder)
         print(f"\nProcessing folder {folder_path}:")
         print(f"Files found: {files_in_folder}")
         combined_data_list = []
-        for file in files_in_folder:
+        for it, file in enumerate(files_in_folder):
             if file == "metadata.txt":
                 continue
-            combined_data_list.append(combine_document_and_metadata(folder_path, file))
+            print(f"Processing file {it + 1}/{len_files-1}: {file}", end="\r")
+            try:
+                combined_data = combine_document_and_metadata(folder_path, file)
+                combined_data_list.append(combined_data)
+            except Exception as e:
+                print(f"\nSkipping file {file} due to error: {e}")
         return combined_data_list
 
     except ValueError as e:
