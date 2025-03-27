@@ -123,9 +123,11 @@ def execute_pipeline() -> None:
             sys.exit(1)
 
         try:
-            print(f"Starting {province} crawler to collect URLs...")
-            crawler = Crawler(base_url, max_urls=15)
-            urls = crawler.get_links()
+            print("\n" + "<>" * 40)
+            print(f"Starting {province.upper()} crawler to collect URLs...")
+            print("<>" * 40)
+            crawler = Crawler(base_url, max_urls=5)
+            urls = crawler.get_new_links()
 
             if not urls:
                 print("No URLs found to process.")
