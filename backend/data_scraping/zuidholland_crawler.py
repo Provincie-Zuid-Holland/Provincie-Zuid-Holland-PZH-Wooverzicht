@@ -106,6 +106,7 @@ class Crawler:
         Determines the URL of the next page by increasing the page number.
 
         Args:
+            html_content (str): The HTML content of the current page
             current_url (str): The URL of the current page
 
         Returns:
