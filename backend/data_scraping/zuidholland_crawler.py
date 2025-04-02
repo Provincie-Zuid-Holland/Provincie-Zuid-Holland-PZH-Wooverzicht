@@ -39,16 +39,7 @@ class Crawler:
         parsed_url = urlparse(base_url)
         query_params = dict(parse_qsl(parsed_url.fragment.lstrip("&")))
         # Reconstruct URL without fragment
-        self.base_url = urlunparse(
-            (
-                parsed_url.scheme,
-                parsed_url.netloc,
-                parsed_url.path,
-                parsed_url.params,
-                "&".join(f"{k}={v}" for k, v in query_params.items()),
-                "",
-            )
-        )
+        self.base_url = base_url
 
         self.max_urls = int(max_urls)  # Ensure it's an integer
         self.pages_visited = 0
@@ -110,48 +101,50 @@ class Crawler:
             self.log(f"Valid WOO URL found: {url}")
         return result
 
-    def get_next_page_url(self, current_url: str) -> str:
+    def get_next_page_url(self, html_content, current_url: str) -> str:
         """
         Determines the URL of the next page by increasing the page number.
 
         Args:
+            html_content (str): The HTML content of the current page
             current_url (str): The URL of the current page
 
         Returns:
             str: The URL of the next page
 
         Example:
-            next_url = crawler.get_next_page_url("https://example.com/page?pager_page=1")
-            # Returns "https://example.com/page?pager_page=2"
+            next_url = crawler.get_next_page_url("https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/?pager_page=1#&ajax=true&facet_wob=10&pager_page=0&zoeken_term=&date_from=&date_to=")
+            # Returns "https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/?pager_page=1#&ajax=true&facet_wob=10&pager_page=1&zoeken_term=&date_from=&date_to="
         """
-        # Parse the URL properly
-        parsed_url = urlparse(current_url)
-        query_params = dict(parse_qsl(parsed_url.query))
 
-        # Find current page number
-        if "pager_page" in query_params:
-            current_page = int(query_params["pager_page"])
-        else:
-            current_page = 0
+        # Find second pager_page=x in string and replace it with x+1
+        # First check if there is a next page button
+        soup = BeautifulSoup(html_content, "html.parser")
 
-        next_page = current_page + 1
+        # Check if the next navigation element exists anywhere in the HTML
+        next_nav = soup.select_one("a.pager_nav.volgende, a.pager_nav.volgende.has-ico")
+        if not next_nav:
+            return ""  # No next page found
 
-        # Update page number
-        query_params["pager_page"] = str(next_page)
-
-        # Reconstruct URL
-        next_url = urlunparse(
-            (
-                parsed_url.scheme,
-                parsed_url.netloc,
-                parsed_url.path,
-                parsed_url.params,
-                "&".join(f"{k}={v}" for k, v in query_params.items()),
-                "",
-            )
+        increment_index = current_url.find("pager_page=")
+        increment_index += len("pager_page=")
+        increment_index_end = current_url.find("&", increment_index)
+        if increment_index_end == -1:
+            increment_index_end = len(current_url)
+        curr_page = current_url[increment_index:increment_index_end]
+        curr_page = int(curr_page)
+        next_page = curr_page + 1
+        next_url = (
+            current_url[:increment_index]
+            + str(next_page)
+            + current_url[increment_index_end:]
         )
 
-        self.log(f"Next page URL: {next_url} (current was page {current_page})")
+        print(f"Increment index: {increment_index}")
+        if increment_index == -1:
+            return ""
+
+        self.log(f"Next page URL: {next_url} (current was page {current_url})")
         return next_url
 
     def extract_page_links(self, html_content: str, page_url: str) -> list:
@@ -323,7 +316,7 @@ class Crawler:
                     break
 
                 # Get next page URL
-                next_url = self.get_next_page_url(current_url)
+                next_url = self.get_next_page_url(html_content, current_url)
                 if not next_url or next_url == current_url:
                     self.log("No next page found or reached last page")
                     break
@@ -371,7 +364,7 @@ class Crawler:
         new_links = []
         with open(urls_txt_file_path, "a+") as f:
             # Only keep links that are not already in the file
-            new_links = [] #[link for link in all_links if link not in f.read()]
+            new_links = []  # [link for link in all_links if link not in f.read()]
             f.seek(0)
             all_seen_links = f.read()
             seen_links = all_seen_links.split("\n")
@@ -385,8 +378,6 @@ class Crawler:
                 f.write(f"{link}\n")
 
         return new_links
-
-
 
     def print_results(self, urls: list) -> None:
         """
@@ -431,7 +422,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Command line arguments
-    max_urls = 10
+    max_urls = 50
     if len(sys.argv) > 1:
         try:
             max_urls = int(sys.argv[1])
