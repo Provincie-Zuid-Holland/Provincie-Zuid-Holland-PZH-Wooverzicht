@@ -105,18 +105,16 @@ class DocumentProcessor:
         load_embedded_chunks_to_chromadb: Stores embedded chunks in ChromaDB for retrieval.
     """
 
-    def __init__(self, json_folder: str, openai_api_key: Optional[str] = None):
+    def __init__(self, openai_api_key: Optional[str] = None):
         """
         Initializes the document processor.
 
         Args:
-            json_folder (str): Path to folder containing JSON files.
             openai_api_key (Optional[str]): Optional API key (falls back to environment variable).
 
         Raises:
             ValueError: If no OpenAI API key is available.
         """
-        self.json_folder = Path(json_folder)
         self.client = OpenAI(api_key=openai_api_key or os.getenv("OPENAI_API_KEY"))
 
         # Verify API key availability
@@ -158,9 +156,68 @@ class DocumentProcessor:
                 flattened[new_key] = value
         return flattened
 
-    def load_and_chunk_json_data(
-        self, chunk_size: int = CHUNK_SIZE, chunk_overlap: int = CHUNK_OVERLAP
+    def load_and_chunk_data(
+        self,
+        data: dict,
+        chunk_size: int = CHUNK_SIZE,
+        chunk_overlap: int = CHUNK_OVERLAP,
     ) -> List[ChunkData]:
+        """
+        Processes JSON files into chunks while preserving all metadata.
+
+        Args:
+            data (dict): Dictionary containing JSON data to process.
+            chunk_size (int): Maximum characters per chunk.
+            chunk_overlap (int): Number of overlapping characters between chunks.
+
+        Returns:
+            List[ChunkData]: List of ChunkData objects containing processed chunks.
+
+        Raises:
+            ValueError: If data is empty.
+        """
+        # If dict is empty raise error
+        if not data:
+            raise ValueError("No data found in the JSON file.")
+        all_chunks = []
+
+        # Initialize text splitter with multiple separators for intelligent splitting
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=["\n\n", "\n", " ", ""],  # Try different separators in order
+        )
+
+        # Process data
+        # Get metadata from data dict
+        metadata = data["metadata"]
+
+        # Find the main content field
+        content = data["content"]
+
+        if not content:
+            logger.warning(
+                f"No content field found in {data["pdf_file"]}. "
+                f"Available fields: {list(data.keys())}"
+            )
+
+        # Split content into chunks
+        chunks = text_splitter.split_text(content)
+
+        # Create ChunkData objects for each chunk
+        for idx, chunk in enumerate(chunks):
+            chunk_id = f"{data["file_name"]}_chunk_{idx}"
+            all_chunks.append(
+                ChunkData(chunk_id=chunk_id, content=chunk, metadata=metadata)
+            )
+
+        logger.info(f"Processed {data["file_name"]}: {len(chunks)} chunks created")
+
+        return all_chunks
+
+    def load_and_chunk_json_files(
+        self, chunk_size: int = CHUNK_SIZE, chunk_overlap: int = CHUNK_OVERLAP
+    ) -> List[ChunkData]:  # DEPRECATED NO LONGER USED IN PIPELINE SCRIPT
         """
         Processes JSON files into chunks while preserving all metadata.
 
@@ -303,6 +360,53 @@ class DocumentProcessor:
                 continue
 
 
+def db_pipeline(data):
+    """
+    Function that orchestrates the document processing pipeline.
+
+    This function coordinates the steps of:
+    1. Loading and chunking JSON documents
+    2. Generating embeddings
+    3. Storing embedded chunks in ChromaDB
+
+    Args:
+        data (dict): Dictionary containing JSON data to process
+
+    Raises:
+        Any exceptions that occur during the processing pipeline.
+    """
+    # Load environment variables from .env file
+    load_dotenv()
+    # initalize processor
+    try:
+        processor = DocumentProcessor()
+        # Step 1: Load and chunk the documents
+        logger.info("Chunking JSON data...")
+        chunks = processor.load_and_chunk_data(data)
+
+        if not chunks:
+            logger.error("No chunks were created. Exiting.")
+            return
+
+        # Step 2: Generate embeddings
+        logger.info("Embedding chunks using OpenAI embeddings...")
+        embedded_chunks = processor.embed_chunks(chunks)
+
+        if not embedded_chunks:
+            logger.error("No embeddings were created. Exiting.")
+            return
+
+        # Step 3: Store in database
+        logger.info("Loading embedded chunks into ChromaDB...")
+        processor.load_embedded_chunks_to_chromadb(embedded_chunks)
+
+        logger.info("Processing completed successfully!")
+
+    except Exception as e:
+        logger.error(f"An error occurred during processing: {e}")
+        raise
+
+
 def main():
     """
     Main execution function that orchestrates the document processing pipeline.
@@ -325,7 +429,7 @@ def main():
 
         # Step 1: Load and chunk the documents
         logger.info("Chunking JSON data...")
-        chunks = processor.load_and_chunk_json_data()
+        chunks = processor.load_and_chunk_json_files()
 
         if not chunks:
             logger.error("No chunks were created. Exiting.")

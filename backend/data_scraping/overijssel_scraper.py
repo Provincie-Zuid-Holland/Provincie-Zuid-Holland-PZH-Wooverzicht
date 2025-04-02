@@ -27,9 +27,7 @@ class Scraper:
         wait (WebDriverWait): WebDriverWait instance for waiting for elements
 
     Functions:
-        _build_existing_files_cache: Builds a cache of all files already downloaded in zip files
         _get_file_hash: Generates a unique hash for a file URL to identify duplicates
-        _is_file_downloaded: Checks if a file has already been downloaded
         _is_supported_file: Checks if a file type is supported for download
         fetch_html: Retrieves HTML content from a page, including JavaScript-rendered content
         generate_metadata: Extracts metadata from HTML content
@@ -56,17 +54,8 @@ class Scraper:
             ".txt",
             ".csv",
             ".rtf",
+            ".zip",
         )
-
-        # Create the base download directory for zip files with province subfolder
-        downloads_base = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "data_scraping", "downloads"
-        )
-        self.base_download_dir = os.path.join(downloads_base, "overijssel")
-        os.makedirs(self.base_download_dir, exist_ok=True)
-
-        # Cache to keep track of downloaded files
-        self.downloaded_files_cache = self._build_existing_files_cache()
 
         # Selenium configuration
         options = webdriver.ChromeOptions()
@@ -76,35 +65,6 @@ class Scraper:
         options.add_argument("--disable-dev-shm-usage")
         self.driver = webdriver.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 20)
-
-    def _build_existing_files_cache(self) -> dict:
-        """
-        Builds a cache of existing files in zip files.
-
-        Returns:
-            dict: A dictionary mapping filenames to their containing zip paths
-
-        Raises:
-            Exception: If there's an error accessing the zip files or directory
-
-        Example:
-            cache = scraper._build_existing_files_cache()
-            print(f"Found {len(cache)} previously downloaded files")
-        """
-        cache = {}
-        try:
-            for filename in os.listdir(self.base_download_dir):
-                if filename.endswith(".zip"):
-                    zip_path = os.path.join(self.base_download_dir, filename)
-                    with zipfile.ZipFile(zip_path, "r") as zipf:
-                        for file_info in zipf.filelist:
-                            if file_info.filename.lower().endswith(
-                                self.supported_extensions
-                            ):
-                                cache[file_info.filename] = zip_path
-        except Exception as e:
-            print(f"Warning: Error building cache: {e}")
-        return cache
 
     def _get_file_hash(self, url: str) -> str:
         """
@@ -121,32 +81,6 @@ class Scraper:
             print(hash_value)  # Output: a1b2c3d4...
         """
         return hashlib.md5(url.encode()).hexdigest()
-
-    def _is_file_downloaded(self, filename: str, url: str) -> tuple:
-        """
-        Checks if a file has already been downloaded.
-
-        Args:
-            filename (str): The filename to check
-            url (str): The URL of the file
-
-        Returns:
-            tuple: (bool, str) - Whether the file is downloaded and its zip path if applicable
-
-        Example:
-            is_downloaded, zip_path = scraper._is_file_downloaded("document.pdf", "https://example.com/document.pdf")
-            if is_downloaded:
-                print(f"File already exists in {zip_path}")
-        """
-        if filename in self.downloaded_files_cache:
-            return True, self.downloaded_files_cache[filename]
-
-        file_hash = self._get_file_hash(url)
-        for existing_file, zip_path in self.downloaded_files_cache.items():
-            if existing_file.startswith(file_hash):
-                return True, zip_path
-
-        return False, None
 
     def _is_supported_file(self, url: str) -> bool:
         """
@@ -391,9 +325,20 @@ class Scraper:
 
                 if os.path.getsize(save_path) > 0:
                     extension = os.path.splitext(save_path)[1].upper()[1:]
-                    print(
-                        f"{extension} file successfully downloaded: {os.path.basename(save_path)}"
-                    )
+                    if extension == "ZIP":
+                        with zipfile.ZipFile(save_path, "r") as zip_ref:
+                            folder_path = os.path.dirname(
+                                save_path
+                            )  # Extract folder location from save path by removing last part of path behind / or \\
+                            zip_ref.extractall(folder_path)
+                        os.remove(save_path)
+                        print(
+                            f"{extension} file successfully downloaded and extracted: {os.path.basename(save_path)}"
+                        )
+                    else:
+                        print(
+                            f"{extension} file successfully downloaded: {os.path.basename(save_path)}"
+                        )
                     return True
                 else:
                     print("Warning: Downloaded file is empty")
@@ -435,7 +380,9 @@ class Scraper:
             f.write(f"WOO themes: {', '.join(metadata['woo_themes'])}\n")
         return metadata_path
 
-    def scrape_document(self, url: str, index: int) -> None:
+    def scrape_document(
+        self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
+    ) -> None:
         """
         Scrapes a document URL and saves all found files in a zip file.
 
@@ -452,74 +399,63 @@ class Scraper:
         """
         print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
 
-        # Check if zip file already exists
-        zip_path = os.path.join(self.base_download_dir, f"woo-{index}.zip")
-        if os.path.exists(zip_path):
-            print(f"Zip file woo-{index}.zip already exists")
+        html_content = self.fetch_html(url)
+        if not html_content:
+            print(f"Could not retrieve content for {url}")
             return
 
-        # Create a temporary directory for the files
-        with tempfile.TemporaryDirectory() as temp_dir:
-            html_content = self.fetch_html(url)
-            if not html_content:
-                print(f"Could not retrieve content for {url}")
-                return
+        # Generate and save metadata
+        metadata = self.generate_metadata(html_content)
+        _ = self.create_metadata_file(metadata, temp_dir)
 
-            # Generate and save metadata
-            metadata = self.generate_metadata(html_content)
-            metadata_path = self.create_metadata_file(metadata, temp_dir)
+        # Find all document links
+        doc_links = self.find_documents(html_content)
+        if not doc_links:
+            print("No documents found")
+            return
 
-            # Find all document links
-            doc_links = self.find_documents(html_content)
-            if not doc_links:
-                print("No documents found")
-                return
+        print(f"{len(doc_links)} document(s) found to download")
 
-            print(f"{len(doc_links)} document(s) found to download")
+        # Download only new files
+        downloaded_files = []
+        for doc_url, filename in doc_links:
+            save_path = os.path.join(temp_dir, filename)
+            if self.download_document(doc_url, save_path):
+                downloaded_files.append(save_path)
 
-            # Download only new files
-            downloaded_files = []
-            skipped_files = []
-            for doc_url, filename in doc_links:
-                is_downloaded, existing_zip = self._is_file_downloaded(
-                    filename, doc_url
-                )
-                if is_downloaded:
-                    print(
-                        f"File {filename} has already been downloaded in {existing_zip}"
-                    )
-                    skipped_files.append((filename, existing_zip))
-                    continue
 
-                save_path = os.path.join(temp_dir, filename)
-                if self.download_document(doc_url, save_path):
-                    downloaded_files.append(save_path)
-                    # Update cache with new file
-                    self.downloaded_files_cache[filename] = zip_path
+if __name__ == "__main__":
+    BASE_URL = "https://woo.dataportaaloverijssel.nl/list"
 
-            # Only create a zip file if there are new files
-            if downloaded_files:
-                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-                    # Add metadata
-                    zipf.write(metadata_path, os.path.basename(metadata_path))
+    # Example document URL (replace with actual URL)
+    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/ecd38cde-3f64-4ead-90de-b379ba3e86ee"
+    scraper = Scraper()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
 
-                    # Add new files
-                    for file_path in downloaded_files:
-                        zipf.write(file_path, os.path.basename(file_path))
+        # Verify the temp directory is created, and still exists
+        print("\nTemp directory:", temp_dir)
+        assert os.path.exists(temp_dir)
 
-                print(f"Zip file created: woo-{index}.zip")
-                print(f"Number of new files: {len(downloaded_files)}")
-                print(f"Number of skipped files: {len(skipped_files)}")
+        # Verify that the downloaded files are in the temp directory
+        print("\nTemp directory contents:")
+        for filename in os.listdir(temp_dir):
+            print(filename)
+
+        # Verify that the metadata file was created
+        metadata_file = os.path.join(temp_dir, "metadata.txt")
+        if os.path.exists(metadata_file):
+            print("\nMetadata file contents:")
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                print(f.read())
+        else:
+            print("\nMetadata file not found")
+
+        # Verify that the downloaded files are not empty
+        print("\nDownloaded files:")
+        for filename in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, filename)
+            if os.path.getsize(file_path) > 0:
+                print(f"{filename} - OK")
             else:
-                print("No new files to download")
-
-    def __del__(self):
-        """
-        Cleanup Selenium driver when closing.
-
-        Ensures the Selenium driver is properly closed to prevent resource leaks.
-        """
-        try:
-            self.driver.quit()
-        except:
-            pass
+                print(f"{filename} - Empty file")
