@@ -34,7 +34,9 @@ class Crawler:
             Print een overzicht van gevonden URLs per pagina
     """
 
-    def __init__(self, base_url: str, max_urls: int = 20, page_size: int = 15, debug: bool = True):
+    def __init__(
+        self, base_url: str, max_urls: int = 20, page_size: int = 15, debug: bool = True
+    ):
         """
         Initialiseert de Crawler met een basis URL, API URL en maximum aantal te verzamelen URLs.
 
@@ -225,7 +227,7 @@ class Crawler:
         new_links = []
         with open(urls_txt_file_path, "a+") as f:
             # Only keep links that are not already in the file
-            new_links = [] #[link for link in all_links if link not in f.read()]
+            new_links = []  # [link for link in all_links if link not in f.read()]
             f.seek(0)
             all_seen_links = f.read()
             seen_links = all_seen_links.split("\n")
@@ -276,7 +278,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Configuratie voor het crawlen
-    base_url = "https://woo.dataportaaloverijssel.nl"
+    base_url = "https://woo.dataportaaloverijssel.nl/list"
     api_url = "https://admin.geoportaaloverijssel.nl/api/document/search/woo"
     max_urls = 10
     page_size = 15
