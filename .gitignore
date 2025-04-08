@@ -60,7 +60,7 @@ backend/data_scraping/downloads/
 backend/database/
 backend/downloads/
 backend/extracted/
-backend/json/*
+backend/json/
 backend/jsontest/
 backend/test/
 backend/all_pdfs
