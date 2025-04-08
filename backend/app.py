@@ -7,8 +7,10 @@ This application provides a user interface for:
 3. Viewing document sources and metadata
 """
 
+import uuid
 import streamlit as st
 from datetime import datetime
+from backend.query_logger import QueryLogger
 from conversational_rag import ConversationalRAG
 from typing import Optional, Union  # Add this import for type hints
 from dotenv import load_dotenv
@@ -93,6 +95,13 @@ def main() -> None:
     # Page configuration
     st.set_page_config(page_title="W👀verzicht", page_icon="📑", layout="wide")
 
+    # initialize logger
+    logger = QueryLogger()
+
+    # Create a session ID for each user
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+
     # Initialize session state for chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -144,6 +153,21 @@ def main() -> None:
     # Main chat display area (will expand to fill available space)
     chat_container = st.container()
 
+    if "disclaimer_shown" not in st.session_state:
+        st.session_state.disclaimer_shown = False
+
+    if not st.session_state.disclaimer_shown:
+        with st.expander("ℹ️ Melding over data-gebruik", expanded=True):
+            st.markdown(
+                """
+                Om de applicatie te verbeteren, verzamelen we gegevens over je vragen en interacties.
+                Deze gegevens bevatten geen persoonlijke informatie en worden alleen gebruikt voor analyse-doeleinden.
+                """
+            )
+            if st.button("Begrepen!"):
+                st.session_state.disclaimer_shown = True
+                st.rerun()
+
     # Display chat history
     with chat_container:
         for message in st.session_state.messages:
@@ -173,9 +197,11 @@ def main() -> None:
             # Generate streaming response
             rag = get_rag_system()
             response_text = ""
+            chunks_used = []
 
             with st.spinner("Even denken..."):
                 # Assuming ConversationalRAG has been modified to support streaming
+                start_time = datetime.now()
                 for chunk in rag.generate_response_stream(user_input):
                     if isinstance(chunk, str):
                         # Update text response
@@ -187,6 +213,11 @@ def main() -> None:
                         # Display sources when they become available
                         with sources_placeholder:
                             display_sources(chunk["sources"])
+                        if "document_ids" in chunk:
+                            # Store document IDs for later use
+                            chunks_used.extend(chunk["document_ids"])
+
+            response_time = (datetime.now() - start_time).total_seconds()
 
             # Add complete response to session state
             st.session_state.messages.append(
@@ -197,6 +228,22 @@ def main() -> None:
                         chunk.get("sources", []) if isinstance(chunk, dict) else []
                     ),
                 }
+            )
+
+            # Create metadata for logging
+            metadata = {
+                "sources": chunk.get("sources", []),
+                "response_time": response_time,
+                "chunks_used": chunks_used,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # Log the interaction
+            logger.log_interaction(
+                st.session_state.session_id,
+                user_input,
+                response_text,
+                metadata,
             )
 
         # Rerun to show the new messages and reset the input
