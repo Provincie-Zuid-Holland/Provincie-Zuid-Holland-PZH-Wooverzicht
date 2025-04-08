@@ -178,7 +178,10 @@ class DocumentProcessor:
         """
         # If dict is empty raise error
         if not data:
-            raise ValueError("No data found in the JSON file.")
+            raise ValueError("No data found in the JSON dict.")
+        # Check if data.content is empty
+        if not data.get("content") or data.content == "":
+            raise ValueError("No content field found in the JSON dict.")
         all_chunks = []
 
         # Initialize text splitter with multiple separators for intelligent splitting
