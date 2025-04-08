@@ -16,7 +16,7 @@ class Crawler:
         seen_document_urls (set): Set van reeds geziene document URLs
     """
 
-    def __init__(self, max_urls: int, debug: bool = False):
+    def __init__(self, base_url="", max_urls: int = 9999, debug: bool = False):
         """
         Initialiseert de Crawler met maximum aantal te verzamelen URLs.
 
