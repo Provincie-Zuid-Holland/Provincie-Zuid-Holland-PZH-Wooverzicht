@@ -274,6 +274,10 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
             print(f"Processing file {it + 1}/{len_files}: {file}", end="\r")
             try:
                 combined_data = combine_document_and_metadata(folder_path, file)
+                # Check if content is empty or empty string
+                if not combined_data["content"] or combined_data["content"] == "":
+                    print(f"\nSkipping file {file} due to empty content.")
+                    continue
                 combined_data_list.append(combined_data)
             except Exception as e:
                 print(f"\nSkipping file {file} due to error: {e}")
