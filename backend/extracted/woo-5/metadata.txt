@@ -1,8 +1,0 @@
-Titel: Kaart windturbines rondom Thales
-Samenvatting: Dit betreft een kaart waarop de afspraken voor windturbines rondom Thales staan gevisualiseerd. 
-•	Gebied binnen groene stippellijn: Het plaatsen van een windturbine in dit gebied dient door initiatiefnemers afgestemd te worden met Thales
-•	Rode gebied: Binnen 1 km rondom de Thales locatie mogen geen windturbines geplaats worden
-•	Oranje gebied: Binnen 6 km ten zuiden van de Thales locatie zijn windturbines niet toegestaan, tenzij initiatiefnemers (met berekeningen) aantonen dat de radar van Thales niet negatief wordt beïnvloed en Thales daarmee instemt
-•	Geel gebied: Binnen 6 km ten noorden van Thales en tussen 6 en 12 km ten zuiden van Thales: Windturbines zijn toegestaan mits door Thales geen (onderbouwd) bezwaar wordt ingebracht.
-Creatie jaar: 2024
-WOO thema's: overig besluit van algemene strekking

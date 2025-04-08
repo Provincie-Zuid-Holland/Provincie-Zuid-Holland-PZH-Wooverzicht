@@ -1,4 +1,0 @@
-Titel: Format samenwerkingsovereenkomst windenergie
-Samenvatting: Deze standaard samenwerkingsovereenkomst (SOK) is bedoeld voor coöperaties en projectontwikkelaars van windenergie. Het doel van een SOK is het vastleggen van afspraken tussen de coöperatie en de projectontwikkelaar, specifiek ook om te garanderen dat minimaal 50 procent lokaal eigendom wordt gerealiseerd bij het windproject.
-Creatie jaar: 2024
-WOO thema's: overig besluit van algemene strekking
