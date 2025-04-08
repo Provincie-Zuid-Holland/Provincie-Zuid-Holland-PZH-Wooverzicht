@@ -106,11 +106,17 @@ def execute_pipeline() -> None:
     sys.path.insert(0, current_dir)
     sys.path.insert(0, parent_dir)
 
+    # provinces = [
+    #     "overijssel",
+    #     "zuid_holland",
+    #     "noord_brabant",
+    #     "flevoland",
+    #     "gelderland",
+    # ]  # All provinces
     provinces = [
         "overijssel",
         "zuid_holland",
         "noord_brabant",
-        "flevoland",
         "gelderland",
     ]  # All provinces
     # provinces = ["gelderland"]  # For debugging
