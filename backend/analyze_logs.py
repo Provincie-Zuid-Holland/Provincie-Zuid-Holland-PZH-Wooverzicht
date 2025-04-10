@@ -44,13 +44,13 @@ def analyze_logs(db_path="query_logs.db", days=7):
         f"Percentage of sessions with follow-up queries: {repeat_query_percentage:.2f}%"
     )
 
-    # Visualize daily query count
-    plt.figure(figsize=(10, 6))
-    daily_counts.plot(kind="bar")
-    plt.title("Daily Query Volume")
-    plt.ylabel("Number of Queries")
-    plt.tight_layout()
-    plt.savefig("daily_queries.png")
+    # # Visualize daily query count
+    # plt.figure(figsize=(10, 6))
+    # daily_counts.plot(kind="bar")
+    # plt.title("Daily Query Volume")
+    # plt.ylabel("Number of Queries")
+    # plt.tight_layout()
+    # plt.savefig("daily_queries.png")
 
     return df
 
