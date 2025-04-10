@@ -123,52 +123,60 @@ class Scraper:
             soup = BeautifulSoup(html_content, "html.parser")
             metadata = {
                 "url": url,
-                "title": "Onbekend",
-                "document_number": "Onbekend",
-                "report_date": "Onbekend",
+                "provincie": "Noord-Brabant",
+                "titel": "",
+                "datum": "",
+                "type": "woo-verzoek",
             }
 
             # Extract title
             title_tag = soup.find("h1")
             if title_tag:
-                metadata["title"] = title_tag.get_text(strip=True)
+                metadata["titel"] = title_tag.get_text(strip=True)
 
-            # Extract document details
-            details = soup.find_all(["dt", "dd"])
-            for i in range(0, len(details), 2):
-                label = details[i].get_text(strip=True).lower()
-                value = (
-                    details[i + 1].get_text(strip=True)
-                    if i + 1 < len(details)
-                    else "Onbekend"
-                )
+            # Find the heading that says "Datum besluit"
+            # datum_heading = soup.find("div", text="Rapportdatum")
+            # date_paragraph = datum_heading.find_next("p")
+            # if date_paragraph:
+            #     metadata["datum"] = date_paragraph.text
 
-                if "documentnummer" in label:
-                    metadata["document_number"] = value
-                elif "rapportdatum" in label:
-                    metadata["report_date"] = value
+            # find date in dt class with Rapportdatum as text
+
+            date_title = soup.find("dt", string="Rapportdatum:")
+            date = date_title.find_next("dd")
+            metadata["datum"] = date.text
 
             return metadata
         except Exception as e:
             print(f"Error generating metadata: {e}")
-            return {
-                "url": url,
-                "title": "Onbekend",
-                "document_number": "Onbekend",
-                "report_date": "Onbekend",
-            }
+            return metadata
 
-    def create_metadata_file(self, metadata: dict, temp_dir: str) -> str:
+    def create_metadata_file(self, metadata, temp_dir):
         """
         Creates a metadata text file.
+
+        Args:
+            metadata (dict): The metadata to write to the file
+            temp_dir (str): The directory where the metadata file should be created
+
+        Returns:
+            str: The path to the created metadata file
+
+        Example:
+            metadata = {
+                "url": www.url.nl,
+                "provincie": "Noord-Brabant",
+                "titel": "titel",
+                "datum": "01-11-1999",
+                "type": "woo-verzoek",
+            }
+            metadata_path = scraper.create_metadata_file(metadata, "/tmp/downloads")
+            print(f"Metadata saved to {metadata_path}")
         """
         metadata_path = os.path.join(temp_dir, "metadata.txt")
         with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(f"URL: {metadata.get('url', 'Onbekend')}\n")
-            f.write(f"Titel: {metadata.get('title', 'Onbekend')}\n")
-            f.write(f"Documentnummer: {metadata.get('document_number', 'Onbekend')}\n")
-            f.write(f"Rapportdatum: {metadata.get('report_date', 'Onbekend')}\n")
-            f.write(f"Verzameld op: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            for key, value in metadata.items():
+                f.write(f"{key}: {value}\n")
         return metadata_path
 
     def download_files(self, url, payload, temp_dir):
@@ -234,7 +242,9 @@ class Scraper:
             print(response.text)
             return False
 
-    def scrape_document(self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int) -> None:
+    def scrape_document(
+        self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
+    ) -> None:
         """
         Scrapes a document URL and saves all found files in a zip file.
         """
@@ -258,7 +268,9 @@ class Scraper:
         # Extract document IDs and download files
         payload = self.extract_document_ids(html_content)
 
-        download_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download/{download_id}"
+        download_url = (
+            f"https://api-brabant.iprox-open.nl/api/v1/public/download/{download_id}"
+        )
 
         # Download files to temp directory
         _ = self.download_files(download_url, payload, temp_dir)
@@ -274,7 +286,7 @@ class Scraper:
                 file_path = os.path.join(root, file)
                 if file_path != os.path.join(temp_dir, file):
                     os.rename(file_path, os.path.join(temp_dir, file))
-        
+
         # Remove the empty extracted_files directory (if it is empty), and remove the downloaded_files.zip
         try:
             os.rmdir(os.path.join(temp_dir, "extracted_files"))
@@ -312,12 +324,12 @@ if __name__ == "__main__":
 
     # Example document URL (replace with actual URL)
     EXAMPLE_DOC_URL = (
-        "https://open.brabant.nl/woo-verzoeken/e661cfe8-5f7a-49d5-8cf3-c8bcb65309d8"
+        "https://open.brabant.nl/woo-verzoeken/457b0102-8db1-433c-a958-10c5491c6945"
     )
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
-        
+
         # Verify the temp directory is created, and still exists
         print("\nTemp directory:", temp_dir)
         assert os.path.exists(temp_dir)
@@ -326,7 +338,7 @@ if __name__ == "__main__":
         print("\nTemp directory contents:")
         for filename in os.listdir(temp_dir):
             print(filename)
-        
+
         # Verify that the metadata file was created
         metadata_file = os.path.join(temp_dir, "metadata.txt")
         if os.path.exists(metadata_file):
