@@ -54,6 +54,9 @@ Thumbs.db
 # env
 .env
 
+#selenium stuff
+.wdm
+
 # database
 /database
 backend/data_scraping/downloads/
