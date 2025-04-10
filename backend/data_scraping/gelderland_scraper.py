@@ -8,6 +8,7 @@ import tempfile
 import hashlib
 import re
 import zipfile, io
+from datetime import datetime
 
 # TODO
 # Modify code so it downloads everything using the download all as zip button. Then unzip in tempdir and remove zip file itself
@@ -99,75 +100,48 @@ class Scraper:
             soup = BeautifulSoup(html_content, "html.parser")
             metadata = {
                 "url": url,
-                "titel": "Onbekend",
-                "samenvatting": "Niet beschikbaar",
-                "creatie_jaar": "Onbekend",
-                "woo_themas": [],
+                "provincie": "Gelderland",
+                "titel": "",
+                "datum": "",
+                "type": "woo-verzoek",
             }
 
             # Probeer titel te vinden (h1 is meest waarschijnlijk)
             title_tag = soup.find("h1")
             if title_tag:
                 metadata["titel"] = title_tag.get_text(strip=True)
-            else:
-                # Als alternatief, probeer de titel uit de URL te halen
-                parsed_url = urlparse(url)
-                path_segments = parsed_url.path.split("/")
-                if len(path_segments) > 2:
-                    url_title = path_segments[-1].replace("-", " ")
-                    if url_title:
-                        metadata["titel"] = url_title.capitalize()
 
-            # Probeer samenvatting/beschrijving te vinden
-            desc_candidates = [
-                soup.select_one(".summary, .description, .intro"),
-                soup.find("meta", property="og:description"),
-                soup.find("meta", attrs={"name": "description"}),
-            ]
+            # datum
+            date_strong = soup.select_one('strong:contains("Publicatiedatum")')
 
-            for candidate in desc_candidates:
-                if candidate:
-                    if candidate.name == "meta":
-                        metadata["samenvatting"] = candidate.get("content", "").strip()
-                    else:
-                        metadata["samenvatting"] = candidate.get_text(strip=True)
-                    break
+            if date_strong:
+                # Get the parent div
+                parent_div = date_strong.parent
+                # Find the span within the same div
+                date_span = parent_div.find("span")
+                if date_span:
+                    # Convert d-m-yyyy to dd-mm-yyyy format
+                    d = datetime.strptime(date_span.text, "%d-%m-%Y")
+                    date_str = d.strftime("%d-%m-%Y")
+                    metadata["datum"] = date_str
 
-            # Probeer het jaar te vinden
-            # Zoek naar een datum in de tekst
-            date_tags = soup.select(".date, time, .datum")
-            if date_tags:
-                date_text = date_tags[0].get_text(strip=True)
-                # Probeer het jaar eruit te halen
-                year_match = re.search(r"20\d{2}", date_text)
-                if year_match:
-                    metadata["creatie_jaar"] = year_match.group(0)
+            categorie_strong = soup.select_one('strong:contains("Categorie")')
 
-            # Als alternatief, zoek jaar in URL
-            if metadata["creatie_jaar"] == "Onbekend":
-                year_match = re.search(r"20\d{2}", url)
-                if year_match:
-                    metadata["creatie_jaar"] = year_match.group(0)
-
-            # Probeer thema's te vinden
-            themes_list = soup.select(".categories a, .tags a, .themas a")
-            metadata["woo_themas"] = (
-                [theme.get_text(strip=True) for theme in themes_list]
-                if themes_list
-                else []
-            )
+            if categorie_strong:
+                # Get the parent div
+                parent_div = categorie_strong.parent
+                # Find the span within the same div
+                categorie_span = parent_div.find("span")
+                if categorie_span.text == "Woo-verzoeken":
+                    metadata["type"] = "woo-verzoek"
+                else:
+                    metadata["type"] = "categorie_span.text"
 
             return metadata
 
         except Exception as e:
             print(f"Fout bij genereren metadata: {e}")
-            return {
-                "url": url,
-                "titel": "Onbekend",
-                "samenvatting": "Niet beschikbaar",
-                "creatie_jaar": "Onbekend",
-                "woo_themas": [],
-            }
+            return metadata
 
     def find_zip(self, html_content, url):
         """
@@ -218,18 +192,30 @@ class Scraper:
 
     def create_metadata_file(self, metadata, temp_dir):
         """
-        Maakt een metadata tekstbestand aan.
+        Creates a metadata text file.
+
+        Args:
+            metadata (dict): The metadata to write to the file
+            temp_dir (str): The directory where the metadata file should be created
+
+        Returns:
+            str: The path to the created metadata file
+
+        Example:
+            metadata = {
+                "url": "https://example.com/page",
+                "title": "Example Document",
+                "summary": "An example document",
+                "date": "2023-01-01",
+                "woo_themes": ["Example Theme"]
+            }
+            metadata_path = scraper.create_metadata_file(metadata, "/tmp/downloads")
+            print(f"Metadata saved to {metadata_path}")
         """
         metadata_path = os.path.join(temp_dir, "metadata.txt")
         with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(f"URL: {metadata.get('url', 'Onbekend')}\n")
-            f.write(f"Titel: {metadata.get('titel', 'Onbekend')}\n")
-            f.write(
-                f"Samenvatting: {metadata.get('samenvatting', 'Niet beschikbaar')}\n"
-            )
-            f.write(f"Creatie jaar: {metadata.get('creatie_jaar', 'Onbekend')}\n")
-            f.write(f"WOO thema's: {', '.join(metadata.get('woo_themas', []))}\n")
-            f.write(f"Verzameld op: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            for key, value in metadata.items():
+                f.write(f"{key}: {value}\n")
         return metadata_path
 
     def scrape_document(
@@ -276,9 +262,9 @@ if __name__ == "__main__":
     BASE_URL = "https://open.gelderland.nl/woo-documenten"
 
     # Example document URL (replace with actual URL)
-    # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957" # Klein Woo verzoek (3 bestanden)
+    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"  # Klein Woo verzoek (3 bestanden)
     # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-projectplan-hagenbeek-2024-2024-014129" # Groot Woo verzoek (140 bestanden)
-    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-het-convenant-nedersaksisch-2024-015084"  # Middel Woo verzoek (25 bestanden)
+    # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-het-convenant-nedersaksisch-2024-015084"  # Middel Woo verzoek (25 bestanden)
 
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
