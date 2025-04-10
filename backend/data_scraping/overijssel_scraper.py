@@ -3,6 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
@@ -57,13 +59,22 @@ class Scraper:
             ".zip",
         )
 
+        # Set WebDriverManager to download to local project folder
+        os.environ["WDM_LOCAL"] = "1"
+        os.environ["WDM_CACHE_DIR"] = "./.wdm_cache"
+
         # Selenium configuration
         options = webdriver.ChromeOptions()
         options.add_argument("--headless")
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
-        self.driver = webdriver.Chrome(options=options)
+        # self.driver = webdriver.Chrome(options=options)
+        # self.wait = WebDriverWait(self.driver, 20)
+
+        # Use WebDriverManager to handle chromedriver path
+        service = Service(ChromeDriverManager().install())
+        self.driver = webdriver.Chrome(service=service, options=options)
         self.wait = WebDriverWait(self.driver, 20)
 
     def _get_file_hash(self, url: str) -> str:
@@ -141,7 +152,7 @@ class Scraper:
                 time.sleep(2)
         return None
 
-    def generate_metadata(self, html_content: str) -> dict:
+    def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Generates metadata from the HTML content.
 
@@ -150,10 +161,13 @@ class Scraper:
 
         Returns:
             dict: A dictionary containing extracted metadata with keys:
-                - title: Document title
-                - summary: Document summary/description
-                - creation_year: Document creation year
-                - woo_themes: List of WOO themes/categories
+            metadata = {
+                "url": www.url.com,
+                "provincie": "Overijssel",
+                "titel": "titel",
+                "datum": "01-11-1999",
+                "type": "woo-verzoek",
+            }
 
         Example:
             html = scraper.fetch_html("https://example.com/page")
@@ -162,7 +176,13 @@ class Scraper:
         """
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-
+            metadata = {
+                "url": url,
+                "provincie": "Overijssel",
+                "titel": "",
+                "datum": "",
+                "type": "",
+            }
             # Get the title
             title_div = soup.find("div", class_="print-document")
             title = (
@@ -170,48 +190,31 @@ class Scraper:
                 .find("a")
                 .get_text(strip=True)
             )
-
-            # Get the summary
-            summary_td = soup.find("td", class_="zoekoverzicht", colspan="2")
-            summary = (
-                summary_td.find_all("p")[1].get_text(strip=True)
-                if len(summary_td.find_all("p")) > 1
-                else ""
-            )
-
+            metadata["titel"] = title
             # Get the creation year
             creation_year_tag = soup.find("td", string="Creatie jaar")
             creation_year = (
                 creation_year_tag.find_next_sibling("td").get_text(strip=True)
                 if creation_year_tag
-                else None
+                else ""
             )
+            metadata["datum"] = f"01-01-{creation_year}"
 
             # Get the WOO themes
-            woo_themes_tag = soup.find("td", string="WOO thema's")
-            woo_themes_list = (
-                woo_themes_tag.find_next_sibling("td").find_all("li")
-                if woo_themes_tag
-                else []
+            woo_theme_tag = soup.find("td", string="WOO thema's")
+            woo_theme = (
+                woo_theme_tag.find_next_sibling("td").find("li")
+                if woo_theme_tag
+                else ""
             )
-            woo_themes = [theme.get_text(strip=True) for theme in woo_themes_list]
+            metadata["type"] = woo_theme.text
 
             # Combine results in a dictionary
-            return {
-                "title": title,
-                "summary": summary,
-                "creation_year": creation_year,
-                "woo_themes": woo_themes,
-            }
+            return metadata
 
         except Exception as e:
             print(f"Error generating metadata: {e}")
-            return {
-                "title": "Unknown",
-                "summary": "Not available",
-                "creation_year": "Unknown",
-                "woo_themes": [],
-            }
+            return metadata
 
     def get_filename_from_url(self, url: str) -> str:
         """
@@ -351,7 +354,7 @@ class Scraper:
                 time.sleep(2)
         return False
 
-    def create_metadata_file(self, metadata: dict, temp_dir: str) -> str:
+    def create_metadata_file(self, metadata, temp_dir):
         """
         Creates a metadata text file.
 
@@ -364,20 +367,19 @@ class Scraper:
 
         Example:
             metadata = {
-                "title": "Example Document",
-                "summary": "An example document",
-                "creation_year": "2023",
-                "woo_themes": ["Example Theme"]
+                "url": www.url.nl,
+                "provincie": "Overijssel",
+                "titel": "titel",
+                "datum": "01-11-1999",
+                "type": "woo-verzoek",
             }
             metadata_path = scraper.create_metadata_file(metadata, "/tmp/downloads")
             print(f"Metadata saved to {metadata_path}")
         """
         metadata_path = os.path.join(temp_dir, "metadata.txt")
         with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(f"Title: {metadata['title']}\n")
-            f.write(f"Summary: {metadata['summary']}\n")
-            f.write(f"Creation year: {metadata['creation_year']}\n")
-            f.write(f"WOO themes: {', '.join(metadata['woo_themes'])}\n")
+            for key, value in metadata.items():
+                f.write(f"{key}: {value}\n")
         return metadata_path
 
     def scrape_document(
@@ -405,7 +407,7 @@ class Scraper:
             return
 
         # Generate and save metadata
-        metadata = self.generate_metadata(html_content)
+        metadata = self.generate_metadata(html_content, url)
         _ = self.create_metadata_file(metadata, temp_dir)
 
         # Find all document links
@@ -428,7 +430,7 @@ if __name__ == "__main__":
     BASE_URL = "https://woo.dataportaaloverijssel.nl/list"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/ecd38cde-3f64-4ead-90de-b379ba3e86ee"
+    EXAMPLE_DOC_URL = "https://woo.dataportaaloverijssel.nl/list/document/e2808ed7-b8bb-4a50-85d5-2af12e771b62"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
