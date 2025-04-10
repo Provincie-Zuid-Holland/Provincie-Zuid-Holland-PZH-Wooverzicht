@@ -67,3 +67,6 @@ backend/json/
 backend/jsontest/
 backend/test/
 backend/all_pdfs
+
+# URLs.txt (file that contains the URLs already scraped)
+URLs.txt
