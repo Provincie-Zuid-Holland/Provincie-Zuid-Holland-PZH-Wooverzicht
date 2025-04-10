@@ -16,12 +16,12 @@ class QueryLogger:
         None
     """
 
-    def __init__(self, db_path="database.db"):
+    def __init__(self, db_path="logging_database.db"):
         """
         Initializes the QueryLogger with a SQLite database.
 
         Args:
-            db_path (str): Path to the SQLite database file. Defaults to "database.db".
+            db_path (str): Path to the SQLite database file. Defaults to "logging_database.db".
 
         Raises:
             sqlite3.Error: If there is an error connecting to the database or executing SQL commands.
@@ -30,7 +30,7 @@ class QueryLogger:
             None
 
         Example:
-            logger = QueryLogger("path/to/database.db")
+            logger = QueryLogger("path/to/logging_database.db")
             logger.log_interaction(session_id, query, response, metadata)
         """
 
@@ -56,7 +56,7 @@ class QueryLogger:
             None
 
         Example:
-            logger = QueryLogger("path/to/database.db")
+            logger = QueryLogger("path/to/logging_database.db")
             # The database and table are created automatically
             # when the QueryLogger instance is initialized.
         """
@@ -103,7 +103,7 @@ class QueryLogger:
                     str: The unique log ID for the interaction.
 
                 Example:
-                    logger = QueryLogger("path/to/database.db")
+                    logger = QueryLogger("path/to/logging_database.db")
                     log_id = logger.log_interaction(
                         session_id="12345",
                         query="What is the capital of France?",
