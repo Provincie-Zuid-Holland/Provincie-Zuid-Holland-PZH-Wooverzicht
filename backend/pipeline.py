@@ -137,7 +137,7 @@ def execute_pipeline() -> None:
 
             if not urls:
                 print("No URLs found to process.")
-                return
+                continue
 
             print(f"\nFound {len(urls)} URLs")
 
