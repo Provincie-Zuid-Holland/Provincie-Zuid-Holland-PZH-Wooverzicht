@@ -7,6 +7,8 @@ import zipfile
 import tempfile
 import hashlib
 import re
+import locale
+from datetime import datetime
 
 
 class Scraper:
@@ -164,10 +166,10 @@ class Scraper:
             soup = BeautifulSoup(html_content, "html.parser")
             metadata = {
                 "url": url,
-                "titel": "Unknown",
-                "samenvatting": "Not available",
-                "datum": "Unknown",
-                "themas": [],
+                "provincie": "Flevoland",
+                "titel": "",
+                "datum": "",
+                "type": "woo-verzoek",
             }
 
             # Try to find title
@@ -185,51 +187,22 @@ class Scraper:
                         metadata["titel"] = candidate.get_text(strip=True)
                     break
 
-            # Try to find description/summary
-            desc_candidates = [
-                soup.find("meta", property="og:description"),
-                soup.find("meta", attrs={"name": "description"}),
-                soup.select_one(".summary, .description, .intro"),
-            ]
+            # Find the heading that says "Datum besluit"
+            datum_heading = soup.find("h2", string="Datum besluit")
+            date_paragraph = datum_heading.find_next("p")
 
-            for candidate in desc_candidates:
-                if candidate:
-                    if candidate.name == "meta":
-                        metadata["samenvatting"] = candidate.get("content", "").strip()
-                    else:
-                        metadata["samenvatting"] = candidate.get_text(strip=True)
-                    break
-
-            # Try to find date
-            date_candidates = [
-                soup.select_one(".date, .datum, time"),
-                soup.find("meta", property="article:published_time"),
-            ]
-
-            for candidate in date_candidates:
-                if candidate:
-                    if candidate.name == "meta":
-                        metadata["datum"] = candidate.get("content", "").strip()
-                    else:
-                        metadata["datum"] = candidate.get_text(strip=True)
-                    break
-
-            # Try to find themes/categories
-            theme_tags = soup.select(".categories a, .tags a, .onderwerpen a")
-            if theme_tags:
-                metadata["themas"] = [tag.get_text(strip=True) for tag in theme_tags]
+            if date_paragraph:
+                locale.setlocale(locale.LC_ALL, "nl_NL")
+                d = datetime.strptime(date_paragraph.text, "%d %B %Y")
+                # Convert dd-month-yyyy to dd-mm-yyyy format
+                date_str = d.strftime("%d-%m-%Y")
+                metadata["datum"] = date_str
 
             return metadata
 
         except Exception as e:
             print(f"Error generating metadata: {e}")
-            return {
-                "url": url,
-                "titel": "Unknown",
-                "samenvatting": "Not available",
-                "datum": "Unknown",
-                "themas": [],
-            }
+            return metadata
 
     def find_documents(self, html_content: str, url: str) -> list:
         """
@@ -395,15 +368,13 @@ class Scraper:
         """
         metadata_path = os.path.join(temp_dir, "metadata.txt")
         with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(f"URL: {metadata.get('url', 'Unknown')}\n")
-            f.write(f"Title: {metadata.get('titel', 'Unknown')}\n")
-            f.write(f"Summary: {metadata.get('samenvatting', 'Not available')}\n")
-            f.write(f"Date: {metadata.get('datum', 'Unknown')}\n")
-            f.write(f"Themes: {', '.join(metadata.get('themas', []))}\n")
-            f.write(f"Collected on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            for key, value in metadata.items():
+                f.write(f"{key}: {value}\n")
         return metadata_path
 
-    def scrape_document(self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int) -> None:
+    def scrape_document(
+        self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
+    ) -> None:
         """
         Main function that scrapes a document URL and downloads all found files.
 
@@ -477,13 +448,14 @@ class Scraper:
         except:
             pass
 
+
 if __name__ == "__main__":
-    BASE_URL = "https://www.flevoland.nl/loket/openbare-documenten/woo-verzoeken-archief"
+    BASE_URL = (
+        "https://www.flevoland.nl/loket/openbare-documenten/woo-verzoeken-archief"
+    )
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = (
-        "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief/Woo-verzoek-klachten-via-BIJ12"
-    )
+    EXAMPLE_DOC_URL = "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief/Woo-verzoek-klachten-via-BIJ12"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
@@ -496,7 +468,7 @@ if __name__ == "__main__":
         print("\nTemp directory contents:")
         for filename in os.listdir(temp_dir):
             print(filename)
-        
+
         # Verify that the metadata file was created
         metadata_file = os.path.join(temp_dir, "metadata.txt")
         if os.path.exists(metadata_file):
