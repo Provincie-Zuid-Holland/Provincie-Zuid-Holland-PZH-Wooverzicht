@@ -1,6 +1,8 @@
 import os
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
+import locale
 import time
 from urllib.parse import urlparse, unquote, urljoin
 import zipfile
@@ -202,80 +204,34 @@ class Scraper:
             soup = BeautifulSoup(html_content, "html.parser")
             metadata = {
                 "url": url,
-                "title": "Unknown",
-                "summary": "Not available",
-                "date": "Unknown",
-                "woo_themes": [],
+                "provincie": "Zuid-Holland",
+                "titel": "",
+                "datum": "",
+                "type": "woo-verzoek",
             }
 
             # Try to find title (h1 is most likely)
             title_tag = soup.find("h1")
             if title_tag:
-                metadata["title"] = title_tag.get_text(strip=True)
-            else:
-                # As an alternative, try to get the title from the URL
-                parsed_url = urlparse(url)
-                path_segments = parsed_url.path.split("/")
-                if len(path_segments) > 2:
-                    url_title = path_segments[-1].replace("-", " ")
-                    if url_title:
-                        metadata["title"] = url_title.capitalize()
+                metadata["titel"] = title_tag.get_text(strip=True)
 
-            # Try to find summary/description
-            desc_candidates = [
-                soup.select_one(".field--name-field-intro-text"),
-                soup.select_one(".field--name-body"),
-                soup.find("meta", property="og:description"),
-                soup.find("meta", attrs={"name": "description"}),
-            ]
-
-            for candidate in desc_candidates:
-                if candidate:
-                    if candidate.name == "meta":
-                        metadata["summary"] = candidate.get("content", "").strip()
-                    else:
-                        metadata["summary"] = candidate.get_text(strip=True)
-                    break
-
-            # Try to find date
-            date_tag = soup.select_one(".field--name-field-datum, .date-display-single")
+            # Find the div with class "datetime"
+            date_tag = soup.find("div", class_="datetime")
             if date_tag:
-                metadata["date"] = date_tag.get_text(strip=True)
-            else:
-                # As an alternative, search for a date in the text using regex
-                body_text = soup.get_text()
-                date_patterns = [
-                    r"\d{1,2}[-/]\d{1,2}[-/]20\d{2}",  # 01-01-2023
-                    r"\d{1,2}\s+[a-z]+\s+20\d{2}",  # 1 January 2023
-                    r"20\d{2}",  # 2023 (just year)
-                ]
-
-                for pattern in date_patterns:
-                    date_match = re.search(pattern, body_text)
-                    if date_match:
-                        metadata["date"] = date_match.group(0)
-                        break
-
-            # Try to find themes/categories
-            theme_tags = soup.select(
-                ".field--name-field-thema a, .field--name-field-trefwoorden a"
-            )
-            if theme_tags:
-                metadata["woo_themes"] = [
-                    tag.get_text(strip=True) for tag in theme_tags
-                ]
+                date_str = date_tag.get_text(strip=True)
+                # Remove "Datum Besluit: " from string
+                date_str = date_str.replace("Datum besluit: ", "")
+                locale.setlocale(locale.LC_ALL, "nl_NL")
+                d = datetime.strptime(date_str, "%d %B %Y")
+                # Convert dd-month-yyyy to dd-mm-yyyy format
+                date_str = d.strftime("%d-%m-%Y")
+                metadata["datum"] = date_str
 
             return metadata
 
         except Exception as e:
             print(f"Error generating metadata: {e}")
-            return {
-                "url": url,
-                "title": "Unknown",
-                "summary": "Not available",
-                "date": "Unknown",
-                "woo_themes": [],
-            }
+            return metadata
 
     def get_filename_from_url(self, url: str) -> str:
         """
@@ -524,15 +480,13 @@ class Scraper:
         """
         metadata_path = os.path.join(temp_dir, "metadata.txt")
         with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(f"URL: {metadata.get('url', 'Unknown')}\n")
-            f.write(f"Title: {metadata.get('title', 'Unknown')}\n")
-            f.write(f"Summary: {metadata.get('summary', 'Not available')}\n")
-            f.write(f"Date: {metadata.get('date', 'Unknown')}\n")
-            f.write(f"WOO themes: {', '.join(metadata.get('woo_themes', []))}\n")
-            f.write(f"Collected on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            for key, value in metadata.items():
+                f.write(f"{key}: {value}\n")
         return metadata_path
 
-    def scrape_document(self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int) -> None:
+    def scrape_document(
+        self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
+    ) -> None:
         """
         Scrapes a document URL and saves all found files in a zip file.
 
@@ -620,13 +574,12 @@ class Scraper:
         except:
             pass
 
+
 if __name__ == "__main__":
     BASE_URL = "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = (
-        "https://www.zuid-holland.nl/politiek-bestuur/bestuur-zh/gedeputeerde-staten/besluiten/besluit/deelbesluit-1-dos-2024-0005502-woo-verzoek"
-    )
+    EXAMPLE_DOC_URL = "https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/besluit/beantwoording-woo-verzoek-deelbesluit-2"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
@@ -639,7 +592,7 @@ if __name__ == "__main__":
         print("\nTemp directory contents:")
         for filename in os.listdir(temp_dir):
             print(filename)
-        
+
         # Verify that the metadata file was created
         metadata_file = os.path.join(temp_dir, "metadata.txt")
         if os.path.exists(metadata_file):
