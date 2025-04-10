@@ -56,7 +56,7 @@ def analyze_logs(db_path="query_logs.db", days=7):
 
 
 def main():
-    db_path = "database.db"
+    db_path = "logging_database.db"
     days = 7
     analyze_logs(db_path, days)
 
