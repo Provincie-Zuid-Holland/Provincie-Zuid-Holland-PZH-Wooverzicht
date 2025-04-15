@@ -118,7 +118,7 @@ def execute_manual_pipeline(urls: list) -> None:
         if "gelderland" in url.lower():
             province = "gelderland"
         elif "zuid-holland" in url.lower():
-            province = "zuid-holland"
+            province = "zuid_holland"
         elif "overijssel" in url.lower():
             province = "overijssel"
         elif "brabant" in url.lower():
@@ -139,7 +139,7 @@ def execute_manual_pipeline(urls: list) -> None:
                 print("No URLs found to process.")
                 continue
 
-            print(f"\Processing {len(urls)} URLs")
+            print(f"Processing {url}")
 
             # Initialize scraper
             scraper = Scraper()
@@ -170,6 +170,14 @@ def execute_manual_pipeline(urls: list) -> None:
 
 
 if __name__ == "__main__":
+    ######################################
     # Paste manual urls in here
-    urls = []
+    urls = [
+        "https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/besluit/beantwoording-woo-verzoek-deelbesluit-2",
+        "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief/Woo-verzoek-klachten-via-BIJ12",
+        "https://open.brabant.nl/woo-verzoeken/457b0102-8db1-433c-a958-10c5491c6945",
+        "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957",
+        "https://woo.dataportaaloverijssel.nl/list/document/e2808ed7-b8bb-4a50-85d5-2af12e771b62",
+    ]
+    #######################################
     execute_manual_pipeline(urls)
