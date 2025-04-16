@@ -98,7 +98,21 @@ def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
 
 def execute_manual_pipeline(urls: list) -> None:
     """
-    Main program that integrates Crawler and Scraper for all supported provinces.
+    Function that executues the pipeline for adding documents to the database. But now you have to manually input the URLs.
+    This function is used for testing purposes.
+
+    Args:
+        urls (list): A list of urls that you want to add to the database. If left empty the script will ask for a URL to be input in the terminal
+
+    Returns:
+        nothing
+
+    Raises:
+        ValueError: If either length or width is negative.
+
+    Example:
+        area = calculate_area(5.0, 3.0)
+        print(area)  # Output: 15.0
     """
     # Ensure current directory and parent are in Python path
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -131,50 +145,39 @@ def execute_manual_pipeline(urls: list) -> None:
         try:
             Crawler, Scraper, base_url = import_crawler_and_scraper(province)
         except ImportError as e:
-            print(f"Error importing required modules: {e}")
-            sys.exit(1)
+            print(f"Error importing required modules for province {province}: {e}")
+        if not urls:
+            print("No URLs found to process.")
+            continue
+
+        print(f"Processing {url}")
 
         try:
-            if not urls:
-                print("No URLs found to process.")
-                continue
-
-            print(f"Processing {url}")
-
             # Initialize scraper
             scraper = Scraper()
-
-            # Process each URL the crawler found
-            for i, url in enumerate(urls, 1):
-                print(f"\nProcessing URL {i}/{len(urls)}")
-                try:
-                    with tempfile.TemporaryDirectory() as temp_dir:
-                        scraper.scrape_document(temp_dir, url, i)  # SCRAPE
-                        combined_data_list = extract_data(temp_dir)  # EXTRACT
-                        for combined_data in combined_data_list:
-                            db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
-                        print("")
-                except Exception as e:
-                    print(f"Error processing URL {url}: {e}")
-                    continue
-
-            print("\nProcessing complete!")
-
-        except KeyboardInterrupt:
-            print("\nProgram interrupted by user")
         except Exception as e:
-            print(f"An error occurred: {e}")
-            import traceback
+            print(f"Error initializing scraper: {e}")
+            continue
 
-            traceback.print_exc()
+        # Process each URL the crawler found
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                scraper.scrape_document(temp_dir, url, 1)  # SCRAPE
+                combined_data_list = extract_data(temp_dir)  # EXTRACT
+                for combined_data in combined_data_list:
+                    db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
+                print("")
+        except Exception as e:
+            print(f"Error processing URL {url}: {e}")
+            continue
+
+        print("\nProcessing complete!")
 
 
 if __name__ == "__main__":
     ######################################
     # Paste manual urls in here
     urls = [
-        "https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/besluit/beantwoording-woo-verzoek-deelbesluit-2",
-        "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief/Woo-verzoek-klachten-via-BIJ12",
         "https://open.brabant.nl/woo-verzoeken/457b0102-8db1-433c-a958-10c5491c6945",
         "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957",
         "https://woo.dataportaaloverijssel.nl/list/document/e2808ed7-b8bb-4a50-85d5-2af12e771b62",
