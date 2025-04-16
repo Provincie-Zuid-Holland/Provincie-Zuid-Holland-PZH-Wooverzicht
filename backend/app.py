@@ -7,6 +7,11 @@ This application provides a user interface for:
 3. Viewing document sources and metadata
 """
 
+import os, sys
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+)  # Need to add to be able to import backend query logger
 import uuid
 import streamlit as st
 from datetime import datetime
