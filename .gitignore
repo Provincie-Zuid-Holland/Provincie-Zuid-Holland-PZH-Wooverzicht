@@ -68,3 +68,6 @@ backend/jsontest/
 backend/test/
 backend/all_pdfs
 logging_database.db
+
+# URLs.txt (file that contains the URLs already scraped)
+URLs.txt
