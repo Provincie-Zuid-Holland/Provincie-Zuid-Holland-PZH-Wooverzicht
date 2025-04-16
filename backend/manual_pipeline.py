@@ -121,7 +121,8 @@ def execute_manual_pipeline(urls: list) -> None:
     sys.path.insert(0, parent_dir)
 
     while len(urls) == 0:
-        print("Plak hier de URL die je in de DB wilt toevoegen")
+        print("#" * 100)
+        print("GEEN URL MEEGEGEVEN!\nPlak hier de URL die je in de DB wilt toevoegen:")
         inp = input()
         if len(inp) >= 4:
             urls.append(inp)
@@ -140,7 +141,7 @@ def execute_manual_pipeline(urls: list) -> None:
         elif "flevoland" in url.lower():
             province = "flevoland"
         else:
-            print(f"INVALID URL {url}")
+            print(f"INVALID URL: [{url}]")
             continue
         try:
             Crawler, Scraper, base_url = import_crawler_and_scraper(province)
@@ -177,10 +178,6 @@ def execute_manual_pipeline(urls: list) -> None:
 if __name__ == "__main__":
     ######################################
     # Paste manual urls in here
-    urls = [
-        "https://open.brabant.nl/woo-verzoeken/457b0102-8db1-433c-a958-10c5491c6945",
-        "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957",
-        "https://woo.dataportaaloverijssel.nl/list/document/e2808ed7-b8bb-4a50-85d5-2af12e771b62",
-    ]
+    urls = []
     #######################################
     execute_manual_pipeline(urls)
