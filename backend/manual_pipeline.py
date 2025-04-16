@@ -1,3 +1,11 @@
+###########################################################################
+# HOW TO USE THIS SCRIPT:
+# This scripts has been created so you are able to manually add woo verzoeken to the DB.
+# There are two ways to do this:
+# 1. You can paste the URL(s) in the "urls" parameter in the script itself (in the main) and run the script.
+# 2. You can run the script and paste one (not more) URL in the terminal when prompted.
+#############################################################################
+
 import sys
 import os
 import importlib
