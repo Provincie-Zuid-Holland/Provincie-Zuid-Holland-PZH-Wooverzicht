@@ -84,16 +84,19 @@ class ConversationalRAG:
         context_parts = []
 
         for idx, chunk in enumerate(chunks, 1):
-            file_source = chunk.metadata.get("pdf_file", "Unkown source")
-            file_name = chunk.metadata.get("metadata.Titel", "Unknown document")
-            date = chunk.metadata.get("metadata.Creatie jaar", "Unknown date")
-            theme = chunk.metadata.get("metadata.WOO thema's", "Unknown theme")
+            url = chunk.metadata.get("url", "Unknown URL")
+            provincie = chunk.metadata.get("provincie", "Unknown provincie")
+            titel = chunk.metadata.get("titel", "Unknown titel")
+            datum = chunk.metadata.get("datum", "Unknown datum")
+            doc_type = chunk.metadata.get("type", "Unknown type")
+
             context_parts.append(
                 f"Document {idx}:\n"
-                f"Bestandsnaam: {file_name}\n"
-                f"Source: {file_source}\n"
-                f"Date: {date}\n"
-                f"Theme: {theme}\n"
+                f"Titel: {titel}\n"
+                f"URL: {url}\n"
+                f"Provincie: {provincie}\n"
+                f"Datum: {datum}\n"
+                f"Type: {doc_type}\n"
                 f"Content: {chunk.content}\n"
             )
         return "\n".join(context_parts)
@@ -108,7 +111,7 @@ class ConversationalRAG:
         return (
             "Je bent een behulpzame assistent die vragen beantwoordt over WOO (Wet Open Overheid) documenten. "
             "Gebruik de gegeven documenten om de vraag te beantwoorden. "
-            "- Citeer altijd je bronnen met [Bron: [bestandsnaam](download_link)] notatie. "
+            "- Citeer altijd je bronnen met [Bron: [titel](url)] notatie. "
             "- Vervang 'bestandsnaam' door de daadwerkelijke naam van het bestand en 'download_link' door de juiste URL. "
             "- Als je niet zeker bent of als de informatie niet in de documenten staat, geef dit dan aan. "
             "- Vat de informatie samen in een duidelijk, professioneel Nederlands antwoord. "
@@ -150,15 +153,13 @@ class ConversationalRAG:
         Returns:
             List[Dict[str, Any]]: List of formatted sources.
         """
-        local_folder = "all_pdfs"
         return [
             {
-                "file_name": chunk.metadata.get("metadata.Titel", "Unknown"),
-                "file_source": chunk.metadata.get("pdf_file", "Unknown"),
-                "pdf_file": f"[{chunk.metadata.get('pdf_file', 'Unknown PDF file')}]"
-                f"(file://{os.path.abspath(local_folder)}/{chunk.metadata.get('pdf_file', 'Unknown PDF file')})",
-                "date": chunk.metadata.get("metadata.Creatie jaar", "Unknown"),
-                "theme": chunk.metadata.get("metadata.WOO thema's", "Unknown"),
+                "titel": chunk.metadata.get("titel", "Unknown"),
+                "url": chunk.metadata.get("url", "Unknown"),
+                "provincie": chunk.metadata.get("provincie", "Unknown"),
+                "datum": chunk.metadata.get("datum", "Unknown"),
+                "type": chunk.metadata.get("type", "Unknown"),
                 "relevance_score": chunk.score,
             }
             for chunk in context_chunks
@@ -284,9 +285,11 @@ class ConversationalRAG:
 
         for idx, source in enumerate(response.sources, 1):
             formatted_response += (
-                f"{idx}. {source['file_name']}\n"
-                f"   Datum: {source['date']}\n"
-                f"   Thema: {source['theme']}\n"
+                f"{idx}. {source['titel']}\n"
+                f"   URL: {source['url']}\n"
+                f"   Provincie: {source['provincie']}\n"
+                f"   Datum: {source['datum']}\n"
+                f"   Type: {source['type']}\n"
                 f"   Relevantie: {source['relevance_score']:.2f}\n"
             )
 
