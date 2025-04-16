@@ -73,9 +73,12 @@ def display_sources(sources: list, container: Optional[st.container] = None) -> 
             container.markdown(
                 f"""
             **Source {idx}:**
-            - File: `{source['file_name']}`
-            - Date: {source['date']}
-            - Theme: {source['theme']}"""
+            - Titel: `{source['titel']}`
+            - URL: [{source['url']}]({source['url']})
+            - Provincie: {source['provincie']}
+            - Datum: {source['datum']}
+            - Type: {source['type']}
+            """
             )
 
 
