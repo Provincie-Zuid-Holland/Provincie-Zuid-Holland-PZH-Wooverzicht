@@ -42,8 +42,8 @@ class Crawler:
         self.seen_document_urls = set()
         self.debug = debug
 
-        # URL for archived WOO requests (2022 and earlier)
-        self.archive_base_url = "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-2022-en-eerder"
+        # URL for archived WOO requests (2020 and earlier)
+        self.archive_base_url = "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief-2"
 
         self.log(f"Initializing crawler with max_urls={self.max_urls}")
 
@@ -97,14 +97,9 @@ class Crawler:
                 or "wob-verzoek" in url.lower()
             )
 
-        # Check for archived WOO requests on archiefweb.eu
-        if parsed_url.netloc == "flevoland.archiefweb.eu":
-            return (
-                "Woo-verzoek" in url
-                or "woo-verzoek" in url.lower()
-                or "WOB-verzoek" in url
-                or "wob-verzoek" in url.lower()
-            )
+        if parsed_url.netloc == "deeplink.archiefweb.eu":
+            # Assumption: All links from this domain are valid WOO documents
+            return True
 
         return False
 
@@ -167,7 +162,7 @@ class Crawler:
             # Find all archive links
             for link in soup.find_all("a", href=True):
                 href = link["href"]
-                if "flevoland.archiefweb.eu" in href and self.is_woo_document_url(href):
+                if self.is_woo_document_url(href):
                     archive_urls.append(href)
 
             self.log(f"Found {len(archive_urls)} archived WOO document URLs")
