@@ -1,0 +1,40 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install system dependencies including Chrome for Selenium and C++ build tools
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    unzip \
+    curl \
+    build-essential \
+    g++ \
+    gcc \
+    python3-dev \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies carefully to avoid chromadb build issues
+COPY requirements.pipeline.txt ./requirements.txt
+RUN pip install --no-cache-dir hnswlib && \
+    pip install --no-cache-dir chroma-hnswlib==0.7.1 && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Create directory for Chrome WebDriver cache
+RUN mkdir -p ./.wdm_cache
+RUN chmod 777 ./.wdm_cache
+
+# Create directory for downloads
+RUN mkdir -p ./data_scraping/downloads
+RUN chmod 777 ./data_scraping/downloads
+
+# Copy pipeline code if not using volume mount
+# COPY . .
+
+# Run the pipeline
+CMD ["python", "pipeline.py"]
