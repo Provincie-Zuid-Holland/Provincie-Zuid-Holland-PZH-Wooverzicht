@@ -240,7 +240,8 @@ class Scraper:
 
             # If using selenium/archive links the date is hidden in the link itself instead of on the HTML page
             if selenium_url:
-                # Find timestamp in selenium_url
+                # Find timestamp in selenium_url in between /archiefweb/ and /
+                # Example: https://deeplink.archiefweb.eu/FbBW/archiefweb/20230901/archiefweb.eu/FbBW
                 pattern = r"/archiefweb/(\d+)/"
                 # Search for the pattern in the URL/string using regex
                 match = re.search(pattern, selenium_url)
@@ -291,7 +292,8 @@ class Scraper:
             return doc_links
 
         soup = BeautifulSoup(html_content, "html.parser")
-        # Find all buttons (a elements with class="button")
+
+        # All woo verzoeken (except for very old ones) have a button with the text "Open de PDF". Therefore we can use this to find the document links.
         buttons = soup.find_all("a", class_="button")
 
         for button in buttons:
@@ -307,7 +309,7 @@ class Scraper:
                     filename = self.get_filename_from_url(button["href"])
                     doc_links.append((link, filename))
 
-        # If no doc_links default to finding all links ending in pdf
+        # If no doc_links default to finding all links ending in pdf. This is used for older woo verzoeken.
         if not doc_links:
             for link in soup.find_all("a", href=True):
                 href = link["href"]
