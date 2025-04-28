@@ -146,7 +146,20 @@ class Scraper:
         return None
 
     def fetch_html_with_selenium(self, url: str) -> str:
+        """
+        Fetches HTML content using selenium. This is necessary for pages that load content dynamically. (e.g. with javascript)
+        This function is used for archived woo verzoeken of Flevoland
 
+        Args:
+            url (str): The URL to fetch
+
+        Returns:
+            str: The HTML content of the page
+            str: Url of the iframe
+
+        Example:
+            html = scraper.fetch_html_with_selenium("https://deeplink.archiefweb.eu/FbBW/")
+        """
         options = Options()
         options.add_argument("--headless")
         options.add_argument("--disable-gpu")
@@ -177,6 +190,9 @@ class Scraper:
             # 6. Gets the fully rendered HTML content inside the iframe
             iframe_html = driver.page_source
             return iframe_html, iframe_base_url
+        except Exception as e:
+            print(f"Error fetching HTML with Selenium: {e}")
+            return None, None
 
         finally:
             # Clean up Selenium if it was used
@@ -224,13 +240,12 @@ class Scraper:
 
             # If using selenium/archive links the date is hidden in the link itself instead of on the HTML page
             if selenium_url:
-                print(selenium_url)
                 # Find timestamp in selenium_url
                 pattern = r"/archiefweb/(\d+)/"
-                # Search for the pattern in the URL/string
+                # Search for the pattern in the URL/string using regex
                 match = re.search(pattern, selenium_url)
-                print(match.group(1))
                 date_paragraph = match.group(1)
+                # Convert YYYYMMDD to dd-mm-yyyy format
                 if date_paragraph:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
                     # Convert to datetime object
