@@ -91,10 +91,10 @@ class Crawler:
         # Check for current WOO requests on flevoland.nl
         if parsed_url.netloc == "www.flevoland.nl":
             return (
-                "Woo-verzoek" in url
-                or "woo-verzoek" in url.lower()
-                or "WOB-verzoek" in url
-                or "wob-verzoek" in url.lower()
+                "/loket/openbare-documenten/overzicht-openbare-documenten/woo-verzoek-"
+                in url.lower()
+                or "/loket/openbare-documenten/woo-verzoeken-actueel/" in url.lower()
+                or "/loket/openbare-documenten/woo-verzoeken-archief/" in url.lower()
             )
 
         if parsed_url.netloc == "deeplink.archiefweb.eu":
@@ -254,7 +254,7 @@ class Crawler:
         new_links = []
         with open(urls_txt_file_path, "a+") as f:
             # Only keep links that are not already in the file
-            new_links = [] #[link for link in all_links if link not in f.read()]
+            new_links = []  # [link for link in all_links if link not in f.read()]
             f.seek(0)
             all_seen_links = f.read()
             seen_links = all_seen_links.split("\n")
@@ -307,7 +307,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Command line arguments
-    max_urls = 10
+    max_urls = 1000
     if len(sys.argv) > 1:
         try:
             max_urls = int(sys.argv[1])
