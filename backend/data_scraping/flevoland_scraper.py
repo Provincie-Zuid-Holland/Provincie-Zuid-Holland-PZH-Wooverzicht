@@ -42,18 +42,7 @@ class Scraper:
             scraper = Scraper()
         """
         # List of supported file formats
-        self.supported_extensions = (
-            ".pdf",
-            ".docx",
-            ".doc",
-            ".xlsx",
-            ".xls",
-            ".pptx",
-            ".ppt",
-            ".txt",
-            ".csv",
-            ".rtf",
-        )
+        self.supported_extensions = ".pdf"
 
         # Create the base download directory with province subfolder
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -286,9 +275,6 @@ class Scraper:
         if not html_content:
             return doc_links
 
-        ####################################################
-        # First check if we can find the doc_links in the HTML content (without selenium)
-        # This for newer html pages (e.g. not the archive)
         soup = BeautifulSoup(html_content, "html.parser")
         # Find all buttons (a elements with class="button")
         buttons = soup.find_all("a", class_="button")
@@ -305,6 +291,17 @@ class Scraper:
                     link = base_url + button["href"]
                     filename = self.get_filename_from_url(button["href"])
                     doc_links.append((link, filename))
+
+        # If no doc_links default to finding all links ending in pdf
+        if not doc_links:
+            for link in soup.find_all("a", href=True):
+                href = link["href"]
+                if self._is_supported_file(href):
+                    filename = self.get_filename_from_url(href)
+                    extension = os.path.splitext(href.lower())[1]
+                    print(f"{extension.upper()[1:]} file found: {filename}")
+                    doc_links.append((href, filename))
+
         return doc_links
 
     def get_filename_from_url(self, url: str) -> str:
