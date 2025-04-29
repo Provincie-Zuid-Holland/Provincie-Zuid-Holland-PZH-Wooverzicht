@@ -6,6 +6,7 @@ This service provides API endpoints for:
 2. Health checking
 """
 
+import json
 import os
 import uuid
 from typing import Dict, List, Any, Optional
@@ -73,6 +74,7 @@ async def query_documents_stream(request: QueryRequest):
 
     async def event_generator():
         try:
+            # print("Starting event generation")
             sources = []
             chunks_used = []
             response_text = ""
@@ -83,6 +85,7 @@ async def query_documents_stream(request: QueryRequest):
                 if isinstance(chunk, str):
                     # Send text chunk
                     response_text += chunk
+                    # print(f"Sending chunk: {chunk}")
                     yield {"event": "chunk", "data": chunk}
                     await asyncio.sleep(
                         0.01
@@ -92,7 +95,8 @@ async def query_documents_stream(request: QueryRequest):
                     sources = chunk["sources"]
                     if "document_ids" in chunk:
                         chunks_used = chunk["document_ids"]
-                    yield {"event": "sources", "data": {"sources": sources}}
+                    # print(f"Sending sources: {len(sources)} items")
+                    yield {"event": "sources", "data": json.dumps({"sources": sources})}
 
             # Calculate response time
             response_time = (datetime.now() - start_time).total_seconds()
@@ -108,9 +112,11 @@ async def query_documents_stream(request: QueryRequest):
             log_id = query_logger.log_interaction(
                 request.session_id, request.query, response_text, metadata
             )
+            # print("Logged interaction with ID:", log_id)
+            # print("Response text:", response_text)
 
             # Send completion event
-            yield {"event": "complete", "data": {"log_id": log_id}}
+            yield {"event": "complete", "data": json.dumps({"log_id": log_id})}
 
         except Exception as e:
             # Send error event
