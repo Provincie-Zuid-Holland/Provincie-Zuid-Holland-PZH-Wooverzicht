@@ -86,7 +86,8 @@ def clear_chat_history() -> None:
 
 def stream_api_response(url: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Stream a response from the API using SSE.
+    Stream a response from the API using SSE with proper parsing of the
+    multi-line SSE format, preserving newlines and formatting in the content.
 
     Args:
         url (str): The URL of the SSE endpoint.
@@ -100,6 +101,54 @@ def stream_api_response(url: str, data: Dict[str, Any]) -> Dict[str, Any]:
 
     response_text = ""
     sources = []
+    current_event_type = None
+    data_buffer = ""
+
+    # Nested function to process events. Kept nested for clarity and encapsulation.
+    # Also because response_text and sources are modified in this function,
+    # and separating the function would cause pass-by-value issues.
+    def process_event(event_type, data_content):
+        """Helper function to process an event with its data content."""
+        nonlocal response_text, sources
+
+        if event_type == "chunk":
+            # Add the chunk to the accumulated response text
+            response_text += data_content
+            # Yield the chunk for streaming display
+            return {"type": "chunk", "data": data_content, "full_text": response_text}
+
+        elif event_type == "sources":
+            try:
+                if data_content.strip():  # Only process if there's content
+                    sources_data = json.loads(data_content)
+                    sources = sources_data.get("sources", [])
+                    return {"type": "sources", "data": sources}
+            except json.JSONDecodeError as e:
+                print(f"Error parsing sources: {e}")
+                return {
+                    "type": "error",
+                    "data": {"error": f"Failed to parse sources: {str(e)}"},
+                }
+
+        elif event_type == "complete":
+            try:
+                if data_content.strip():  # Only process if there's content
+                    completion_data = json.loads(data_content)
+                    return {"type": "complete", "data": completion_data}
+            except json.JSONDecodeError as e:
+                print(f"Error parsing completion data: {e}")
+                return None
+
+        elif event_type == "error":
+            try:
+                if data_content.strip():  # Only process if there's content
+                    error_data = json.loads(data_content)
+                    return {"type": "error", "data": error_data}
+            except json.JSONDecodeError as e:
+                print(f"Error parsing error data: {e}")
+                return {"type": "error", "data": {"error": str(e)}}
+
+        return None
 
     try:
         # Stream the response from the API
@@ -108,52 +157,54 @@ def stream_api_response(url: str, data: Dict[str, Any]) -> Dict[str, Any]:
 
             # Process the SSE stream
             for line in r.iter_lines():
-                if line:
-                    # Parse the SSE line
-                    line = line.decode("utf-8")
 
-                    # Skip lines that don't contain events
-                    if not line.startswith("data:") and not line.startswith("event:"):
+                if not line:
+                    continue
+
+                # Parse the SSE line
+                line = line.decode("utf-8")
+                # print(f"Raw SSE line: |{line}|")
+
+                # Handle event type line
+                if line.startswith("event:"):
+                    # If we have a current event and data in the buffer, process it before moving to the next event
+                    if current_event_type and data_buffer:
+                        result = process_event(current_event_type, data_buffer)
+                        if result:
+                            # Clear the buffer and reset the event type
+                            data_buffer = ""
+                            current_event_type = None
+                            yield result
+
+                    # Set the new event type
+                    current_event_type = line.replace("event:", "").strip()
+
+                # Process data
+                if line.startswith("data:"):
+                    data_str = line.replace("data: ", "")
+
+                    # Add to the buffer, ensuring we preserve newlines between data lines
+                    if data_buffer:
+                        print(f"Adding to data buffer, with extra newline")
+                        data_buffer += "\n" + data_str
+                    else:
+                        data_buffer = data_str
+
+                    # If no event type yet, continue
+                    if not current_event_type:
                         continue
-
-                    # Process event type
-                    event_type = None
-                    if line.startswith("event:"):
-                        event_type = line.replace("event:", "").strip()
-                        continue
-
-                    # Process data
-                    if line.startswith("data:"):
-                        data_str = line.replace("data:", "").strip()
-
-                        # If no event type, default to 'message'
-                        if not event_type:
-                            event_type = "message"
-
-                        # Process different event types
-                        if event_type == "chunk":
-                            chunk = data_str
-                            response_text += chunk
-                            yield {
-                                "type": "chunk",
-                                "data": chunk,
-                                "full_text": response_text,
-                            }
-                        elif event_type == "sources":
-                            try:
-                                sources_data = json.loads(data_str)
-                                sources = sources_data.get("sources", [])
-                                yield {"type": "sources", "data": sources}
-                            except json.JSONDecodeError:
-                                st.error(f"Error parsing sources: {data_str}")
-                        elif event_type == "complete":
-                            yield {"type": "complete", "data": json.loads(data_str)}
-                        elif event_type == "error":
-                            error_data = json.loads(data_str)
-                            yield {"type": "error", "data": error_data}
 
     except requests.RequestException as e:
         yield {"type": "error", "data": {"error": str(e)}}
+
+    # Process any remaining data in the buffer
+    if current_event_type and data_buffer:
+        result = process_event(current_event_type, data_buffer)
+        if result:
+            # Clear the buffer and reset the event type
+            data_buffer = ""
+            current_event_type = None
+            yield result
 
     # Final yield with full response
     yield {"type": "final", "data": {"text": response_text, "sources": sources}}
@@ -280,6 +331,7 @@ def main() -> None:
                     # Process the streaming response
                     for event in stream_api_response(stream_url, stream_data):
                         event_type = event.get("type")
+                        # print(f"Event received: {event_type}, with data: {event}")
 
                         if event_type == "chunk":
                             # Update the displayed text with the new chunk
