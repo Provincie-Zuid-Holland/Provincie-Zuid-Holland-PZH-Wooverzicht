@@ -9,11 +9,12 @@ import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import time
-
+import os
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
 from chromadb.api.models import Collection
+from pathlib import Path
 
 # Set up logging
 logging.basicConfig(
@@ -54,7 +55,7 @@ class ChromadbQuery:
     def __init__(
         self,
         collection_name: str = "document_chunks",
-        database_path: str = "database",
+        database_path: str = None,
         openai_api_key: Optional[str] = None,
     ):
         """
@@ -68,6 +69,20 @@ class ChromadbQuery:
         Raises:
             Exception: If there's an error connecting to the collection.
         """
+        if database_path is None:
+            database_path = os.environ.get("CHROMA_DB_PATH", "database")
+        project_root = Path(__file__).parent.parent.absolute()
+        database_path = str(project_root / database_path)
+        # database_path = ".." + database_path
+        print(database_path)
+        print("Path exists:", os.path.exists(database_path))
+        print(os.path.abspath(database_path))
+        # Print dir
+        print(os.listdir(database_path))
+        for root, dirs, files in os.walk(database_path):
+            print(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
+
+        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
 
         # Initialize OpenAI client for embeddings

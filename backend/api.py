@@ -18,7 +18,19 @@ from conversational_rag import ConversationalRAG, StreamingChunk
 from query_logger import QueryLogger
 from sse_starlette.sse import EventSourceResponse
 import asyncio
+from pathlib import Path
+from dotenv import load_dotenv
 
+
+print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+# Get the directory where the script is located, to prevent issues with relative paths
+script_dir = Path(__file__).parent.absolute()
+load_dotenv(
+    dotenv_path=script_dir / ".env"
+)  # This will load from .env in the backend directory
+print(f"CHROMA_DB_PATH: {os.environ.get('CHROMA_DB_PATH', 'Not set')}")
+
+print("$")
 # Initialize the FastAPI app
 app = FastAPI(
     title="WOOverzicht API",
