@@ -12,14 +12,15 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies carefully to avoid chromadb build issues
-COPY requirements.api.txt ./requirements.txt
-RUN pip install --no-cache-dir hnswlib && \
-    pip install --no-cache-dir chroma-hnswlib==0.7.1 && \
-    pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code if not using volume mount
-# COPY . .
+# Copy backend code
+COPY . .
+
+# Create directory for the database mount point
+RUN mkdir -p /database
 
 # Expose API port
 EXPOSE 8000
