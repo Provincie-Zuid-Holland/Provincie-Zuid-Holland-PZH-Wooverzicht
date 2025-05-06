@@ -5,7 +5,7 @@ services:
     build:
       context: ./frontend
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:8501" # Only expose to localhost for security
     env_file:
       - ./frontend/.env
     environment:
@@ -27,7 +27,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"  # Only expose to localhost for security
     volumes:
       - ./database:/database
     env_file:
