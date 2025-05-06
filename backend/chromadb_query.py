@@ -97,8 +97,10 @@ class ChromadbQuery:
             self.collection = self.client.get_collection(name=collection_name)
             logger.info(f"Successfully connected to collection: {collection_name}")
         except Exception as e:
-            logger.error(f"Error connecting to collection: {e}")
-            raise
+            logger.warning(
+                f"Collection not found, creating new collection: {collection_name}"
+            )
+            self.collection = self.client.create_collection(name=collection_name)
 
     def _get_embeddings(self, text: str) -> List[float]:
         """
