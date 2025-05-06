@@ -123,7 +123,9 @@ class DocumentProcessor:
 
         # Initialize ChromaDB with persistent storage
         self.chroma_client = chromadb.PersistentClient(
-            path="database",  # Local storage path
+            path=os.environ.get(
+                "CHROMA_DB_PATH", "database"
+            ),  # Use environment variable
             settings=Settings(
                 anonymized_telemetry=False,  # Disable usage tracking
                 allow_reset=False,  # Prevent accidental database resets
