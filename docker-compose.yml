@@ -51,6 +51,7 @@ services:
       dockerfile: Dockerfile.pipeline
     volumes:
       - ./database:/database
+      - ./backend/URLs.txt:/app/URLs.txt # Persist URLs.txt on host machine
     env_file:
       - ./backend/.env
     environment:
