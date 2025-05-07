@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from datetime import datetime
 import uuid
@@ -16,7 +17,7 @@ class QueryLogger:
         None
     """
 
-    def __init__(self, db_path="logging_database.db"):
+    def __init__(self, db_path=None):
         """
         Initializes the QueryLogger with a SQLite database.
 
@@ -35,7 +36,8 @@ class QueryLogger:
         """
 
         # Initialize the database path
-        self.db_path = db_path
+        if db_path is None:
+            db_path = os.environ.get("DB_PATH", "logging_database.db")
         self._init_db()
 
     def _init_db(self):
