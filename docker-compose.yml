@@ -29,7 +29,8 @@ services:
     ports:
       - "127.0.0.1:8000:8000"  # Only expose to localhost for security
     volumes:
-      - ./database:/database
+      - ${PWD}/database:/database
+      - ${PWD}/backend/logging_database.db:logging_database.db # Persist logging database on host machine
     env_file:
       - ./backend/.env
     environment:
@@ -50,8 +51,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile.pipeline
     volumes:
-      - ./database:/database
-      - ./backend/URLs.txt:/app/URLs.txt # Persist URLs.txt on host machine
+      - ${PWD}/database:/database
+      - ${PWD}/backend/URLs.txt:/app/URLs.txt # Persist URLs.txt on host machine
     env_file:
       - ./backend/.env
     environment:
