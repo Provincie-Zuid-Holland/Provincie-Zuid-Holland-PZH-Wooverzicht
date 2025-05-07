@@ -37,7 +37,7 @@ class QueryLogger:
 
         # Initialize the database path
         if db_path is None:
-            db_path = os.environ.get("DB_PATH", "logging_database.db")
+            self.db_path = os.environ.get("DB_PATH", "logging_database.db")
         self._init_db()
 
     def _init_db(self):
