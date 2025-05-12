@@ -17,6 +17,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import requests
+from selenium.common.exceptions import (
+    TimeoutException,
+    NoSuchElementException,
+    NoSuchFrameException,
+    InvalidArgumentException,
+)
 
 
 class Scraper:
@@ -176,22 +182,23 @@ class Scraper:
             # 2. Actually visits the webpage, executing all JavaScript and loading all resources
             driver.get(url)
 
-            # 3. Waits for the iframe to appear (up to 10 seconds)
-            iframe_element = WebDriverWait(driver, 10).until(
+            # 3. Waits for the iframe to appear (up to 5 seconds)
+            iframe_element = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.ID, "site-iframe"))
             )
 
-            # 4. Gets the actual source URL of the iframe
-            iframe_src = iframe_element.get_attribute("src")
-            iframe_base_url = iframe_src or url
-
+            # 4. Gets the actual source URL of the iframe, this is used to retrieve the date published of archived woo verzoeken. (the date is hidden in the url and can not be found on the site itself)
+            iframe_base_url = iframe_element.get_attribute("src")
             # 5. Switches browser context to inside the iframe
             driver.switch_to.frame(iframe_element)
             # 6. Gets the fully rendered HTML content inside the iframe
             iframe_html = driver.page_source
             return iframe_html, iframe_base_url
-        except Exception as e:
-            print(f"Error fetching HTML with Selenium: {e}")
+        except TimeoutException as e:
+            print(f"Fetching HTML with Selenium Timed out: {e}")
+            return None, None
+        except InvalidArgumentException as e:
+            print(f"Invalid URL: {e}")
             return None, None
 
         finally:
@@ -433,8 +440,6 @@ class Scraper:
         # if url contains "archiefweb.eu" fetch html with selenium
         if "archiefweb.eu" in url:
             html_content, selenium_url = self.fetch_html_with_selenium(url)
-            print("*" * 50)
-            print(selenium_url)
         else:
             html_content = self.fetch_html(url)
         if not html_content:
