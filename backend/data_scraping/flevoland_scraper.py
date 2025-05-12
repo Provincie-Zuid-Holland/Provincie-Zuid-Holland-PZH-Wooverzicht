@@ -9,6 +9,20 @@ import hashlib
 import re
 import locale
 from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+import requests
+from selenium.common.exceptions import (
+    TimeoutException,
+    NoSuchElementException,
+    NoSuchFrameException,
+    InvalidArgumentException,
+)
 
 
 class Scraper:
@@ -34,18 +48,7 @@ class Scraper:
             scraper = Scraper()
         """
         # List of supported file formats
-        self.supported_extensions = (
-            ".pdf",
-            ".docx",
-            ".doc",
-            ".xlsx",
-            ".xls",
-            ".pptx",
-            ".ppt",
-            ".txt",
-            ".csv",
-            ".rtf",
-        )
+        self.supported_extensions = ".pdf"
 
         # Create the base download directory with province subfolder
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -148,7 +151,62 @@ class Scraper:
                 time.sleep(2)
         return None
 
-    def generate_metadata(self, html_content: str, url: str) -> dict:
+    def fetch_html_with_selenium(self, url: str) -> str:
+        """
+        Fetches HTML content using selenium. This is necessary for pages that load content dynamically. (e.g. with javascript)
+        This function is used for archived woo verzoeken of Flevoland
+
+        Args:
+            url (str): The URL to fetch
+
+        Returns:
+            str: The HTML content of the page
+            str: Url of the iframe
+
+        Example:
+            html = scraper.fetch_html_with_selenium("https://deeplink.archiefweb.eu/FbBW/")
+        """
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+
+        driver = None
+
+        try:
+            # Selenium is needed because BeautifulSoup can only parse static HTML,
+            # but can't access content inside iframes or execute JavaScript.
+            # This code:
+            # 1. Launches a real Chrome browser (headless)
+            driver = webdriver.Chrome(options=options)
+            # 2. Actually visits the webpage, executing all JavaScript and loading all resources
+            driver.get(url)
+
+            # 3. Waits for the iframe to appear (up to 5 seconds)
+            iframe_element = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.ID, "site-iframe"))
+            )
+
+            # 4. Gets the actual source URL of the iframe, this is used to retrieve the date published of archived woo verzoeken. (the date is hidden in the url and can not be found on the site itself)
+            iframe_base_url = iframe_element.get_attribute("src")
+            # 5. Switches browser context to inside the iframe
+            driver.switch_to.frame(iframe_element)
+            # 6. Gets the fully rendered HTML content inside the iframe
+            iframe_html = driver.page_source
+            return iframe_html, iframe_base_url
+        except TimeoutException as e:
+            print(f"Fetching HTML with Selenium Timed out: {e}")
+            return None, None
+        except InvalidArgumentException as e:
+            print(f"Invalid URL: {e}")
+            return None, None
+
+        finally:
+            # Clean up Selenium if it was used
+            if driver:
+                driver.quit()
+
+    def generate_metadata(self, html_content: str, url: str, selenium_url: str) -> dict:
         """
         Extracts metadata from the HTML content.
 
@@ -187,16 +245,34 @@ class Scraper:
                         metadata["titel"] = candidate.get_text(strip=True)
                     break
 
-            # Find the heading that says "Datum besluit"
-            datum_heading = soup.find("h2", string="Datum besluit")
-            date_paragraph = datum_heading.find_next("p")
+            # If using selenium/archive links the date is hidden in the link itself instead of on the HTML page
+            if selenium_url:
+                # Find timestamp in selenium_url in between /archiefweb/ and /
+                # Example: https://deeplink.archiefweb.eu/FbBW/archiefweb/20230901/archiefweb.eu/FbBW
+                pattern = r"/archiefweb/(\d+)/"
+                # Search for the pattern in the URL/string using regex
+                match = re.search(pattern, selenium_url)
+                date_paragraph = match.group(1)
+                # Convert YYYYMMDD to dd-mm-yyyy format
+                if date_paragraph:
+                    date_part = date_paragraph[:8]  # (YYYYMMDD format)
+                    # Convert to datetime object
+                    d = datetime.strptime(date_part, "%Y%m%d")
+                    # Format as dd-mm-yyyy
+                    date_str = d.strftime("%d-%m-%Y")
+                    metadata["datum"] = date_str
+            else:
+                datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
+                    "h2", string="Datum"
+                )
+                date_paragraph = datum_heading.find_next("p")
 
-            if date_paragraph:
-                locale.setlocale(locale.LC_ALL, "nl_NL")
-                d = datetime.strptime(date_paragraph.text, "%d %B %Y")
-                # Convert dd-month-yyyy to dd-mm-yyyy format
-                date_str = d.strftime("%d-%m-%Y")
-                metadata["datum"] = date_str
+                if date_paragraph:
+                    locale.setlocale(locale.LC_ALL, "nl_NL")
+                    d = datetime.strptime(date_paragraph.text, "%d %B %Y")
+                    # Convert dd-month-yyyy to dd-mm-yyyy format
+                    date_str = d.strftime("%d-%m-%Y")
+                    metadata["datum"] = date_str
 
             return metadata
 
@@ -223,59 +299,32 @@ class Scraper:
             return doc_links
 
         soup = BeautifulSoup(html_content, "html.parser")
-        print("Searching for document links...")
 
-        # First look in specific attachment sections
-        attachment_sections = [
-            soup.select(".bijlagen, .attachments, .downloads"),
-            soup.select(".document-list, .files"),
-            soup.select(".field--type-file"),
-        ]
+        # All woo verzoeken (except for very old ones) have a button with the text "Open de PDF". Therefore we can use this to find the document links.
+        buttons = soup.find_all("a", class_="button")
 
-        for section_list in attachment_sections:
-            if section_list:
-                for section in section_list:
-                    links = section.find_all("a", href=True)
-                    for link in links:
-                        href = link["href"]
-                        absolute_url = urljoin(url, href)
-                        if self._is_supported_file(absolute_url):
-                            filename = self.get_filename_from_url(absolute_url)
-                            extension = os.path.splitext(absolute_url.lower())[1]
-                            print(
-                                f"{extension.upper()[1:]} file found in attachments: {filename}"
-                            )
-                            doc_links.append((absolute_url, filename))
+        for button in buttons:
+            # Check if button text contains 'Open de PDF' (case insensitive)
+            if "open de pdf" in button.text.lower():
+                # Extract the href attribute
+                if button.has_attr("href"):
+                    base_url = "https://www.flevoland.nl/"
+                    # if url contains "archiefweb.eu" use other base url
+                    if "archiefweb.eu" in url:
+                        base_url = ""
+                    link = base_url + button["href"]
+                    filename = self.get_filename_from_url(button["href"])
+                    doc_links.append((link, filename))
 
-        # If no documents found, search entire document
+        # If no doc_links default to finding all links ending in pdf. This is used for older woo verzoeken.
         if not doc_links:
             for link in soup.find_all("a", href=True):
                 href = link["href"]
-                absolute_url = urljoin(url, href)
-                if self._is_supported_file(absolute_url):
-                    download_indicators = [
-                        "download",
-                        "bijlage",
-                        "document",
-                        "bestand",
-                        "pdf",
-                        "doc",
-                        "xls",
-                        "bekijk",
-                        "view",
-                    ]
-
-                    link_text = link.get_text(strip=True).lower()
-                    is_download_link = any(
-                        indicator in link_text or indicator in href.lower()
-                        for indicator in download_indicators
-                    )
-
-                    if is_download_link:
-                        filename = self.get_filename_from_url(absolute_url)
-                        extension = os.path.splitext(absolute_url.lower())[1]
-                        print(f"{extension.upper()[1:]} file found: {filename}")
-                        doc_links.append((absolute_url, filename))
+                if self._is_supported_file(href):
+                    filename = self.get_filename_from_url(href)
+                    extension = os.path.splitext(href.lower())[1]
+                    print(f"{extension.upper()[1:]} file found: {filename}")
+                    doc_links.append((href, filename))
 
         return doc_links
 
@@ -387,13 +436,18 @@ class Scraper:
         """
         print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
 
-        html_content = self.fetch_html(url)
+        selenium_url = None
+        # if url contains "archiefweb.eu" fetch html with selenium
+        if "archiefweb.eu" in url:
+            html_content, selenium_url = self.fetch_html_with_selenium(url)
+        else:
+            html_content = self.fetch_html(url)
         if not html_content:
             print(f"Could not fetch content for {url}")
             return
 
         # Generate and save metadata
-        metadata = self.generate_metadata(html_content, url)
+        metadata = self.generate_metadata(html_content, url, selenium_url)
         _ = self.create_metadata_file(metadata, temp_dir)
 
         # Find document links
@@ -409,33 +463,9 @@ class Scraper:
         # skipped_files = []
 
         for doc_url, filename in doc_links:
-            # if doc_url in self.downloaded_files_cache:
-            #     print(f"File {filename} already downloaded")
-            #     skipped_files.append(filename)
-            #     continue
-
-            # save_path = os
             save_path = os.path.join(temp_dir, filename)
             if self.download_document(doc_url, save_path):
                 downloaded_files.append(save_path)
-                # # Update cache with new file
-                # self.downloaded_files_cache[doc_url] = zip_path
-
-        # # Create zip file with metadata and downloaded files
-        # if downloaded_files or not doc_links:  # Create zip even if only metadata
-        #     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        #         # Add metadata
-        #         zipf.write(metadata_path, os.path.basename(metadata_path))
-
-        #         # Add downloaded files
-        #         for file_path in downloaded_files:
-        #             zipf.write(file_path, os.path.basename(file_path))
-
-        #     print(f"Zip file created: woo-{index}.zip")
-        #     print(f"Number of new files: {len(downloaded_files)}")
-        #     print(f"Number of skipped files: {len(skipped_files)}")
-        # else:
-        #     print("No new files to download")
 
     def __del__(self):
         """
@@ -455,7 +485,7 @@ if __name__ == "__main__":
     )
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-archief/Woo-verzoek-klachten-via-BIJ12"
+    EXAMPLE_DOC_URL = "https://deeplink.archiefweb.eu/FbBW/"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
