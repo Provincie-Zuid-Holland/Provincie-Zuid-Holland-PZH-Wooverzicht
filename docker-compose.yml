@@ -1,0 +1,69 @@
+version: '3'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:8501:8501" # Only expose to localhost for security
+    env_file:
+      - ./frontend/.env
+    environment:
+      - API_URL=http://backend-api:8000
+    depends_on:
+      - backend-api
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+        reservations:
+          memory: 200m
+    mem_limit: 300m
+    memswap_limit: 600m
+
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api
+    ports:
+      - "127.0.0.1:8000:8000"  # Only expose to localhost for security
+    volumes:
+      - ${PWD}/database:/database
+      - ${PWD}/backend/logging_database.db:/logging_database.db # Persist logging database on host machine
+    env_file:
+      - ./backend/.env
+    environment:
+      - CHROMA_DB_PATH=/database
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+        reservations:
+          memory: 300m
+    mem_limit: 500m
+    memswap_limit: 1000m
+
+  # Pipeline is defined but not started automatically
+  backend-pipeline:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.pipeline
+    volumes:
+      - ${PWD}/database:/database
+      - ${PWD}/backend/URLs.txt:/app/URLs.txt # Persist URLs.txt on host machine
+    env_file:
+      - ./backend/.env
+    environment:
+      - CHROMA_DB_PATH=/database
+    # No automatic execution - will only run when explicitly called
+    profiles: ["manual"]
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+        reservations:
+          memory: 400m
+    mem_limit: 700m
+    memswap_limit: 1400m
