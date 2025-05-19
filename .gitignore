@@ -48,3 +48,26 @@ Thumbs.db
 *.mov
 *.wmv
 
+# Venv
+/venv
+
+# env
+.env
+
+#selenium stuff
+.wdm
+
+# database
+/database
+backend/data_scraping/downloads/
+backend/database/
+backend/downloads/
+backend/extracted/
+backend/json/
+backend/jsontest/
+backend/test/
+backend/all_pdfs
+logging_database.db
+
+# URLs.txt (file that contains the URLs already scraped)
+URLs.txt
