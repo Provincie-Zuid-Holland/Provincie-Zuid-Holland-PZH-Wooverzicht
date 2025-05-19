@@ -122,8 +122,10 @@ class DocumentProcessor:
             raise ValueError("OPENAI_API_KEY environment variable is not set.")
 
         # Initialize ChromaDB with persistent storage
+        db_path = os.environ.get("CHROMA_DB_PATH", "database")
+        logger.info(f"Using ChromaDB path: {db_path}")
         self.chroma_client = chromadb.PersistentClient(
-            path="database",  # Local storage path
+            path=db_path,  # Use environment variable
             settings=Settings(
                 anonymized_telemetry=False,  # Disable usage tracking
                 allow_reset=False,  # Prevent accidental database resets
