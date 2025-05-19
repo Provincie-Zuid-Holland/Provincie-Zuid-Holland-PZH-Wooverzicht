@@ -1,0 +1,4 @@
+# Run the pipeline every day at 2 AM
+0 2 * * * /app/cron/run_pipeline.sh
+
+# Empty line at the end is required
