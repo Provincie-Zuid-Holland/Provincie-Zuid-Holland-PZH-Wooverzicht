@@ -138,8 +138,13 @@ def main():
     for c, front_or_back in product(args.commands, suffixes):
         command = commands[front_or_back][f"{c}"]
         print_divider(f"{c} ({front_or_back})", width)
+        # If command (c) is fmt change command
+        path = cwd / command.cwd
+        if c == "fmt":
+            # add front_or_back to path
+            path = path / front_or_back
 
-        result = subprocess.run(command.command, cwd=cwd / command.cwd / front_or_back)
+        result = subprocess.run(command.command, cwd=path)
 
         if result.stdout:
             print(result.stdout)
