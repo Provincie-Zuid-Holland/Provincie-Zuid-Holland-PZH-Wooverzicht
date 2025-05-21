@@ -8,6 +8,7 @@ pipelines:
               image: python:3.13
               name: lint frontend
               script:
+                - ls -l
                 - pip install flake8
                 - python check.py --frontend lint
           - step:
