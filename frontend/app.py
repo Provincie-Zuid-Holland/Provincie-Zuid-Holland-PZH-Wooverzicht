@@ -12,8 +12,7 @@ import uuid
 import streamlit as st
 import requests
 import json
-from datetime import datetime
-from typing import Optional, Union, List, Dict, Any
+from typing import Optional, Union, Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -185,7 +184,7 @@ def stream_api_response(url: str, data: Dict[str, Any]) -> Dict[str, Any]:
 
                     # Add to the buffer, ensuring we preserve newlines between data lines
                     if data_buffer:
-                        print(f"Adding to data buffer, with extra newline")
+                        print("Adding to data buffer, with extra newline")
                         data_buffer += "\n" + data_str
                     else:
                         data_buffer = data_str
@@ -234,19 +233,19 @@ def main() -> None:
         flex-direction: column;
         min-height: 100vh;
     }
-    
+
     .main {
         flex: 1;
         display: flex;
         flex-direction: column;
     }
-    
+
     .block-container {
         flex: 1;
         display: flex;
         flex-direction: column;
     }
-    
+
     footer {
         position: sticky;
         bottom: 0;
