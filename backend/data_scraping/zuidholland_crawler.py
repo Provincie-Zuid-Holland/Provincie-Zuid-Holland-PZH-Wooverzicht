@@ -1,8 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
+from urllib.parse import urlparse, urljoin
 import time
-import re
+import logging
 import sys
 
 
@@ -34,11 +34,7 @@ class Crawler:
         Example:
             crawler = Crawler("https://www.zuid-holland.nl/path/to/documents", max_urls=100)
         """
-        # Fix the base URL - remove fragment and keep query parameters
-        # This is crucial for Zuid-Holland's site
-        parsed_url = urlparse(base_url)
-        query_params = dict(parse_qsl(parsed_url.fragment.lstrip("&")))
-        # Reconstruct URL without fragment
+
         self.base_url = base_url
 
         self.max_urls = int(max_urls)  # Ensure it's an integer
@@ -247,7 +243,7 @@ class Crawler:
 
                 # Fetch the page
                 try:
-                    self.log(f"Fetching page content...")
+                    self.log("Fetching page content...")
                     response = self.session.get(
                         current_url, headers=self.headers, timeout=20
                     )
@@ -411,13 +407,13 @@ class Crawler:
     def __del__(self):
         """
         Destructor to ensure the session is closed.
-
-        Ensures proper cleanup of resources when the object is destroyed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

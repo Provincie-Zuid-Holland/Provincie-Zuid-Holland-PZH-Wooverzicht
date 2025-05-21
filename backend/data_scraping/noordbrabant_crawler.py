@@ -4,7 +4,7 @@ from urllib.parse import urlparse, urljoin, parse_qsl, urlunparse
 import time
 import re
 import logging
-from typing import List, Dict
+from typing import List
 
 
 class Crawler:
@@ -334,12 +334,14 @@ class Crawler:
 
     def __del__(self):
         """
-        Ensure session is closed when object is deleted.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

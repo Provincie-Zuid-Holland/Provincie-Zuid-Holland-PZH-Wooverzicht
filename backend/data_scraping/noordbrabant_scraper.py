@@ -1,13 +1,8 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-import time
-from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
-import hashlib
-import re
-import json
 
 
 class Scraper:
@@ -77,7 +72,7 @@ class Scraper:
             print(f"Warning: Error building cache: {e}")
         return cache
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Retrieves HTML content using requests.
         """
@@ -119,15 +114,15 @@ class Scraper:
         """
         Extracts metadata from HTML content.
         """
+        metadata = {
+            "url": url,
+            "provincie": "Noord-Brabant",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Noord-Brabant",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Extract title
             title_tag = soup.find("h1")
@@ -143,8 +138,8 @@ class Scraper:
             # find date in dt class with Rapportdatum as text
 
             date_title = soup.find("dt", string="Rapportdatum:")
-            date = date_title.find_next("dd")
-            metadata["datum"] = date.text
+            date = date_title.find_next("dd") if date_title else None
+            metadata["datum"] = date.text if date else ""
 
             return metadata
         except Exception as e:
@@ -292,8 +287,8 @@ class Scraper:
             os.rmdir(os.path.join(temp_dir, "extracted_files"))
             os.remove(os.path.join(temp_dir, "downloaded_files.zip"))
 
-        except:
-            pass
+        except Exception as e:
+            print(f"Error removing files: {e}")
 
         # # Add all files to the zip
         # extract_dir = os.path.join(temp_dir, "extracted_files")
