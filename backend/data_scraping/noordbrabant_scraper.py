@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import zipfile
 import tempfile
+import logging
 
 
 class Scraper:
@@ -306,12 +307,14 @@ class Scraper:
 
     def __del__(self):
         """
-        Cleanup when closing.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":
