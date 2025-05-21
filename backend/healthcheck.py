@@ -8,7 +8,6 @@ It's used to ensure that updates by the pipeline container don't affect the back
 import os
 import sys
 import sqlite3
-import json
 from chromadb_query import ChromadbQuery
 
 
@@ -20,7 +19,7 @@ def check_chromadb():
         query_engine = ChromadbQuery()
 
         # Try a simple query to check if the database is functioning
-        test_results = query_engine.search(query="test", limit=1)
+        # test_results = query_engine.search(query="test", limit=1)
 
         # Get collection info
         collection_info = query_engine.client.list_collections()

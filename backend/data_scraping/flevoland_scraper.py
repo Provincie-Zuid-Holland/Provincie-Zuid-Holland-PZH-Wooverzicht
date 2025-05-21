@@ -19,6 +19,7 @@ from selenium.common.exceptions import (
     InvalidArgumentException,
 )
 from typing import Tuple
+import logging
 
 
 class Scraper:
@@ -466,13 +467,13 @@ class Scraper:
     def __del__(self):
         """
         Destructor to ensure the session is closed.
-
-        Ensures proper cleanup of resources when the object is destroyed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

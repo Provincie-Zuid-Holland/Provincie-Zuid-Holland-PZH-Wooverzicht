@@ -13,6 +13,7 @@ backend_files = [
 ]  # Add non-frontend files that are not in the backend directory here
 frontend_files = ["frontend"]
 
+
 @dataclass
 class Command:
     # Command to run, including args
