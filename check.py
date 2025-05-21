@@ -139,7 +139,7 @@ def main():
         command = commands[front_or_back][f"{c}"]
         print_divider(f"{c} ({front_or_back})", width)
 
-        result = subprocess.run(command.command, cwd=cwd / command.cwd)
+        result = subprocess.run(command.command, cwd=cwd / command.cwd / front_or_back)
 
         if result.stdout:
             print(result.stdout)
