@@ -2,8 +2,6 @@ import logging
 from typing import List, Dict, Any, Optional, Generator, Union
 from dataclasses import dataclass
 import time
-import os
-
 from openai import OpenAI
 from chromadb_query import ChromadbQuery, SearchResult
 
@@ -178,7 +176,6 @@ class ConversationalRAG:
         Yields:
             StreamingChunk: Either a string chunk of the response or a dict containing sources.
         """
-        start_time = time.time()
 
         try:
             context_chunks = self.query_engine.search(
