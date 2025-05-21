@@ -159,6 +159,14 @@ def main():
             )
             print("Exiting...")
             sys.exit(result.returncode)
+        # If no output and return code is 0, it means all files passed for linting
+        if (
+            c == "lint"
+            and result.returncode == 0
+            and not result.stdout
+            and not result.stderr
+        ):
+            print("✓ Linting successful!")
 
 
 if __name__ == "__main__":
