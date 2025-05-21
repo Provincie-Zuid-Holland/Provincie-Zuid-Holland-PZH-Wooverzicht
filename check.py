@@ -112,7 +112,7 @@ def main():
             By default, the checks are run on the front- and backend.
        """
     )
-    parser.add_argument("commands", nargs="*", default=["fmt", "lint"])
+    parser.add_argument("commands", nargs="*", default=["fmt-check", "lint"])
     parser.add_argument("-f", "--frontend", action="store_true", help="Check frontend")
     parser.add_argument("-b", "--backend", action="store_true", help="Check backend")
     args = parser.parse_args()
@@ -140,7 +140,7 @@ def main():
         print_divider(f"{c} ({front_or_back})", width)
         # If command (c) is fmt change command
         path = cwd / command.cwd
-        if c == "fmt":
+        if c == "fmt-check":
             # add front_or_back to path
             path = path / front_or_back
 
