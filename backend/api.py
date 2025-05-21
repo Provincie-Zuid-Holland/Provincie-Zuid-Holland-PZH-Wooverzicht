@@ -8,13 +8,11 @@ This service provides API endpoints for:
 
 import json
 import os
-import uuid
-from typing import Dict, List, Any, Optional
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from conversational_rag import ConversationalRAG, StreamingChunk
+from conversational_rag import ConversationalRAG
 from query_logger import QueryLogger
 from sse_starlette.sse import EventSourceResponse
 import asyncio
