@@ -1,7 +1,6 @@
 import json
 import sqlite3
 import pandas as pd
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
 
@@ -26,10 +25,10 @@ def analyze_logs(db_path="query_logs.db", days=7):
 
     # Query frequency by day
     df["date"] = pd.to_datetime(df["timestamp"]).dt.date
-    daily_counts = df.groupby("date").size()
+    # daily_counts = df.groupby("date").size()
 
     # Common queries (simple frequency analysis)
-    common_queries = df["query"].value_counts().head(10)
+    # common_queries = df["query"].value_counts().head(10)
 
     # Session analysis (repeat users)
     sessions_with_multiple_queries = df.groupby("session_id").filter(
