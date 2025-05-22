@@ -53,6 +53,7 @@ services:
     volumes:
       - ${PWD}/database:/database
       - ${PWD}/backend/URLs.txt:/app/URLs.txt # Persist URLs.txt on host machine
+      - ${PWD}/backend/failed_downloads.txt:/app/failed_downloads.txt # Persist failed (i.e. too large) downloads on host machine
     env_file:
       - ./backend/.env
     environment:
