@@ -179,26 +179,26 @@ class ConversationalRAG:
             StreamingChunk: Either a string chunk of the response or a dict containing sources.
         """
         start_time = time.time()
-
+        print("Crash1")
         try:
             context_chunks = self.query_engine.search(
                 query=query, limit=self.max_context_chunks, min_relevance_score=0.52
             )
-
+            print("Crash2")
             context = self._format_context(context_chunks)
             system_prompt = self._create_system_prompt()
             user_prompt = self._format_user_prompt(query, context)
-
+            print("Crash3")
             # Build chat history (limiting to last few messages to prevent overflow)
             self.chat_history = self.chat_history[
                 -self.max_chat_history :
             ]  # Keep recent messages
-
+            print("Crash4")
             messages = [{"role": "system", "content": system_prompt}]
             for entry in self.chat_history:
                 messages.append({"role": entry["role"], "content": entry["content"]})
             messages.append({"role": "user", "content": user_prompt})
-
+            print("Crash5")
             # Generate streaming response using OpenAI
             stream = self.client.chat.completions.create(
                 model=self.model,
@@ -207,6 +207,7 @@ class ConversationalRAG:
                 max_tokens=1000,
                 stream=True,
             )
+            print("Crash6")
 
             # Stream the response chunks
             response_text = ""
@@ -214,7 +215,7 @@ class ConversationalRAG:
                 if chunk.choices[0].delta.content is not None:
                     yield chunk.choices[0].delta.content
                     response_text += chunk.choices[0].delta.content
-
+            print("Crash7")
             # After text is complete, yield sources and document_ids of chunks
             sources = self._format_sources(context_chunks)
             chunk_ids = [chunk.document_id for chunk in context_chunks]
@@ -223,10 +224,11 @@ class ConversationalRAG:
                 "document_ids": chunk_ids,
             }
             # yield {"sources": sources}
-
+            print("Crash8")
             # Update chat history with latest interaction
             self.chat_history.append({"role": "user", "content": query})
             self.chat_history.append({"role": "system", "content": response_text})
+            print("Crash9")
 
         except Exception as e:
             logger.error(f"Error generating streaming response: {e}")
