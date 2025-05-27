@@ -83,18 +83,20 @@ async def query_documents_stream(request: QueryRequest):
     Returns:
         EventSourceResponse: A server-sent events response with chunks of the answer.
     """
-    print("@app.post(/api/query/stream) CRASHT DIE HIER?")
+    print("1@app.post(/api/query/stream) CRASHT DIE HIER?")
+    print(f"1Received query: {request.query} for session: {request.session_id}")
 
     async def event_generator():
         try:
-            # print("Starting event generation")
+            print("2Starting event generation")
             sources = []
             chunks_used = []
             response_text = ""
             start_time = datetime.now()
-
             # Generate streaming response
+            print("3Generating response stream")
             for chunk in rag_system.generate_response_stream(request.query):
+                print(f"4Processing a chunk")
                 if isinstance(chunk, str):
                     # Send text chunk
                     response_text += chunk
