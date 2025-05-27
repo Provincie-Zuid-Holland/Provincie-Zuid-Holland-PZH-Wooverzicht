@@ -83,6 +83,7 @@ async def query_documents_stream(request: QueryRequest):
     Returns:
         EventSourceResponse: A server-sent events response with chunks of the answer.
     """
+    print("@app.post(/api/query/stream) CRASHT DIE HIER?")
 
     async def event_generator():
         try:
