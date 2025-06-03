@@ -40,8 +40,8 @@ services:
     volumes:
       - ./backend:/app  # Mounts your local ./backend directory to /app in the container
                         # Assumes /app is the WORKDIR in your backend/Dockerfile.api
-      - ${PWD}/database:/database
-      - ${PWD}/backend/logging_database.db:/logging_database.db
+      - ./database:/database
+      - ./backend/logging_database.db:/logging_database.db
     env_file:
       - ./backend/.env
     environment:
@@ -71,8 +71,8 @@ services:
     volumes:
       # If you also want hot-reloading for pipeline development (e.g., if you frequently edit pipeline scripts):
       # - ./backend:/app # Assumes /app is the WORKDIR in your backend/Dockerfile.pipeline
-      - ${PWD}/database:/database
-      - ${PWD}/backend/URLs.txt:/app/URLs.txt # Ensure this path is correct if /app is the WORKDIR
+      - ./database:/database
+      - ./backend/URLs.txt:/app/URLs.txt # Ensure this path is correct if /app is the WORKDIR
     env_file:
       - ./backend/.env
     environment:
