@@ -2,13 +2,12 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import urlparse, unquote, urljoin
+from urllib.parse import urljoin
 import zipfile
 import tempfile
-import hashlib
-import re
-import zipfile, io
+import io
 from datetime import datetime
+import logging
 
 # TODO
 # Modify code so it downloads everything using the download all as zip button. Then unzip in tempdir and remove zip file itself
@@ -96,15 +95,15 @@ class Scraper:
         """
         Genereert metadata van de HTML content.
         """
+        metadata = {
+            "url": url,
+            "provincie": "Gelderland",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Gelderland",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Probeer titel te vinden (h1 is meest waarschijnlijk)
             title_tag = soup.find("h1")
@@ -118,7 +117,7 @@ class Scraper:
                 # Get the parent div
                 parent_div = date_strong.parent
                 # Find the span within the same div
-                date_span = parent_div.find("span")
+                date_span = parent_div.find("span") if parent_div else None
                 if date_span:
                     # Convert d-m-yyyy to dd-mm-yyyy format
                     d = datetime.strptime(date_span.text, "%d-%m-%Y")
@@ -131,11 +130,12 @@ class Scraper:
                 # Get the parent div
                 parent_div = categorie_strong.parent
                 # Find the span within the same div
-                categorie_span = parent_div.find("span")
-                if categorie_span.text == "Woo-verzoeken":
-                    metadata["type"] = "woo-verzoek"
-                else:
-                    metadata["type"] = "categorie_span.text"
+                categorie_span = parent_div.find("span") if parent_div else None
+                if categorie_span:
+                    if categorie_span.text == "Woo-verzoeken":
+                        metadata["type"] = "woo-verzoek"
+                    else:
+                        metadata["type"] = categorie_span.text
 
             return metadata
 
@@ -250,12 +250,14 @@ class Scraper:
 
     def __del__(self):
         """
-        Cleanup bij afsluiten.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":
