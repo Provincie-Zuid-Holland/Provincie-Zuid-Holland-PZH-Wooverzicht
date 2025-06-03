@@ -1,7 +1,6 @@
 import sys
 import os
 import importlib
-import argparse
 from typing import Tuple
 import tempfile
 from extract import extract_data

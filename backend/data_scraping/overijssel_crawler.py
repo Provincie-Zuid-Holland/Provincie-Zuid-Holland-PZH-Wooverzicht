@@ -1,8 +1,6 @@
 import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
 import time
-import json
+import logging
 
 
 class Crawler:
@@ -268,12 +266,14 @@ class Crawler:
 
     def __del__(self):
         """
-        Destructor om ervoor te zorgen dat de session wordt afgesloten.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

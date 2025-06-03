@@ -13,7 +13,6 @@ import os
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-from chromadb.api.models import Collection
 from pathlib import Path
 
 # Set up logging
@@ -96,7 +95,7 @@ class ChromadbQuery:
         try:
             self.collection = self.client.get_collection(name=collection_name)
             logger.info(f"Successfully connected to collection: {collection_name}")
-        except Exception as e:
+        except Exception:
             logger.warning(
                 f"Collection not found, creating new collection: {collection_name}"
             )

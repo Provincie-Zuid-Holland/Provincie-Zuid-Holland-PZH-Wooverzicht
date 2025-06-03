@@ -9,6 +9,7 @@ import zipfile
 import tempfile
 import hashlib
 import re
+import logging
 
 
 class Scraper:
@@ -146,7 +147,7 @@ class Scraper:
         """
         return url.lower().endswith(self.supported_extensions)
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Retrieves HTML content using requests.
 
@@ -200,15 +201,15 @@ class Scraper:
             metadata = scraper.generate_metadata(html, "https://example.com/page")
             print(f"Title: {metadata['title']}")
         """
+        metadata = {
+            "url": url,
+            "provincie": "Zuid-Holland",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Zuid-Holland",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Try to find title (h1 is most likely)
             title_tag = soup.find("h1")
@@ -565,14 +566,14 @@ class Scraper:
 
     def __del__(self):
         """
-        Cleanup when closing.
-
-        Ensures the session is properly closed to prevent resource leaks.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

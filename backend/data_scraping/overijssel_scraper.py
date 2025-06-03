@@ -5,7 +5,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 from urllib.parse import urlparse, unquote
@@ -112,7 +112,7 @@ class Scraper:
         """
         return url.lower().endswith(self.supported_extensions)
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Retrieves HTML content using Selenium for JavaScript-rendered content.
 
@@ -189,9 +189,13 @@ class Scraper:
             # Get the title
             title_div = soup.find("div", class_="print-document")
             title = (
-                title_div.find("div", class_="document-hoofd")
-                .find("a")
-                .get_text(strip=True)
+                (
+                    title_div.find("div", class_="document-hoofd")
+                    .find("a")
+                    .get_text(strip=True)
+                )
+                if title_div
+                else ""
             )
             metadata["titel"] = title
             # Get the creation year
