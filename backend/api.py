@@ -19,7 +19,6 @@ import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 
-
 print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 # Get the directory where the script is located, to prevent issues with relative paths
 script_dir = Path(__file__).parent.absolute()
@@ -106,7 +105,10 @@ async def query_documents_stream(request: QueryRequest):
                     if "document_ids" in chunk:
                         chunks_used = chunk["document_ids"]
                     # print(f"Sending sources: {len(sources)} items")
-                    yield {"event": "sources", "data": json.dumps({"sources": sources})}
+                    yield {
+                        "event": "sources",
+                        "data": json.dumps({"sources": sources}),
+                    }
 
             # Calculate response time
             response_time = (datetime.now() - start_time).total_seconds()
