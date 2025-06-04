@@ -75,12 +75,14 @@ class ChromadbQuery:
         # database_path = ".." + database_path
         print(database_path)
         print("Path exists:", os.path.exists(database_path))
+
+        logger.info(f"Path exists: {os.path.exists(database_path)}")
         print(os.path.abspath(database_path))
         # Print dir
         print(os.listdir(database_path))
         for root, dirs, files in os.walk(database_path):
             print(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
-
+            logger.info(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
 
