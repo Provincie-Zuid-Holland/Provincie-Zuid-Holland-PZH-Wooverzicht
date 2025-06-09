@@ -85,7 +85,7 @@ async def retrieve_documents(request: dict):
         if not query:
             return {"error": "Query is required"}
         result = rag_system.retrieve_relevant_documents(query)
-
+        print({"success": True, "query": query, **result}, flush=True)
         return {"success": True, "query": query, **result}
 
     except Exception as e:
