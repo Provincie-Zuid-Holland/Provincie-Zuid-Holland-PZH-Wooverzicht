@@ -18,7 +18,15 @@ from sse_starlette.sse import EventSourceResponse
 import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
+from typing import TypedDict, List
+import logging
 
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 # Get the directory where the script is located, to prevent issues with relative paths
 script_dir = Path(__file__).parent.absolute()
@@ -68,23 +76,39 @@ class Source(BaseModel):
     relevance_score: float
 
 
+class Retrievieve_Docs_Dict(TypedDict, total=False):
+    """Type definition for dictionary structure when retrieving documents."""
+
+    query: str
+    provinces: List[str] | None  # Optional field for provinces used in filtering
+
+
 # API endpoint to add to your FastAPI app
 @app.post("/api/query/documents")
-async def retrieve_documents(request: dict):
+async def retrieve_documents(request: Retrievieve_Docs_Dict):
     """
     Retrieve relevant documents for a query without generating a response.
 
     Args:
-        request: Simple dict with 'query' key
+        request: Simple dict with 'query' key and 'provincies' key (optional). Provincies key is a list of provinces used for filtering.
 
     Returns:
         JSON response with relevant documents and chunks
     """
     try:
         query = request.get("query", "")
+        provinces = request.get("provinces", None)
+        logger.info(f"Received query: {query} with provinces: {provinces}")
         if not query:
             return {"error": "Query is required"}
-        result = rag_system.retrieve_relevant_documents(query)
+        # Validate provinces if provided
+        if provinces is not None:
+            if not isinstance(provinces, list):
+                raise ValueError("Provinces must be a list")
+            for province in provinces:
+                if not isinstance(province, str):
+                    raise ValueError("Each province must be a string")
+        result = rag_system.retrieve_relevant_documents(query, provinces=provinces)
 
         return {"success": True, "query": query, **result}
 
