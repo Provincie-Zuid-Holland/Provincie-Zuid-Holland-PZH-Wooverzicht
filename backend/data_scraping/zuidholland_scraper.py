@@ -224,9 +224,7 @@ class Scraper:
                 date_str = date_str.replace("Datum besluit: ", "")
                 locale.setlocale(locale.LC_ALL, "nl_NL")
                 d = datetime.strptime(date_str, "%d %B %Y")
-                # Convert dd-month-yyyy to dd-mm-yyyy format
-                date_str = d.strftime("%d-%m-%Y")
-                metadata["datum"] = date_str
+                metadata["datum"] = int(d.timestamp())
 
             return metadata
 
