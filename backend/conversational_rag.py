@@ -51,7 +51,7 @@ class ConversationalRAG:
         self,
         model: str = "gpt-4o-mini",
         temperature: float = 0.0,
-        max_context_chunks: int = 10,
+        max_context_chunks: int = 30,
     ):
         """
         Initialize the conversational RAG system.
@@ -248,6 +248,79 @@ class ConversationalRAG:
             logger.error(f"Error generating streaming response: {e}")
             yield f"Er is een fout opgetreden bij het verwerken van je vraag: {str(e)}"
             yield {"sources": []}
+
+    # Function to add to your RAG class
+    def retrieve_relevant_documents(self, query: str):
+        """
+        Retrieve relevant documents and chunks from ChromaDB without generating a response.
+
+        Args:
+            query: User's search query
+
+        Returns:
+            dict: Contains both chunks (for citations) and documents (deduplicated)
+        """
+        try:
+            # Search for relevant chunks
+            context_chunks = self.query_engine.search(
+                query=query, limit=self.max_context_chunks, min_relevance_score=0.52
+            )
+
+            # Format chunks for citations
+            chunks = []
+            for chunk in context_chunks:
+                chunk_data = {
+                    "id": chunk.document_id,
+                    "content": chunk.content,  # or however you access chunk content
+                    "relevance_score": getattr(chunk, "relevance_score", None),
+                    "metadata": {
+                        "url": chunk.metadata.get("url", ""),
+                        "provincie": chunk.metadata.get("provincie", ""),
+                        "titel": chunk.metadata.get("titel", ""),
+                        "datum": chunk.metadata.get("datum", ""),
+                        "type": chunk.metadata.get("type", ""),
+                    },
+                }
+                chunks.append(chunk_data)
+
+            # Deduplicate to get unique documents based on title
+            seen_docs = {}
+            for chunk in context_chunks:
+                doc_title = chunk.metadata.get("titel", "").strip()
+                # Use title as unique identifier, fallback to URL if no title
+                doc_key = doc_title if doc_title else chunk.metadata.get("url", "")
+
+                if doc_key and doc_key not in seen_docs:
+                    seen_docs[doc_key] = {
+                        "id": doc_key,
+                        "metadata": {
+                            "url": chunk.metadata.get("url", ""),
+                            "provincie": chunk.metadata.get("provincie", ""),
+                            "titel": chunk.metadata.get("titel", ""),
+                            "datum": chunk.metadata.get("datum", ""),
+                            "type": chunk.metadata.get("type", ""),
+                        },
+                        "relevance_score": getattr(chunk, "relevance_score", None),
+                    }
+
+            documents = list(seen_docs.values())
+
+            return {
+                "chunks": chunks,
+                "documents": documents,
+                "total_chunks": len(chunks),
+                "total_documents": len(documents),
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving documents: {e}")
+            return {
+                "chunks": [],
+                "documents": [],
+                "total_chunks": 0,
+                "total_documents": 0,
+                "error": str(e),
+            }
 
     def generate_response(self, query: str) -> RAGResponse:
         """
