@@ -68,6 +68,37 @@ class Source(BaseModel):
     relevance_score: float
 
 
+# API endpoint to add to your FastAPI app
+@app.post("/api/query/documents")
+async def retrieve_documents(request: dict):
+    """
+    Retrieve relevant documents for a query without generating a response.
+
+    Args:
+        request: Simple dict with 'query' key
+
+    Returns:
+        JSON response with relevant documents and chunks
+    """
+    try:
+        query = request.get("query", "")
+        if not query:
+            return {"error": "Query is required"}
+        result = rag_system.retrieve_relevant_documents(query)
+
+        return {"success": True, "query": query, **result}
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "chunks": [],
+            "documents": [],
+            "total_chunks": 0,
+            "total_documents": 0,
+        }
+
+
 # Define API endpoints
 @app.post("/api/query/stream")
 async def query_documents_stream(request: QueryRequest):
