@@ -192,6 +192,11 @@ class DocumentProcessor:
         # Process data
         # Get metadata from data dict
         metadata = data["metadata"]
+        if "datum" in metadata:
+            try:
+                metadata["datum"] = int(metadata["datum"])
+            except (ValueError, TypeError):
+                logger.warning(f"Datum field is not a valid int: {metadata['datum']}")
 
         # Find the main content field
         content = data["content"]
