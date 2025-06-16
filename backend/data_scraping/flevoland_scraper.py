@@ -255,9 +255,7 @@ class Scraper:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
                     # Convert to datetime object
                     d = datetime.strptime(date_part, "%Y%m%d")
-                    # Format as dd-mm-yyyy
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    metadata["datum"] = int(d.timestamp())
             else:
                 datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
                     "h2", string="Datum"
@@ -267,9 +265,7 @@ class Scraper:
                 if date_paragraph:
                     locale.setlocale(locale.LC_ALL, "nl_NL")
                     d = datetime.strptime(date_paragraph.text, "%d %B %Y")
-                    # Convert dd-month-yyyy to dd-mm-yyyy format
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    metadata["datum"] = int(d.timestamp())
 
             return metadata
 

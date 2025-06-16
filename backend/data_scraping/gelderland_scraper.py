@@ -121,8 +121,7 @@ class Scraper:
                 if date_span:
                     # Convert d-m-yyyy to dd-mm-yyyy format
                     d = datetime.strptime(date_span.text, "%d-%m-%Y")
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    metadata["datum"] = int(d.timestamp())
 
             categorie_strong = soup.select_one('strong:contains("Categorie")')
 
