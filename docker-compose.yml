@@ -3,18 +3,20 @@ version: '3'
 services:
   frontend:
     build:
-      context: ./frontend
+      context: ./wooverzicht-frontend
+      dockerfile: Dockerfile
       # Dockerfile for frontend is expected to have WORKDIR /app
       # and use CMD ["streamlit", "run", "app.py"] or similar
     ports:
-      - "127.0.0.1:8501:8501"
+      - "127.0.0.1:3000:3000"
     volumes:
-      - ./frontend:/app  # Mounts your local ./frontend directory to /app in the container
-                         # Assumes /app is the WORKDIR in your frontend/Dockerfile
-    env_file:
-      - ./frontend/.env
+      # - ./wooverzicht-frontend:/app
+      - /app/node_modules
+        # Mounts your local ./frontend directory to /app in the container
+        # Assumes /app is the WORKDIR in your frontend/Dockerfile
     environment:
-      - API_URL=http://backend-api:8000
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend-api:8000
       # Streamlit usually hot reloads by default when files are mounted.
       # If you face issues, you might try:
       # command: streamlit run app.py --server.fileWatcherType poll
@@ -24,11 +26,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 300m
+          memory: 512m
         reservations:
-          memory: 200m
-    mem_limit: 300m
-    memswap_limit: 600m
+          memory: 300m
+    mem_limit: 512m
+    memswap_limit: 1024m
 
   backend-api:
     build:
@@ -38,8 +40,9 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
-      - ./backend:/app  # Mounts your local ./backend directory to /app in the container
-                        # Assumes /app is the WORKDIR in your backend/Dockerfile.api
+      - ./backend:/app
+        # Mounts your local ./backend directory to /app in the container
+        # Assumes /app is the WORKDIR in your backend/Dockerfile.api
       - ./database:/database
       - ./backend/logging_database.db:/logging_database.db
     env_file:
@@ -48,11 +51,11 @@ services:
       - CHROMA_DB_PATH=/database
       # If your application has specific Python path requirements, you might need:
       # - PYTHONPATH=/app
-    # This command assumes you are using FastAPI with Uvicorn and your FastAPI app
-    # instance is named 'app' in a file named 'api.py' (i.e., backend/api.py).
-    # Adjust 'api:app' if your file or app instance variable is named differently.
-    # For example, if app is in 'main.py', use 'main:app'.
-    # This overrides any CMD in the Dockerfile or start.sh.
+      # This command assumes you are using FastAPI with Uvicorn and your FastAPI app
+      # instance is named 'app' in a file named 'api.py' (i.e., backend/api.py).
+      # Adjust 'api:app' if your file or app instance variable is named differently.
+      # For example, if app is in 'main.py', use 'main:app'.
+      # This overrides any CMD in the Dockerfile or start.sh.
     command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     deploy:
@@ -77,7 +80,7 @@ services:
       - ./backend/.env
     environment:
       - CHROMA_DB_PATH=/database
-    profiles: ["manual"]
+    profiles: [ "manual" ]
     deploy:
       resources:
         limits:
