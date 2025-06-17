@@ -250,7 +250,9 @@ class ConversationalRAG:
             yield {"sources": []}
 
     # Function to add to your RAG class
-    def retrieve_relevant_documents(self, query: str):
+    def retrieve_relevant_documents(
+        self, query: str, provinces: List[str] | None = None
+    ):
         """
         Retrieve relevant documents and chunks from ChromaDB without generating a response.
 
@@ -261,9 +263,19 @@ class ConversationalRAG:
             dict: Contains both chunks (for citations) and documents (deduplicated)
         """
         try:
+            logger.info(
+                f"Retrieving documents for query: {query} with provinces: {provinces}"
+            )
+            meta_filter = None
+            if provinces and len(provinces) > 0:
+                meta_filter = {"provincie": {"$in": provinces}}
+            logger.info(f"Using metadata filter: {meta_filter}")
             # Search for relevant chunks
             context_chunks = self.query_engine.search(
-                query=query, limit=self.max_context_chunks, min_relevance_score=0.52
+                query=query,
+                limit=self.max_context_chunks,
+                min_relevance_score=0.52,
+                metadata_filter=meta_filter,
             )
 
             # Format chunks for citations
