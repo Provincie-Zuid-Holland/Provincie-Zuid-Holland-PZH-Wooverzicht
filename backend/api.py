@@ -76,7 +76,7 @@ class Source(BaseModel):
     relevance_score: float
 
 
-class Retrievieve_Docs_Dict(TypedDict, total=False):
+class RetrieveDocsDict(TypedDict, total=False):
     """Type definition for dictionary structure when retrieving documents."""
 
     query: str
@@ -85,7 +85,7 @@ class Retrievieve_Docs_Dict(TypedDict, total=False):
 
 # API endpoint to add to your FastAPI app
 @app.post("/api/query/documents")
-async def retrieve_documents(request: Retrievieve_Docs_Dict):
+async def retrieve_documents(request: RetrieveDocsDict):
     """
     Retrieve relevant documents for a query without generating a response.
 
