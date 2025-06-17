@@ -9,8 +9,9 @@ services:
     ports:
       - "127.0.0.1:8501:8501"
     volumes:
-      - ./frontend:/app  # Mounts your local ./frontend directory to /app in the container
-                         # Assumes /app is the WORKDIR in your frontend/Dockerfile
+      - ./frontend:/app
+        # Mounts your local ./frontend directory to /app in the container
+        # Assumes /app is the WORKDIR in your frontend/Dockerfile
     env_file:
       - ./frontend/.env
     environment:
@@ -38,8 +39,9 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
-      - ./backend:/app  # Mounts your local ./backend directory to /app in the container
-                        # Assumes /app is the WORKDIR in your backend/Dockerfile.api
+      - ./backend:/app
+        # Mounts your local ./backend directory to /app in the container
+        # Assumes /app is the WORKDIR in your backend/Dockerfile.api
       - ./database:/database
       - ./backend/logging_database.db:/logging_database.db
     env_file:
@@ -48,11 +50,11 @@ services:
       - CHROMA_DB_PATH=/database
       # If your application has specific Python path requirements, you might need:
       # - PYTHONPATH=/app
-    # This command assumes you are using FastAPI with Uvicorn and your FastAPI app
-    # instance is named 'app' in a file named 'api.py' (i.e., backend/api.py).
-    # Adjust 'api:app' if your file or app instance variable is named differently.
-    # For example, if app is in 'main.py', use 'main:app'.
-    # This overrides any CMD in the Dockerfile or start.sh.
+      # This command assumes you are using FastAPI with Uvicorn and your FastAPI app
+      # instance is named 'app' in a file named 'api.py' (i.e., backend/api.py).
+      # Adjust 'api:app' if your file or app instance variable is named differently.
+      # For example, if app is in 'main.py', use 'main:app'.
+      # This overrides any CMD in the Dockerfile or start.sh.
     command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     deploy:
@@ -65,6 +67,7 @@ services:
     memswap_limit: 1000m
 
   backend-pipeline:
+    platform: linux/amd64
     build:
       context: ./backend
       dockerfile: Dockerfile.pipeline
@@ -77,7 +80,7 @@ services:
       - ./backend/.env
     environment:
       - CHROMA_DB_PATH=/database
-    profiles: ["manual"]
+    profiles: [ "manual" ]
     deploy:
       resources:
         limits:

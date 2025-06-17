@@ -14,6 +14,7 @@ import requests
 import json
 from typing import Optional, Union, Dict, Any
 from dotenv import load_dotenv
+from typing import List
 
 # Load environment variables
 load_dotenv()
@@ -335,12 +336,18 @@ def display_chunks(chunks: list, container: Optional[st.container] = None) -> No
                 )
 
 
-def search_documents(query: str) -> Dict[str, Any]:
+def search_documents(query: str, provinces: List[str] | None = None) -> Dict[str, Any]:
     """
     Search for documents using the API.
 
     Args:
         query (str): The search query.
+        provinces (List[str] | None): Optional list of provinces to filter results. Possible values are:
+            - Noord-Brabant,
+            - Overijssel,
+            - Zuid-Holland,
+            - Gelderland,
+            - Flevoland
 
     Returns:
         Dict[str, Any]: The API response containing documents and chunks.
@@ -349,7 +356,7 @@ def search_documents(query: str) -> Dict[str, Any]:
         # Make API call to retrieve documents
         response = requests.post(
             f"{API_URL}/api/query/documents",
-            json={"query": query},
+            json={"query": query, "provinces": provinces},
             headers={"Content-Type": "application/json"},
             timeout=30,
         )
