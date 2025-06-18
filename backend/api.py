@@ -138,10 +138,12 @@ async def query_documents_stream(request: QueryRequest):
 
     async def event_generator():
         try:
+            # print("Starting event generation")
             sources = []
             chunks_used = []
             response_text = ""
             start_time = datetime.now()
+
             # Generate streaming response
             for chunk in rag_system.generate_response_stream(request.query):
                 if isinstance(chunk, str):
