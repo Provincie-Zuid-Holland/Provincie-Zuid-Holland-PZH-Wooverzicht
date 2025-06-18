@@ -1,0 +1,57 @@
+image: python:3.13
+
+pipelines:
+  pull-requests:
+    "**":
+      - parallel:
+          - step:
+              image: python:3.13
+              name: lint frontend
+              script:
+                - pip install flake8
+                - python check.py --frontend lint
+          - step:
+              image: python:3.13
+              name: format frontend
+              script:
+                - pip install black
+                - python check.py --frontend fmt-check
+          - step:
+              image: python:3.13
+              name: lint backend
+              script:
+                - pip install flake8
+                - python check.py --backend lint
+          - step:
+              image: python:3.13
+              name: format backend
+              script:
+                - pip install black
+                - python check.py --backend fmt-check
+  custom:
+    manual-checks-all:
+      - step:
+          name: Run all checks manually
+          trigger: manual
+          script:
+            - pip install flake8 black
+            - python check.py --frontend lint
+            - python check.py --frontend fmt-check
+            - python check.py --backend lint
+            - python check.py --backend fmt-check
+    manual-checks-backend:
+      - step:
+          name: Run backend checks manually
+          trigger: manual
+          script:
+            - pip install flake8 black
+            - python check.py --backend lint
+            - python check.py --backend fmt-check
+    manual-checks-frontend:
+      - step:
+          name: Run frontend checks manually
+          trigger: manual
+          script:
+            - pip install flake8 black
+            - python check.py --frontend lint
+            - python check.py --frontend fmt-check

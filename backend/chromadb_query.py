@@ -13,7 +13,6 @@ import os
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-from chromadb.api.models import Collection
 from pathlib import Path
 
 # Set up logging
@@ -76,12 +75,14 @@ class ChromadbQuery:
         # database_path = ".." + database_path
         print(database_path)
         print("Path exists:", os.path.exists(database_path))
+
+        logger.info(f"Path exists: {os.path.exists(database_path)}")
         print(os.path.abspath(database_path))
         # Print dir
         print(os.listdir(database_path))
         for root, dirs, files in os.walk(database_path):
             print(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
-
+            logger.info(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
 
@@ -96,7 +97,7 @@ class ChromadbQuery:
         try:
             self.collection = self.client.get_collection(name=collection_name)
             logger.info(f"Successfully connected to collection: {collection_name}")
-        except Exception as e:
+        except Exception:
             logger.warning(
                 f"Collection not found, creating new collection: {collection_name}"
             )

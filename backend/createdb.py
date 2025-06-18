@@ -23,18 +23,14 @@ import os
 import json
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import logging
-from functools import partial
-
 from config import JSON_FOLDER
 from openai import OpenAI
 from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
-from chromadb.api.models import Collection
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -302,7 +298,7 @@ class DocumentProcessor:
         embedded_chunks = []
 
         # Use thread pool for parallel processing
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS):
             # Process chunks in batches to respect API limits
             for i in range(0, len(chunks), BATCH_SIZE):
                 batch = chunks[i : i + BATCH_SIZE]
