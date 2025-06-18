@@ -101,7 +101,14 @@ async def retrieve_documents(request: RetrieveDocsDict):
         logger.info(f"Received query: {query} with provinces: {provinces}")
         if not query:
             return {"error": "Query is required"}
-        result = rag_system.retrieve_relevant_documents(query)
+        # Validate provinces if provided
+        if provinces is not None:
+            if not isinstance(provinces, list):
+                raise ValueError("Provinces must be a list")
+            for province in provinces:
+                if not isinstance(province, str):
+                    raise ValueError("Each province must be a string")
+        result = rag_system.retrieve_relevant_documents(query, provinces=provinces)
         print({"success": True, "query": query, **result}, flush=True)
         return {"success": True, "query": query, **result}
 
