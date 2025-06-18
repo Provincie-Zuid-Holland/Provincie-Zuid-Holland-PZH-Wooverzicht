@@ -94,7 +94,7 @@ export default function DocumentList({
                     sx={{ textAlign: "center", maxWidth: 400 }}
                 >
                     Voer een zoekterm in om relevante WOO-documenten te vinden.
-                    Bijvoorbeeld: "windbeleid provincie Overijssel"
+                    Bijvoorbeeld: &quot;windbeleid provincie Overijssel&quot;
                 </Typography>
             </Box>
         );
@@ -132,7 +132,7 @@ export default function DocumentList({
                     variant="h6"
                     gutterBottom
                 >
-                    Zoekresultaten voor: "{data.query}"
+                    Zoekresultaten voor: &quot;{data.query}&quot;
                 </Typography>
                 <Typography
                     variant="body2"
