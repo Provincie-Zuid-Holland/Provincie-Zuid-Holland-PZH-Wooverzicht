@@ -1,10 +1,8 @@
 import os
-import zipfile
 import json
 from PyPDF2 import PdfReader
 from docx import Document
 import tempfile
-from config import DOWNLOADS_FOLDER, EXTRACTED_FOLDER, JSON_FOLDER
 
 """
 This script processes ZIP files containing PDF or DOCX documents along with their metadata files.
@@ -285,14 +283,13 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
 
     except ValueError as e:
         print(f"Error processing folder {folder_path}: {e}")
-        error_count += 1
     except Exception as e:
         print(f"Unexpected error in folder {folder_path}: {str(e)}")
-        error_count += 1
 
 
 def main() -> None:
-    extract_data()
+    # extract_data()
+    pass
 
 
 if __name__ == "__main__":

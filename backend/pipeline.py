@@ -1,7 +1,6 @@
 import sys
 import os
 import importlib
-import argparse
 from typing import Tuple
 import tempfile
 from extract import extract_data
@@ -114,10 +113,7 @@ def execute_pipeline() -> None:
     #     "gelderland",
     # ]  # All provinces
     provinces = [
-        "overijssel",
         "zuid_holland",
-        "noord_brabant",
-        "gelderland",
     ]  # All provinces
     # provinces = ["gelderland"]  # For debugging
     # Import the appropriate modules based on source
@@ -132,7 +128,7 @@ def execute_pipeline() -> None:
             print("\n" + "<>" * 40)
             print(f"Starting {province.upper()} crawler to collect URLs...")
             print("<>" * 40)
-            crawler = Crawler(base_url, max_urls=1)
+            crawler = Crawler(base_url, max_urls=10000)
             urls = crawler.get_new_links()
 
             if not urls:

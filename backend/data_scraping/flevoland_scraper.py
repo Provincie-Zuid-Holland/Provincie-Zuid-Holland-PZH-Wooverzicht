@@ -2,7 +2,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import urlparse, unquote, urljoin
+from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
 import hashlib
@@ -12,17 +12,14 @@ from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import requests
 from selenium.common.exceptions import (
     TimeoutException,
-    NoSuchElementException,
-    NoSuchFrameException,
     InvalidArgumentException,
 )
+from typing import Tuple
+import logging
 
 
 class Scraper:
@@ -123,7 +120,7 @@ class Scraper:
         """
         return url.lower().endswith(self.supported_extensions)
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Fetches HTML content using requests.
 
@@ -151,7 +148,7 @@ class Scraper:
                 time.sleep(2)
         return None
 
-    def fetch_html_with_selenium(self, url: str) -> str:
+    def fetch_html_with_selenium(self, url: str) -> Tuple[str, str] | Tuple[None, None]:
         """
         Fetches HTML content using selenium. This is necessary for pages that load content dynamically. (e.g. with javascript)
         This function is used for archived woo verzoeken of Flevoland
@@ -206,7 +203,7 @@ class Scraper:
             if driver:
                 driver.quit()
 
-    def generate_metadata(self, html_content: str, url: str, selenium_url: str) -> dict:
+    def generate_metadata(self, html_content: str, url: str, selenium_url=None) -> dict:
         """
         Extracts metadata from the HTML content.
 
@@ -220,15 +217,15 @@ class Scraper:
         Example:
             metadata = scraper.generate_metadata(html, "https://example.com")
         """
+        metadata = {
+            "url": url,
+            "provincie": "Flevoland",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Flevoland",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Try to find title
             title_candidates = [
@@ -252,7 +249,7 @@ class Scraper:
                 pattern = r"/archiefweb/(\d+)/"
                 # Search for the pattern in the URL/string using regex
                 match = re.search(pattern, selenium_url)
-                date_paragraph = match.group(1)
+                date_paragraph = match.group(1) if match else None
                 # Convert YYYYMMDD to dd-mm-yyyy format
                 if date_paragraph:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
@@ -265,7 +262,7 @@ class Scraper:
                 datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
                     "h2", string="Datum"
                 )
-                date_paragraph = datum_heading.find_next("p")
+                date_paragraph = datum_heading.find_next("p") if datum_heading else None
 
                 if date_paragraph:
                     locale.setlocale(locale.LC_ALL, "nl_NL")
@@ -470,13 +467,13 @@ class Scraper:
     def __del__(self):
         """
         Destructor to ensure the session is closed.
-
-        Ensures proper cleanup of resources when the object is destroyed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,6 @@ import logging
 from typing import List, Dict, Any, Optional, Generator, Union
 from dataclasses import dataclass
 import time
-import os
-
 from openai import OpenAI
 from chromadb_query import ChromadbQuery, SearchResult
 
@@ -53,7 +51,7 @@ class ConversationalRAG:
         self,
         model: str = "gpt-4o-mini",
         temperature: float = 0.0,
-        max_context_chunks: int = 10,
+        max_context_chunks: int = 30,
     ):
         """
         Initialize the conversational RAG system.
@@ -178,27 +176,21 @@ class ConversationalRAG:
         Yields:
             StreamingChunk: Either a string chunk of the response or a dict containing sources.
         """
-        start_time = time.time()
-        print("Crash1")
         try:
             context_chunks = self.query_engine.search(
                 query=query, limit=self.max_context_chunks, min_relevance_score=0.52
             )
-            print("Crash2")
             context = self._format_context(context_chunks)
             system_prompt = self._create_system_prompt()
             user_prompt = self._format_user_prompt(query, context)
-            print("Crash3")
             # Build chat history (limiting to last few messages to prevent overflow)
             self.chat_history = self.chat_history[
                 -self.max_chat_history :
             ]  # Keep recent messages
-            print("Crash4")
             messages = [{"role": "system", "content": system_prompt}]
             for entry in self.chat_history:
                 messages.append({"role": entry["role"], "content": entry["content"]})
             messages.append({"role": "user", "content": user_prompt})
-            print("Crash5")
             # Generate streaming response using OpenAI
             stream = self.client.chat.completions.create(
                 model=self.model,
@@ -207,7 +199,6 @@ class ConversationalRAG:
                 max_tokens=1000,
                 stream=True,
             )
-            print("Crash6")
 
             # Stream the response chunks
             response_text = ""
@@ -215,7 +206,6 @@ class ConversationalRAG:
                 if chunk.choices[0].delta.content is not None:
                     yield chunk.choices[0].delta.content
                     response_text += chunk.choices[0].delta.content
-            print("Crash7")
             # After text is complete, yield sources and document_ids of chunks
             sources = self._format_sources(context_chunks)
             chunk_ids = [chunk.document_id for chunk in context_chunks]
@@ -224,16 +214,99 @@ class ConversationalRAG:
                 "document_ids": chunk_ids,
             }
             # yield {"sources": sources}
-            print("Crash8")
             # Update chat history with latest interaction
             self.chat_history.append({"role": "user", "content": query})
             self.chat_history.append({"role": "system", "content": response_text})
-            print("Crash9")
 
         except Exception as e:
             logger.error(f"Error generating streaming response: {e}")
             yield f"Er is een fout opgetreden bij het verwerken van je vraag: {str(e)}"
             yield {"sources": []}
+
+    # Function to add to your RAG class
+    def retrieve_relevant_documents(
+        self, query: str, provinces: List[str] | None = None
+    ):
+        """
+        Retrieve relevant documents and chunks from ChromaDB without generating a response.
+
+        Args:
+            query: User's search query
+
+        Returns:
+            dict: Contains both chunks (for citations) and documents (deduplicated)
+        """
+        try:
+            logger.info(
+                f"Retrieving documents for query: {query} with provinces: {provinces}"
+            )
+            meta_filter = None
+            if provinces and len(provinces) > 0:
+                meta_filter = {"provincie": {"$in": provinces}}
+            logger.info(f"Using metadata filter: {meta_filter}")
+            # Search for relevant chunks
+            context_chunks = self.query_engine.search(
+                query=query,
+                limit=self.max_context_chunks,
+                min_relevance_score=0.52,
+                metadata_filter=meta_filter,
+            )
+
+            # Format chunks for citations
+            chunks = []
+            for chunk in context_chunks:
+                chunk_data = {
+                    "id": chunk.document_id,
+                    "content": chunk.content,  # or however you access chunk content
+                    "relevance_score": getattr(chunk, "relevance_score", None),
+                    "metadata": {
+                        "url": chunk.metadata.get("url", ""),
+                        "provincie": chunk.metadata.get("provincie", ""),
+                        "titel": chunk.metadata.get("titel", ""),
+                        "datum": chunk.metadata.get("datum", ""),
+                        "type": chunk.metadata.get("type", ""),
+                    },
+                }
+                chunks.append(chunk_data)
+
+            # Deduplicate to get unique documents based on title
+            seen_docs = {}
+            for chunk in context_chunks:
+                doc_title = chunk.metadata.get("titel", "").strip()
+                # Use title as unique identifier, fallback to URL if no title
+                doc_key = doc_title if doc_title else chunk.metadata.get("url", "")
+
+                if doc_key and doc_key not in seen_docs:
+                    seen_docs[doc_key] = {
+                        "id": doc_key,
+                        "metadata": {
+                            "url": chunk.metadata.get("url", ""),
+                            "provincie": chunk.metadata.get("provincie", ""),
+                            "titel": chunk.metadata.get("titel", ""),
+                            "datum": chunk.metadata.get("datum", ""),
+                            "type": chunk.metadata.get("type", ""),
+                        },
+                        "relevance_score": getattr(chunk, "relevance_score", None),
+                    }
+
+            documents = list(seen_docs.values())
+
+            return {
+                "chunks": chunks,
+                "documents": documents,
+                "total_chunks": len(chunks),
+                "total_documents": len(documents),
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving documents: {e}")
+            return {
+                "chunks": [],
+                "documents": [],
+                "total_chunks": 0,
+                "total_documents": 0,
+                "error": str(e),
+            }
 
     def generate_response(self, query: str) -> RAGResponse:
         """
