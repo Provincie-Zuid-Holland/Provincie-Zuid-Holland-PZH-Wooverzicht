@@ -71,3 +71,6 @@ logging_database.db
 
 # URLs.txt (file that contains the URLs already scraped)
 URLs.txt
+# failed_downloads.txt (files that are too large to download)
+failed_downloads.txt
+backend/failed_downloads.txt
