@@ -485,6 +485,23 @@ class Scraper:
                 f.write(f"{key}: {value}\n")
         return metadata_path
 
+    def check_file_size_not_too_large(self, url):
+        """
+        Checkt de grootte van het zip bestand.
+        """
+        try:
+            response = self.session.head(url, headers=self.headers, timeout=30)
+            file_size = int(response.headers.get("content-length", 0))
+            # Load max size from .env
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
+            if file_size > max_size:
+                print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
+                return False
+            return True
+        except Exception as e:
+            print(f"Fout bij controleren zip bestand grootte: {e}")
+            return False
+
     def scrape_document(
         self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
     ) -> None:
@@ -546,8 +563,11 @@ class Scraper:
             #     continue
 
             save_path = os.path.join(temp_dir, filename)
-            if self.download_document(doc_url, save_path):
-                downloaded_files.append(save_path)
+            if self.check_file_size_not_too_large(doc_url):
+                if self.download_document(doc_url, save_path):
+                    downloaded_files.append(save_path)
+            else:
+                print("File TOO LARGE")
                 # # Update cache with new file
                 # self.downloaded_files_cache[filename] = zip_path
 
