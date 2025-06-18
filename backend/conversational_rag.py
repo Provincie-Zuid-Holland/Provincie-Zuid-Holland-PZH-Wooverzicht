@@ -176,21 +176,26 @@ class ConversationalRAG:
         Yields:
             StreamingChunk: Either a string chunk of the response or a dict containing sources.
         """
+
         try:
             context_chunks = self.query_engine.search(
                 query=query, limit=self.max_context_chunks, min_relevance_score=0.52
             )
+
             context = self._format_context(context_chunks)
             system_prompt = self._create_system_prompt()
             user_prompt = self._format_user_prompt(query, context)
+
             # Build chat history (limiting to last few messages to prevent overflow)
             self.chat_history = self.chat_history[
                 -self.max_chat_history :
             ]  # Keep recent messages
+
             messages = [{"role": "system", "content": system_prompt}]
             for entry in self.chat_history:
                 messages.append({"role": entry["role"], "content": entry["content"]})
             messages.append({"role": "user", "content": user_prompt})
+
             # Generate streaming response using OpenAI
             stream = self.client.chat.completions.create(
                 model=self.model,
