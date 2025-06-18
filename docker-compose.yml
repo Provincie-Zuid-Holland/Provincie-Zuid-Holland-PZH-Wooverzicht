@@ -3,19 +3,20 @@ version: '3'
 services:
   frontend:
     build:
-      context: ./frontend
+      context: ./wooverzicht-frontend
+      dockerfile: Dockerfile
       # Dockerfile for frontend is expected to have WORKDIR /app
       # and use CMD ["streamlit", "run", "app.py"] or similar
     ports:
-      - "127.0.0.1:8501:8501"
+      - "127.0.0.1:3000:3000"
     volumes:
-      - ./frontend:/app
+      # - ./wooverzicht-frontend:/app
+      - /app/node_modules
         # Mounts your local ./frontend directory to /app in the container
         # Assumes /app is the WORKDIR in your frontend/Dockerfile
-    env_file:
-      - ./frontend/.env
     environment:
-      - API_URL=http://backend-api:8000
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend-api:8000
       # Streamlit usually hot reloads by default when files are mounted.
       # If you face issues, you might try:
       # command: streamlit run app.py --server.fileWatcherType poll
@@ -25,11 +26,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 300m
+          memory: 512m
         reservations:
-          memory: 200m
-    mem_limit: 300m
-    memswap_limit: 600m
+          memory: 300m
+    mem_limit: 512m
+    memswap_limit: 1024m
 
   backend-api:
     build:
