@@ -211,6 +211,7 @@ class ConversationalRAG:
                 if chunk.choices[0].delta.content is not None:
                     yield chunk.choices[0].delta.content
                     response_text += chunk.choices[0].delta.content
+
             # After text is complete, yield sources and document_ids of chunks
             sources = self._format_sources(context_chunks)
             chunk_ids = [chunk.document_id for chunk in context_chunks]
@@ -219,6 +220,7 @@ class ConversationalRAG:
                 "document_ids": chunk_ids,
             }
             # yield {"sources": sources}
+
             # Update chat history with latest interaction
             self.chat_history.append({"role": "user", "content": query})
             self.chat_history.append({"role": "system", "content": response_text})
