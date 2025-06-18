@@ -567,9 +567,14 @@ class Scraper:
                 if self.download_document(doc_url, save_path):
                     downloaded_files.append(save_path)
             else:
-                print("File TOO LARGE")
-                # # Update cache with new file
-                # self.downloaded_files_cache[filename] = zip_path
+                # Log dat het zip bestand te groot is
+                print(
+                    f"Bestand is te groot ({doc_url}) en is niet gedownload. "
+                    f"Maximale grootte is {os.getenv('MAX_ZIP_SIZE', 2.5 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024)} GB"
+                )
+                # sla link naar zip bestand op in tekst bestand
+                with open("failed_downloads.txt", "a+") as f:
+                    f.write(f"Bestand te groot: {doc_url}\n")
 
         # # Create a zip file with metadata and any files
         # with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
