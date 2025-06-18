@@ -493,7 +493,7 @@ class Scraper:
             response = self.session.head(url, headers=self.headers, timeout=30)
             file_size = int(response.headers.get("content-length", 0))
             # Load max size from .env
-            max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 1024 * 1024 * 1024)) # 1gb
             if file_size > max_size:
                 print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
                 return False
