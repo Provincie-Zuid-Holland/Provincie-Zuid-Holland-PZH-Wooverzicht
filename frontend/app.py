@@ -157,8 +157,10 @@ def stream_api_response(url: str, data: Dict[str, Any]) -> Dict[str, Any]:
         return None
 
     try:
+        print(f"Before Connecting to SSE endpoint: {url} with data: {data}")
         # Stream the response from the API
         with requests.post(url, json=data, headers=headers, stream=True) as r:
+            print(f"Connecting to SSE endpoint: {url} with data: {data}")
             r.raise_for_status()
 
             # Process the SSE stream
