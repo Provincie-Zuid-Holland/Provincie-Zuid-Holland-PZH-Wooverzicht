@@ -61,11 +61,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 500m
+          memory: 4g
         reservations:
-          memory: 300m
-    mem_limit: 500m
-    memswap_limit: 1000m
+          memory: 1g
+    mem_limit: 4g
+    memswap_limit: 8g
 
   backend-pipeline:
     platform: linux/amd64
