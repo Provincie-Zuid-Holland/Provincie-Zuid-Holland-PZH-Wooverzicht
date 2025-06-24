@@ -125,7 +125,7 @@ async def retrieve_documents(request: RetrieveDocsDict):
         result = rag_system.retrieve_relevant_documents(
             query, provinces=provinces, daterange=daterange
         )
-
+        print({"success": True, "query": query, **result}, flush=True)
         return {"success": True, "query": query, **result}
 
     except Exception as e:

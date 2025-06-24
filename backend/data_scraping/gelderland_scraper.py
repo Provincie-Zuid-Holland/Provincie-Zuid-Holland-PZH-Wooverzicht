@@ -163,6 +163,23 @@ class Scraper:
                 return absolute_url, filename
         return []
 
+    def check_zip_size_not_too_large(self, url):
+        """
+        Checkt de grootte van het zip bestand.
+        """
+        try:
+            response = self.session.head(url, headers=self.headers, timeout=30)
+            file_size = int(response.headers.get("content-length", 0))
+            # Load max size from .env
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
+            if file_size > max_size:
+                print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
+                return False
+            return True
+        except Exception as e:
+            print(f"Fout bij controleren zip bestand grootte: {e}")
+            return False
+
     def download_zip(self, url, save_path):
         """
         Download een zip bestand van de site en zet deze in save_path.
@@ -240,11 +257,23 @@ class Scraper:
             print("Geen zip bestand gevonden")
             return
 
-        # Download zip bestand
-        downloaded = self.download_zip(zip_link[0], temp_dir)
-        if not downloaded:
-            print("Fout bij downloaden zip bestand")
-            return
+        # # Check of zip bestand niet groter dan capaciteit is (uit .env)
+        if self.check_zip_size_not_too_large(zip_link[0]):
+            # Download zip bestand
+            downloaded = self.download_zip(zip_link[0], temp_dir)
+            if not downloaded:
+                print("Fout bij downloaden zip bestand")
+                return
+        else:
+            # Log dat het zip bestand te groot is
+            print(
+                f"Zip bestand is te groot ({zip_link[1]}) en is niet gedownload. "
+                f"Maximale grootte is {os.getenv('MAX_ZIP_SIZE', 2.5 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024)} GB"
+            )
+            # sla link naar zip bestand op in tekst bestand
+            with open("failed_downloads.txt", "a+") as f:
+                f.write(f"Zip bestand te groot: {zip_link[0]}\n")
+
         return
 
     def __del__(self):
@@ -263,7 +292,8 @@ if __name__ == "__main__":
     BASE_URL = "https://open.gelderland.nl/woo-documenten"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"  # Klein Woo verzoek (3 bestanden)
+    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-deelbesluit-2-over-windpark-echteld-lienden-2024-010161"
+    # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"  # Klein Woo verzoek (3 bestanden)
     # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-projectplan-hagenbeek-2024-2024-014129" # Groot Woo verzoek (140 bestanden)
     # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-het-convenant-nedersaksisch-2024-015084"  # Middel Woo verzoek (25 bestanden)
 
