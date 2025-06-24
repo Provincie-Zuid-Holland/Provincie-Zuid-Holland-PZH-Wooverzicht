@@ -253,7 +253,8 @@ class ConversationalRAG:
     def generate_metadata_filter(
         self,
         provinces: List[str] | None,
-        date_range: Optional[List[str]],
+        startDate: str = None,
+        endDate: str = None,
     ) -> Dict[str, Any]:
         """
         Generate a metadata filter for querying documents.
@@ -270,15 +271,12 @@ class ConversationalRAG:
             filters.append({"provincie": {"$in": provinces}})
 
         date_filters = []
-        if date_range and len(date_range) == 2:
-            start_date_epoch_time = int(
-                datetime.strptime(date_range[0], "%Y-%m-%d").timestamp()
-            )
-            end_date_epoch_time = int(
-                datetime.strptime(date_range[1], "%Y-%m-%d").timestamp()
-            )
-            date_filters.append({"datum": {"$gte": start_date_epoch_time}})
-            date_filters.append({"datum": {"$lte": end_date_epoch_time}})
+        start_date_epoch_time = int(
+            datetime.strptime(startDate, "%Y-%m-%d").timestamp()
+        )
+        end_date_epoch_time = int(datetime.strptime(endDate, "%Y-%m-%d").timestamp())
+        date_filters.append({"datum": {"$gte": start_date_epoch_time}})
+        date_filters.append({"datum": {"$lte": end_date_epoch_time}})
 
         if date_filters:
             filters.append({"$and": date_filters})
@@ -298,7 +296,8 @@ class ConversationalRAG:
         self,
         query: str,
         provinces: List[str] | None = None,
-        date_range: Optional[List[str]] = None,
+        startDate: str = None,
+        endDate: str = None,
     ):
         """
         Retrieve relevant documents and chunks from ChromaDB without generating a response.
@@ -313,11 +312,11 @@ class ConversationalRAG:
         """
         try:
             logger.info(
-                f"Retrieving documents for query: {query} with provinces: {provinces} and date_range: {date_range}"
+                f"Retrieving documents for query: {query} with provinces: {provinces} and date_range: {startDate} to {endDate}"
             )
 
             meta_filter = self.generate_metadata_filter(
-                provinces=provinces, date_range=date_range
+                provinces=provinces, startDate=startDate, endDate=endDate
             )
             logger.info(f"Using metadata filter: {meta_filter}")
             # Search for relevant chunks

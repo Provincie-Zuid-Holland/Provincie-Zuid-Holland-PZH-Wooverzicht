@@ -80,10 +80,12 @@ class RetrieveDocsDict(TypedDict, total=False):
     """Type definition for dictionary structure when retrieving documents."""
 
     query: str
-    provinces: List[str] | None  # Optional field for provinces used in filtering
-    daterange: (
-        List[str] | None
-    )  # Optional field for date range filtering (should be a list of two date strings, format "%Y-%m-%d")
+    filters: (
+        dict | None
+    )  # Optional field for additional filters. Elements that should be in the dict:
+    # provinces: List[str] | None  # Optional field for provinces used in filtering
+    # startDate: str  # Field for start date in YYYY-MM-DD format
+    # endDate: str  # Field for end date in YYYY-MM-DD format
 
 
 # API endpoint to add to your FastAPI app
@@ -102,10 +104,14 @@ async def retrieve_documents(request: RetrieveDocsDict):
     """
     try:
         query = request.get("query", "")
-        provinces = request.get("provinces", None)
-        daterange = request.get("daterange", None)
+        filters = request.get("filters", {})
+        if not isinstance(filters, dict):
+            raise ValueError("Filters must be a dictionary")
+        provinces = filters.get("provinces", None)
+        startDate = filters.get("startDate", None)
+        endDate = filters.get("endDate", None)
         logger.info(
-            f"Received query: {query} with provinces: {provinces} and daterange: {daterange}"
+            f"Received query: {query} with provinces: {provinces}, date range: {startDate} to {endDate}"
         )
         if not query:
             return {"error": "Query is required"}
@@ -116,14 +122,12 @@ async def retrieve_documents(request: RetrieveDocsDict):
             for province in provinces:
                 if not isinstance(province, str):
                     raise ValueError("Each province must be a string")
-        if daterange is not None:
-            if not isinstance(daterange, list) or len(daterange) != 2:
-                raise ValueError("Daterange must be a list with two date strings")
-            for date in daterange:
-                if not isinstance(date, str):
-                    raise ValueError("Each date in daterange must be a string")
+        if startDate is None or endDate is None:
+            raise ValueError(
+                f"startDate and endDate are required, but one or both were not provided: {startDate}, {endDate}"
+            )
         result = rag_system.retrieve_relevant_documents(
-            query, provinces=provinces, daterange=daterange
+            query, provinces=provinces, startDate=startDate, endDate=endDate
         )
         print({"success": True, "query": query, **result}, flush=True)
         return {"success": True, "query": query, **result}
