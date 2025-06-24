@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 import zipfile
 import tempfile
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 # TODO
@@ -120,7 +120,9 @@ class Scraper:
                 date_span = parent_div.find("span") if parent_div else None
                 if date_span:
                     # Convert d-m-yyyy to dd-mm-yyyy format
-                    d = datetime.strptime(date_span.text, "%d-%m-%Y")
+                    d = datetime.strptime(date_span.text, "%d-%m-%Y").replace(
+                        tzinfo=timezone.utc
+                    )
                     metadata["datum"] = int(d.timestamp())
 
             categorie_strong = soup.select_one('strong:contains("Categorie")')

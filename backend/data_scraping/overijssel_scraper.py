@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -207,7 +207,11 @@ class Scraper:
                 else ""
             )
             metadata["datum"] = (
-                int(datetime.strptime(creation_year, "%Y").timestamp())
+                int(
+                    datetime.strptime(creation_year, "%Y")
+                    .replace(tzinfo=timezone.utc)
+                    .timestamp()
+                )
                 if creation_year
                 else 0
             )
