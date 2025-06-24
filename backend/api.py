@@ -18,7 +18,7 @@ from sse_starlette.sse import EventSourceResponse
 import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import TypedDict, List
+from typing import TypedDict
 import logging
 
 # Set up logging
