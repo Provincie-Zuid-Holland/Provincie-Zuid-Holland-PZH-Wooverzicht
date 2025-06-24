@@ -5,7 +5,7 @@ This module provides functionality to search and retrieve documents from the Chr
 It supports similarity-based searches with metadata filtering and returns ranked results.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
@@ -330,14 +330,18 @@ def main():
                     {
                         "datum": {
                             "$gte": int(
-                                datetime.strptime("2024-7-6", "%Y-%m-%d").timestamp()
+                                datetime.strptime("2024-7-6", "%Y-%m-%d")
+                                .replace(tzinfo=timezone.utc)
+                                .timestamp()
                             )
                         }
                     },
                     {
                         "datum": {
                             "$lte": int(
-                                datetime.strptime("2025-6-4", "%Y-%m-%d").timestamp()
+                                datetime.strptime("2025-6-4", "%Y-%m-%d")
+                                .replace(tzinfo=timezone.utc)
+                                .timestamp()
                             )
                         }
                     },

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any, Optional, Generator, Union
 from dataclasses import dataclass
@@ -272,9 +272,15 @@ class ConversationalRAG:
 
         date_filters = []
         start_date_epoch_time = int(
-            datetime.strptime(startDate, "%Y-%m-%d").timestamp()
+            datetime.strptime(startDate, "%Y-%m-%d")
+            .replace(tzinfo=timezone.utc)
+            .timestamp()
         )
-        end_date_epoch_time = int(datetime.strptime(endDate, "%Y-%m-%d").timestamp())
+        end_date_epoch_time = int(
+            datetime.strptime(endDate, "%Y-%m-%d")
+            .replace(tzinfo=timezone.utc)
+            .timestamp()
+        )
         date_filters.append({"datum": {"$gte": start_date_epoch_time}})
         date_filters.append({"datum": {"$lte": end_date_epoch_time}})
 
