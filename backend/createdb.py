@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
+from nltk.tokenize import sent_tokenize
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -39,10 +40,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load configuration from environment variables with sensible defaults
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 500))  # Size of text chunks for processing
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1200))  # Size of text chunks for processing
 CHUNK_OVERLAP = int(
     os.getenv("CHUNK_OVERLAP", 50)
 )  # Overlap between chunks to maintain context
+CHUNK_SENTENCE_OVERLAP = int(
+    os.getenv("CHUNK_SENTECE_OVERLAP", 1)
+)  # Overlap between sentences in chunks
 COLLECTION_NAME = os.getenv(
     "COLLECTION_NAME", "document_chunks"
 )  # ChromaDB collection name
@@ -204,6 +208,94 @@ class DocumentProcessor:
 
         # Split content into chunks
         chunks = text_splitter.split_text(content)
+
+        # Create ChunkData objects for each chunk
+        for idx, chunk in enumerate(chunks):
+            chunk_id = f"{data["file_name"]}_chunk_{idx}"
+            all_chunks.append(
+                ChunkData(chunk_id=chunk_id, content=chunk, metadata=metadata)
+            )
+
+        logger.info(f"Processed {data["file_name"]}: {len(chunks)} chunks created")
+
+        return all_chunks
+
+    def chunk_by_sentence_with_overlap(
+        self, text, chunk_size=1000, overlap_sentences=1
+    ):
+        sentences = sent_tokenize(text, language="dutch")
+        chunks = []
+        current_chunk = []  # Sentences will be stored here
+
+        for sentence in sentences:
+            if sum(len(s) for s in current_chunk) + len(sentence) <= chunk_size:
+                current_chunk.append(
+                    sentence
+                )  # add current sentence to the chunk if char limit is not exceeded
+            else:  # if chunk size would be exceeded
+                chunks.append(
+                    " ".join(current_chunk)
+                )  # Add sentences as a single string to chunks
+
+                current_chunk = (  # Set current chunk to the last N sentences of the previous chunk
+                    current_chunk[-overlap_sentences:] if overlap_sentences > 0 else []
+                )
+                current_chunk.append(
+                    sentence
+                )  # Add the 'new' sentence to the current chunk
+
+        if (
+            current_chunk
+        ):  # If we have run out of sentences but still have a chunk to add, add it
+            chunks.append(" ".join(current_chunk))
+
+        return chunks
+
+    def load_and_chunk_data_by_sentence(
+        self,
+        data: dict,
+        chunk_size: int = CHUNK_SIZE,
+        chunk_overlap: int = CHUNK_SENTENCE_OVERLAP,
+    ) -> List[ChunkData]:
+        """
+        Processes JSON files into chunks while preserving all metadata.Chunking strategy is based on sentences.
+
+        Args:
+            data (dict): Dictionary containing JSON data to process.
+            chunk_size (int): Maximum characters per chunk.
+            chunk_overlap (int): Number of overlapping characters between chunks.
+
+        Returns:
+            List[ChunkData]: List of ChunkData objects containing processed chunks.
+
+        Raises:
+            ValueError: If data is empty.
+        """
+        # If dict is empty raise error
+        if not data:
+            raise ValueError("No data found in the JSON dict.")
+        # Check if data.content is empty
+        if not data.get("content") or data["content"] == "":
+            raise ValueError("No content field found in the JSON dict.")
+        all_chunks = []
+
+        # Process data
+        # Get metadata from data dict
+        metadata = data["metadata"]
+
+        # Find the main content field
+        content = data["content"]
+
+        if not content:
+            logger.warning(
+                f"No content field found in {data["pdf_file"]}. "
+                f"Available fields: {list(data.keys())}"
+            )
+
+        # Split content into chunks
+        chunks = self.chunk_by_sentence_with_overlap(
+            content, chunk_size=chunk_size, overlap_sentences=chunk_overlap
+        )
 
         # Create ChunkData objects for each chunk
         for idx, chunk in enumerate(chunks):
@@ -383,7 +475,7 @@ def db_pipeline(data):
         processor = DocumentProcessor()
         # Step 1: Load and chunk the documents
         logger.info("Chunking JSON data...")
-        chunks = processor.load_and_chunk_data(data)
+        chunks = processor.load_and_chunk_data_by_sentence(data)
 
         if not chunks:
             logger.error("No chunks were created. Exiting.")
