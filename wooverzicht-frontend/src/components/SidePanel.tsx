@@ -178,7 +178,7 @@ export default function SidePanel({
                                     />
                                     <Typography variant="body2">
                                         <strong>Besloten op:</strong>{" "}
-                                        {formatDate(metadata.datum)}
+                                        {formatDate(new Date(+metadata.datum * 1000).toISOString().substring(0, 10))}
                                     </Typography>
                                 </Box>
                             )}
@@ -431,7 +431,7 @@ export default function SidePanel({
                                     />
                                     <Typography variant="body2">
                                         <strong>Besloten op:</strong>{" "}
-                                        {formatDate(metadata.datum)}
+                                        {formatDate(new Date(+metadata.datum * 1000).toISOString().substring(0, 10))}
                                     </Typography>
                                 </Box>
                             )}
