@@ -51,18 +51,14 @@ export default function SidePanel({
     const { metadata } = document;
     const provinceColor = PROVINCE_COLORS[metadata.provincie] || "#666";
 
-    const formatDate = (dateString: string) => {
-        try {
-            const date = new Date(dateString.split("-").reverse().join("-"));
-            return date.toLocaleDateString("nl-NL", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-            });
-        } catch {
-            return dateString;
-        }
+
+    const formatDateUTC = (date: Date) => {
+        const day = String(date.getUTCDate()).padStart(2, "0");
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0"); // Months are 0-based
+        const year = date.getUTCFullYear();
+        return `${day}-${month}-${year}`;
     };
+
 
     const handleOpenDocument = () => {
         window.open(metadata.url, "_blank");
@@ -178,7 +174,7 @@ export default function SidePanel({
                                     />
                                     <Typography variant="body2">
                                         <strong>Besloten op:</strong>{" "}
-                                        {formatDate(new Date(+metadata.datum * 1000).toISOString().substring(0, 10))}
+                                        {metadata.datum ? formatDateUTC(new Date(Number(metadata.datum) * 1000)) : "Onbekende datum"}
                                     </Typography>
                                 </Box>
                             )}
@@ -431,7 +427,7 @@ export default function SidePanel({
                                     />
                                     <Typography variant="body2">
                                         <strong>Besloten op:</strong>{" "}
-                                        {formatDate(new Date(+metadata.datum * 1000).toISOString().substring(0, 10))}
+                                        {metadata.datum ? formatDateUTC(new Date(Number(metadata.datum) * 1000)) : "Onbekende datum"}
                                     </Typography>
                                 </Box>
                             )}
