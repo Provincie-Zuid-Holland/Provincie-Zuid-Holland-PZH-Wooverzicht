@@ -145,7 +145,7 @@ export default function DocumentCard({
                                     variant="body2"
                                     color="text.secondary"
                                 >
-                                    {formatDate(metadata.datum)}
+                                    {formatDate(new Date(+metadata.datum * 1000).toISOString().substring(0, 10))}
                                 </Typography>
                             </Box>
                         )}
