@@ -243,7 +243,8 @@ class ConversationalRAG:
 
         Args:
             provinces: Optional list of provinces to filter results.
-            date_range: Optional list of two date strings to filter results by date.
+            startDate: Start date in "YYYY-MM-DD" format to filter results.
+            endDate: End date in "YYYY-MM-DD" format to filter results.
 
         Returns:
             Dict[str, Any]: Metadata filter for querying documents. Returns None if no filters are applied.
