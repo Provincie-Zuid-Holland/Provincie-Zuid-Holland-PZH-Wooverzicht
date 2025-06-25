@@ -165,13 +165,11 @@ class ConversationalRAG:
         ]
 
     def generate_response_stream(
-        self,
-        query: str,
-        province: Optional[str] = None,
-        date_range: Optional[List[str]] = None,
+        self, query: str
     ) -> Generator[StreamingChunk, None, None]:
         """
         Generate a streaming response using RAG with source citations, incorporating chat history.
+        NOTE: Deprecated, used with the old frontend. Now queries are handled with `retrieve_relevant_documents`.
 
         Args:
             query: User's question.
@@ -180,26 +178,10 @@ class ConversationalRAG:
         Yields:
             StreamingChunk: Either a string chunk of the response or a dict containing sources.
         """
-        # Create metadata filter for the search, based on settings passed to this function
-        metadata_filter = {}
-        if province:
-            metadata_filter["provincie"] = province
-        if date_range and len(date_range) == 2:
-            metadata_filter["datum"] = {
-                "$gte": date_range[0],  # Start date
-                "$lte": date_range[1],  # End date
-            }
-        else:
-            metadata_filter["datum"] = {"$gte": "1900-01-01", "$lte": "2100-12-31"}
-
-        logger.info(f"Using metadata filter: {metadata_filter}")
 
         try:
             context_chunks = self.query_engine.search(
-                query=query,
-                limit=self.max_context_chunks,
-                metadata_filter=metadata_filter,
-                min_relevance_score=0.52,
+                query=query, limit=self.max_context_chunks, min_relevance_score=0.52
             )
 
             context = self._format_context(context_chunks)
