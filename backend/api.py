@@ -18,7 +18,7 @@ from sse_starlette.sse import EventSourceResponse
 import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import TypedDict, List
+from typing import TypedDict
 import logging
 
 # Set up logging
@@ -80,7 +80,12 @@ class RetrieveDocsDict(TypedDict, total=False):
     """Type definition for dictionary structure when retrieving documents."""
 
     query: str
-    provinces: List[str] | None  # Optional field for provinces used in filtering
+    filters: (
+        dict | None
+    )  # Optional field for additional filters. Elements that should be in the dict:
+    # provinces: List[str] | None  # Optional field for provinces used in filtering
+    # startDate: str  # Field for start date in YYYY-MM-DD format
+    # endDate: str  # Field for end date in YYYY-MM-DD format
 
 
 # API endpoint to add to your FastAPI app
@@ -90,15 +95,24 @@ async def retrieve_documents(request: RetrieveDocsDict):
     Retrieve relevant documents for a query without generating a response.
 
     Args:
-        request: Simple dict with 'query' key and 'provincies' key (optional). Provincies key is a list of provinces used for filtering.
+        request: Simple dict with 'query' key, 'provinces' key (optional) and 'daterange' key (optional).
+                    'provinces' key is a list of provinces used for filtering.
+                    'daterange' is also optional and should be a list of two date strings, format "%Y-%m-%d" (also used for filtering).
 
     Returns:
         JSON response with relevant documents and chunks
     """
     try:
         query = request.get("query", "")
-        provinces = request.get("provinces", None)
-        logger.info(f"Received query: {query} with provinces: {provinces}")
+        filters = request.get("filters", {})
+        if not isinstance(filters, dict):
+            raise ValueError("Filters must be a dictionary")
+        provinces = filters.get("provinces", None)
+        startDate = filters.get("startDate", None)
+        endDate = filters.get("endDate", None)
+        logger.info(
+            f"Received query: {query} with provinces: {provinces}, date range: {startDate} to {endDate}"
+        )
         if not query:
             return {"error": "Query is required"}
         # Validate provinces if provided
@@ -108,7 +122,13 @@ async def retrieve_documents(request: RetrieveDocsDict):
             for province in provinces:
                 if not isinstance(province, str):
                     raise ValueError("Each province must be a string")
-        result = rag_system.retrieve_relevant_documents(query, provinces=provinces)
+        if startDate is None or endDate is None:
+            raise ValueError(
+                f"startDate and endDate are required, but one or both were not provided: {startDate}, {endDate}"
+            )
+        result = rag_system.retrieve_relevant_documents(
+            query, provinces=provinces, startDate=startDate, endDate=endDate
+        )
         print({"success": True, "query": query, **result}, flush=True)
         return {"success": True, "query": query, **result}
 

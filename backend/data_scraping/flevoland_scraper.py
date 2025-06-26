@@ -7,7 +7,7 @@ import zipfile
 import tempfile
 import re
 import locale
-from datetime import datetime
+from datetime import datetime, timezone
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -238,10 +238,10 @@ class Scraper:
                 if date_paragraph:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
                     # Convert to datetime object
-                    d = datetime.strptime(date_part, "%Y%m%d")
-                    # Format as dd-mm-yyyy
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    d = datetime.strptime(date_part, "%Y%m%d").replace(
+                        tzinfo=timezone.utc
+                    )
+                    metadata["datum"] = int(d.timestamp())
             else:
                 datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
                     "h2", string="Datum"
@@ -250,10 +250,10 @@ class Scraper:
 
                 if date_paragraph:
                     locale.setlocale(locale.LC_ALL, "nl_NL")
-                    d = datetime.strptime(date_paragraph.text, "%d %B %Y")
-                    # Convert dd-month-yyyy to dd-mm-yyyy format
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    d = datetime.strptime(date_paragraph.text, "%d %B %Y").replace(
+                        tzinfo=timezone.utc
+                    )
+                    metadata["datum"] = int(d.timestamp())
 
             return metadata
 

@@ -28,8 +28,8 @@ export default function Layout() {
     );
     const [currentFilters, setCurrentFilters] = useState<SearchFilters>({
         provinces: [],
-        startDate: null,
-        endDate: null,
+        startDate: "1970-01-01",
+        endDate: "2200-01-01",
     });
     const [currentQuery, setCurrentQuery] = useState<string>("");
 
