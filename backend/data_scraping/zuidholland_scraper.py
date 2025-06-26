@@ -124,11 +124,6 @@ class Scraper:
         if filename in self.downloaded_files_cache:
             return True, self.downloaded_files_cache[filename]
 
-        file_hash = self._get_file_hash(url)
-        for existing_file, zip_path in self.downloaded_files_cache.items():
-            if existing_file.startswith(file_hash):
-                return True, zip_path
-
         return False, None
 
     def _is_supported_file(self, url: str) -> bool:
@@ -236,17 +231,17 @@ class Scraper:
 
     def get_filename_from_url(self, url: str) -> str:
         """
-        Extracts the original filename from the URL and adds a hash for uniqueness.
+        Extracts the original filename from the URL and adds a hash for uniqueness (if no filename is found).
 
         Args:
             url (str): The URL of the file
 
         Returns:
-            str: A unique filename based on the URL with added hash
+            str: A unique filename based on the URL
 
         Example:
             filename = scraper.get_filename_from_url("https://example.com/documents/report.pdf")
-            print(filename)  # Output: a1b2c3d4_report.pdf
+            print(filename)  # Output: report.pdf
         """
         parsed_url = urlparse(url)
         original_filename = os.path.basename(unquote(parsed_url.path))
@@ -288,13 +283,11 @@ class Scraper:
                 if url.lower().endswith(ext):
                     extension = ext
                     break
+            # Add hash to filename for uniqueness (in case of generic name)
+            hash = self._get_file_hash(url)
+            original_filename = f"{hash}_document{extension}"
 
-            original_filename = f"document{extension}"
-
-        # Add hash to filename for unique identification
-        file_hash = self._get_file_hash(url)
-        filename_parts = os.path.splitext(original_filename)
-        return f"{file_hash}_{filename_parts[0]}{filename_parts[1]}"
+        return f"{original_filename}"
 
     def find_documents(self, html_content: str, url: str) -> list:
         """
@@ -493,7 +486,7 @@ class Scraper:
             response = self.session.head(url, headers=self.headers, timeout=30)
             file_size = int(response.headers.get("content-length", 0))
             # Load max size from .env
-            max_size = int(os.getenv("MAX_ZIP_SIZE", 1024 * 1024 * 1024)) # 1gb
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 1024 * 1024 * 1024))  # 1gb
             if file_size > max_size:
                 print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
                 return False
