@@ -203,6 +203,9 @@ def combine_document_and_metadata(folder_path: str, file: str) -> dict:
         content = extract_text_from_docx(doc_path)
 
     metadata = read_metadata_file(metadata_file)
+    # Also add file name and type to metadata
+    metadata["file_name"] = os.path.basename(doc_path)
+    metadata["file_type"] = doc_type
 
     # Combine the data into a single dictionary
     combined_data = {
