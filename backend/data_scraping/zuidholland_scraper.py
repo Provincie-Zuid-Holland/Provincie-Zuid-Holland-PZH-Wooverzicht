@@ -1,7 +1,7 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timezone
 import locale
 import time
 from urllib.parse import urlparse, unquote, urljoin
@@ -223,10 +223,8 @@ class Scraper:
                 # Remove "Datum Besluit: " from string
                 date_str = date_str.replace("Datum besluit: ", "")
                 locale.setlocale(locale.LC_ALL, "nl_NL")
-                d = datetime.strptime(date_str, "%d %B %Y")
-                # Convert dd-month-yyyy to dd-mm-yyyy format
-                date_str = d.strftime("%d-%m-%Y")
-                metadata["datum"] = date_str
+                d = datetime.strptime(date_str, "%d %B %Y").replace(tzinfo=timezone.utc)
+                metadata["datum"] = int(d.timestamp())
 
             return metadata
 

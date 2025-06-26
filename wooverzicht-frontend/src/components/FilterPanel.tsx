@@ -55,8 +55,8 @@ export default function FilterPanel({
     useEffect(() => {
         const filters: SearchFilters = {
             provinces: selectedProvinces,
-            startDate: startDate?.format("YYYY-MM-DD") || null,
-            endDate: endDate?.format("YYYY-MM-DD") || null,
+            startDate: startDate?.format("YYYY-MM-DD") || "1970-01-01",
+            endDate: endDate?.format("YYYY-MM-DD") || "2200-01-01",
         };
         onFiltersChange(filters);
     }, [selectedProvinces, startDate, endDate, onFiltersChange]);
@@ -72,8 +72,8 @@ export default function FilterPanel({
 
     const handleClearFilters = () => {
         setSelectedProvinces([]);
-        setStartDate(null);
-        setEndDate(null);
+        setStartDate(dayjs("1970-01-01"));
+        setEndDate(dayjs("2200-01-01"));
     };
 
     const hasActiveFilters =
