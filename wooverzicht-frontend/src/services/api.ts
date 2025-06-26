@@ -41,7 +41,7 @@ export const searchDocuments = async (
             {
                 query: request.query,
                 // Note: Filters not implemented in backend yet
-                // filters: request.filters
+                filters: request.filters
             }
         );
 

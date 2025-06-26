@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -140,7 +141,15 @@ class Scraper:
 
             date_title = soup.find("dt", string="Rapportdatum:")
             date = date_title.find_next("dd") if date_title else None
-            metadata["datum"] = date.text if date else ""
+            metadata["datum"] = (
+                int(
+                    datetime.strptime(date.text, "%d-%m-%Y")
+                    .replace(tzinfo=timezone.utc)
+                    .timestamp()
+                )
+                if date
+                else 0
+            )
 
             return metadata
         except Exception as e:
