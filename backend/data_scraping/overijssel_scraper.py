@@ -11,7 +11,6 @@ import time
 from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
-import hashlib
 
 
 class Scraper:
