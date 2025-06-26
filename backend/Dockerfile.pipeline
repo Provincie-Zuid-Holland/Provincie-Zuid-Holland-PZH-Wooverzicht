@@ -55,6 +55,9 @@ ENV LANG=C.UTF-8 LANGUAGE=C.UTF-8 LC_ALL=C.UTF-8
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install nltk
+RUN python -m nltk.downloader punkt
+RUN python -m nltk.downloader punkt_tab
 
 # Copy backend code
 COPY . .

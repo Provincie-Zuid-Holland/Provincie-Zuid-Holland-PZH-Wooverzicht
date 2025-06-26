@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -187,8 +188,15 @@ class Scraper:
                 if creation_year_tag
                 else ""
             )
-            metadata["datum"] = f"01-01-{creation_year}"
-
+            metadata["datum"] = (
+                int(
+                    datetime.strptime(creation_year, "%Y")
+                    .replace(tzinfo=timezone.utc)
+                    .timestamp()
+                )
+                if creation_year
+                else 0
+            )
             # Get the WOO themes
             woo_theme_tag = soup.find("td", string="WOO thema's")
             woo_theme = (

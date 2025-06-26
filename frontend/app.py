@@ -338,7 +338,9 @@ def display_chunks(chunks: list, container: Optional[st.container] = None) -> No
                 )
 
 
-def search_documents(query: str, provinces: List[str] | None = None) -> Dict[str, Any]:
+def search_documents(
+    query: str, provinces: List[str] | None = None, daterange: List[str] | None = None
+) -> Dict[str, Any]:
     """
     Search for documents using the API.
 
@@ -350,6 +352,7 @@ def search_documents(query: str, provinces: List[str] | None = None) -> Dict[str
             - Zuid-Holland,
             - Gelderland,
             - Flevoland
+        daterange (List[str] | None): Optional list of two date strings to filter results by date (format: "%Y-%m-%d" (i.e. "YYYY-MM-DD")).
 
     Returns:
         Dict[str, Any]: The API response containing documents and chunks.
@@ -358,7 +361,7 @@ def search_documents(query: str, provinces: List[str] | None = None) -> Dict[str
         # Make API call to retrieve documents
         response = requests.post(
             f"{API_URL}/api/query/documents",
-            json={"query": query, "provinces": provinces},
+            json={"query": query, "provinces": provinces, "daterange": daterange},
             headers={"Content-Type": "application/json"},
             timeout=30,
         )
