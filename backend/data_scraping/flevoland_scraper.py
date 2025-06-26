@@ -5,7 +5,6 @@ import time
 from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
-import hashlib
 import re
 import locale
 from datetime import datetime
@@ -88,21 +87,6 @@ class Scraper:
         except Exception as e:
             print(f"Warning: Error building cache: {e}")
         return cache
-
-    def _get_file_hash(self, url: str) -> str:
-        """
-        Generates a unique hash for a file URL.
-
-        Args:
-            url (str): The URL to hash
-
-        Returns:
-            str: MD5 hash of the URL
-
-        Example:
-            hash = scraper._get_file_hash("https://example.com/document.pdf")
-        """
-        return hashlib.md5(url.encode()).hexdigest()
 
     def _is_supported_file(self, url: str) -> bool:
         """
@@ -327,13 +311,12 @@ class Scraper:
 
     def get_filename_from_url(self, url: str) -> str:
         """
-        Extracts original filename from URL and adds hash for uniqueness.
-
+        Extracts original filename from URL.
         Args:
             url (str): The URL of the file
 
         Returns:
-            str: A unique filename based on the URL
+            str: A filename based on the URL, sanitized for invalid characters.
 
         Example:
             filename = scraper.get_filename_from_url("https://example.com/doc.pdf")
@@ -346,10 +329,7 @@ class Scraper:
         for char in invalid_chars:
             original_filename = original_filename.replace(char, "_")
 
-        # Add hash to filename for uniqueness
-        file_hash = self._get_file_hash(url)
-        filename_parts = os.path.splitext(original_filename)
-        return f"{file_hash}_{filename_parts[0]}{filename_parts[1]}"
+        return f"{original_filename}"
 
     def download_document(self, url: str, save_path: str) -> bool:
         """
