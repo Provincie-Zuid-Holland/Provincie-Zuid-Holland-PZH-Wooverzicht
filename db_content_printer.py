@@ -42,6 +42,8 @@ class ChromaDBDocumentPrinter:
                             "titel": metadata.get("titel", ""),
                             "datum": metadata.get("datum", ""),
                             "type": metadata.get("type", ""),
+                            "file_type": metadata.get("file_type", ""),
+                            "file_name": metadata.get("file_name", ""),
                         },
                         "content_preview": (
                             content[:500] if content else ""
