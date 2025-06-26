@@ -128,7 +128,7 @@ def execute_pipeline() -> None:
             print("\n" + "<>" * 40)
             print(f"Starting {province.upper()} crawler to collect URLs...")
             print("<>" * 40)
-            crawler = Crawler(base_url, max_urls=10000)
+            crawler = Crawler(base_url, max_urls=3)
             urls = crawler.get_new_links()
 
             if not urls:
