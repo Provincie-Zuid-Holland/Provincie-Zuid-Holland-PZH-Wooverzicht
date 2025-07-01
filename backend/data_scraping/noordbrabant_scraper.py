@@ -112,6 +112,37 @@ class Scraper:
         print(f"Found {len(document_ids)} document IDs")
         return payload
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting which appears as a paragraph after the h1 title.
+        The text is typically wrapped in a span inside the paragraph.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Find the h1 title
+            h1_tag = soup.find("h1")
+            if h1_tag:
+                # Look for the next paragraph after the h1
+                next_paragraph = h1_tag.find_next("p")
+                if next_paragraph:
+                    # Check if there's a span inside the paragraph
+                    span_tag = next_paragraph.find("span")
+                    if span_tag:
+                        return span_tag.get_text(strip=True)
+                    else:
+                        # Fallback to the paragraph text if no span
+                        return next_paragraph.get_text(strip=True)
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Extracts metadata from HTML content.
@@ -122,6 +153,7 @@ class Scraper:
             "titel": "",
             "datum": "",
             "type": "woo-verzoek",
+            "publiekssamenvatting": "",
         }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
@@ -130,6 +162,9 @@ class Scraper:
             title_tag = soup.find("h1")
             if title_tag:
                 metadata["titel"] = title_tag.get_text(strip=True)
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
 
             # Find the heading that says "Datum besluit"
             # datum_heading = soup.find("div", text="Rapportdatum")
