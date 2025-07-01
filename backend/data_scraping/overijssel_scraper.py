@@ -156,6 +156,54 @@ class Scraper:
                 time.sleep(2)
         return None
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting.
+        Makes the assumption that all Woo-requests in Overijssel have a <strong>Samenvatting:</strong> tag,
+        followed by an empty paragraph, then the actual summary paragraph.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Look for the "Samenvatting:" strong tag
+            samenvatting_strong = soup.find("strong", string="Samenvatting:")
+            if samenvatting_strong:
+                # Get the parent element (likely a paragraph)
+                current_element = samenvatting_strong.parent
+
+                # Look for the next sibling paragraphs
+                next_sibling = current_element.find_next_sibling()
+                while next_sibling:
+                    if next_sibling.name == "p":
+                        # Check if this paragraph has substantial content (not empty)
+                        text = next_sibling.get_text(strip=True)
+                        if (
+                            text and len(text) > 10
+                        ):  # Skip empty or very short paragraphs
+                            return text
+                    next_sibling = next_sibling.find_next_sibling()
+
+            # Alternative approach: look for any strong tag containing "Samenvatting"
+            for strong_tag in soup.find_all("strong"):
+                if "samenvatting" in strong_tag.get_text().lower():
+                    current_element = strong_tag.parent
+                    next_sibling = current_element.find_next_sibling()
+                    while next_sibling:
+                        if next_sibling.name == "p":
+                            text = next_sibling.get_text(strip=True)
+                            if text and len(text) > 10:
+                                return text
+                        next_sibling = next_sibling.find_next_sibling()
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Generates metadata from the HTML content.
@@ -171,6 +219,7 @@ class Scraper:
                 "titel": "titel",
                 "datum": "01-11-1999",
                 "type": "woo-verzoek",
+                "publiekssamenvatting": "",
             }
 
         Example:
@@ -186,6 +235,7 @@ class Scraper:
                 "titel": "",
                 "datum": "",
                 "type": "",
+                "publiekssamenvatting": "",
             }
             # Get the title
             title_div = soup.find("div", class_="print-document")
@@ -199,6 +249,10 @@ class Scraper:
                 else ""
             )
             metadata["titel"] = title
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
+
             # Get the creation year
             creation_year_tag = soup.find("td", string="Creatie jaar")
             creation_year = (
