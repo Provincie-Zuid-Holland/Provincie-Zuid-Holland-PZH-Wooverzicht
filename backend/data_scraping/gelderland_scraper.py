@@ -91,6 +91,30 @@ class Scraper:
                 time.sleep(2)
         return None
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting from under the "Kenmerken" header.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Look for the "Kenmerken" header
+            kenmerken_header = soup.find("h2", string="Kenmerken")
+            if kenmerken_header:
+                # Find the next paragraph after the header
+                next_paragraph = kenmerken_header.find_next("p")
+                if next_paragraph:
+                    return next_paragraph.get_text(strip=True)
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content, url):
         """
         Genereert metadata van de HTML content.
@@ -101,6 +125,7 @@ class Scraper:
             "titel": "",
             "datum": "",
             "type": "woo-verzoek",
+            "publiekssamenvatting": "",
         }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
@@ -109,6 +134,9 @@ class Scraper:
             title_tag = soup.find("h1")
             if title_tag:
                 metadata["titel"] = title_tag.get_text(strip=True)
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
 
             # datum
             date_strong = soup.select_one('strong:contains("Publicatiedatum")')
