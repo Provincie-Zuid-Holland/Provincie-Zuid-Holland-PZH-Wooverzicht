@@ -456,7 +456,8 @@ class Scraper:
         Checkt de grootte van het zip bestand.
         """
         try:
-            response = self.session.head(url, headers=self.headers, timeout=30)
+            response = requests.head(url, timeout=30)
+            response.raise_for_status()
             file_size = int(response.headers.get("content-length", 0))
             # Load max size from .env
             max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
