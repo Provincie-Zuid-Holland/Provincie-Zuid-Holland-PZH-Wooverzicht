@@ -158,9 +158,8 @@ class Scraper:
 
     def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
         """
-        Extracts the publiekssamenvatting.
-        Makes the assumption that all Woo-requests in Overijssel have a <strong>Samenvatting:</strong> tag,
-        followed by an empty paragraph, then the actual summary paragraph.
+        Extracts the publiekssamenvatting from the HTML.
+        The assumed structure is: <td><strong>Samenvatting:</strong>The actual summary text here</td>
 
         Args:
             soup (BeautifulSoup): Parsed HTML content
@@ -172,32 +171,39 @@ class Scraper:
             # Look for the "Samenvatting:" strong tag
             samenvatting_strong = soup.find("strong", string="Samenvatting:")
             if samenvatting_strong:
-                # Get the parent element (likely a paragraph)
-                current_element = samenvatting_strong.parent
+                # The parent should be a <td> containing both the label and the content
+                parent_cell = samenvatting_strong.parent
+                if parent_cell and parent_cell.name == "td":
+                    # Get all text from the cell and remove the "Samenvatting:" part
+                    full_text = parent_cell.get_text(strip=True)
+                    if full_text.startswith("Samenvatting:"):
+                        summary_text = full_text[len("Samenvatting:") :].strip()
+                        if summary_text and len(summary_text) > 10:
+                            return summary_text
 
-                # Look for the next sibling paragraphs
-                next_sibling = current_element.find_next_sibling()
-                while next_sibling:
-                    if next_sibling.name == "p":
-                        # Check if this paragraph has substantial content (not empty)
-                        text = next_sibling.get_text(strip=True)
-                        if (
-                            text and len(text) > 10
-                        ):  # Skip empty or very short paragraphs
-                            return text
-                    next_sibling = next_sibling.find_next_sibling()
-
-            # Alternative approach: look for any strong tag containing "Samenvatting"
+            # Alternative approach: look for any strong tag containing "samenvatting"
             for strong_tag in soup.find_all("strong"):
-                if "samenvatting" in strong_tag.get_text().lower():
-                    current_element = strong_tag.parent
-                    next_sibling = current_element.find_next_sibling()
-                    while next_sibling:
-                        if next_sibling.name == "p":
-                            text = next_sibling.get_text(strip=True)
-                            if text and len(text) > 10:
-                                return text
-                        next_sibling = next_sibling.find_next_sibling()
+                strong_text = strong_tag.get_text().strip()
+                if strong_text.lower() == "samenvatting:":
+                    parent_cell = strong_tag.parent
+                    if parent_cell and parent_cell.name == "td":
+                        full_text = parent_cell.get_text(strip=True)
+                        # Find where the summary starts after the label
+                        if ":" in full_text:
+                            summary_text = full_text.split(":", 1)[1].strip()
+                            if summary_text and len(summary_text) > 10:
+                                return summary_text
+
+            # Fallback: look for table structure more broadly
+            for table in soup.find_all("table"):
+                for row in table.find_all("tr"):
+                    cells = row.find_all(["td", "th"])
+                    for cell in cells:
+                        cell_text = cell.get_text(strip=True)
+                        if cell_text.lower().startswith("samenvatting:"):
+                            summary_text = cell_text[len("samenvatting:") :].strip()
+                            if summary_text and len(summary_text) > 10:
+                                return summary_text
 
         except Exception as e:
             print(f"Error extracting publiekssamenvatting: {e}")
