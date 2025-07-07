@@ -4,6 +4,7 @@ export interface DocumentMetadata {
     titel: string;
     datum: string;
     type: string;
+    publiekssamenvatting: string;
 }
 
 export interface Chunk {
