@@ -19,6 +19,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DescriptionIcon from "@mui/icons-material/Description";
+import SummarizeIcon from "@mui/icons-material/Summarize";
 import { Document, SearchResponse } from "@/types/api";
 import { PROVINCE_COLORS } from "@/utils/constants";
 
@@ -227,6 +228,42 @@ export default function SidePanel({
                             )}
                         </Box>
                     </Paper>
+
+                    {/* Publiekssamenvatting */}
+                    {metadata.publiekssamenvatting && (
+                        <Paper sx={{ p: 2, mb: 3, backgroundColor: "grey.50" }}>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 2,
+                                }}
+                            >
+                                <SummarizeIcon
+                                    sx={{
+                                        fontSize: 18,
+                                        color: "text.secondary",
+                                    }}
+                                />
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                >
+                                    Publiekssamenvatting
+                                </Typography>
+                            </Box>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    lineHeight: 1.6,
+                                    whiteSpace: "pre-wrap",
+                                }}
+                            >
+                                {metadata.publiekssamenvatting}
+                            </Typography>
+                        </Paper>
+                    )}
 
                     {/* Text Fragments */}
                     {documentChunks.length > 0 && (
@@ -480,6 +517,42 @@ export default function SidePanel({
                             )}
                         </Box>
                     </Paper>
+
+                    {/* Publiekssamenvatting */}
+                    {metadata.publiekssamenvatting && (
+                        <Paper sx={{ p: 2, mb: 3, backgroundColor: "grey.50" }}>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 2,
+                                }}
+                            >
+                                <SummarizeIcon
+                                    sx={{
+                                        fontSize: 18,
+                                        color: "text.secondary",
+                                    }}
+                                />
+                                <Typography
+                                    variant="subtitle1"
+                                    fontWeight={600}
+                                >
+                                    Publiekssamenvatting
+                                </Typography>
+                            </Box>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    lineHeight: 1.6,
+                                    whiteSpace: "pre-wrap",
+                                }}
+                            >
+                                {metadata.publiekssamenvatting}
+                            </Typography>
+                        </Paper>
+                    )}
 
                     {/* Text Fragments */}
                     {documentChunks.length > 0 && (
