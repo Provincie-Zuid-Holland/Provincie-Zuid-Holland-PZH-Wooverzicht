@@ -74,6 +74,7 @@ class Source(BaseModel):
     datum: str
     type: str
     relevance_score: float
+    publiekssamenvatting: str
 
 
 class RetrieveDocsDict(TypedDict, total=False):
