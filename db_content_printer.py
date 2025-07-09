@@ -71,6 +71,45 @@ class ChromaDBDocumentPrinter:
         except Exception as e:
             logger.error(f"Failed to fetch or print documents: {e}")
 
+    def print_all_chunks(self, limit: int = 100000):
+        try:
+            logger.info("Fetching all chunks from ChromaDB...")
+
+            # Get all documents, metadata, and ids
+            result = self.collection.get(include=["metadatas", "documents"])
+
+            documents = result.get("documents", [])
+            metadatas = result.get("metadatas", [])
+
+            logger.info(f"Found {len(documents)} total chunks in the collection.")
+
+            # Print all chunks with their information
+            for idx, (content, metadata) in enumerate(
+                zip(documents, metadatas), start=1
+            ):
+                print(f"--- Chunk {idx} ---")
+                print(f"Title: {metadata.get('titel', 'N/A')}")
+                print(f"URL: {metadata.get('url', 'N/A')}")
+                print(f"Provincie: {metadata.get('provincie', 'N/A')}")
+                print(f"Datum: {metadata.get('datum', 'N/A')}")
+                print(f"Type: {metadata.get('type', 'N/A')}")
+                print(f"File Type: {metadata.get('file_type', 'N/A')}")
+                print(f"File Name: {metadata.get('file_name', 'N/A')}")
+                print(f"Content Length: {len(content) if content else 0} characters")
+                print(
+                    f"Content Preview:\n{content[:200] if content else 'No content'}..."
+                )
+                print("\n")
+                if idx >= limit:
+                    break
+
+            print("-" * 40)
+            print(f"Total chunks: {len(documents)}")
+            print("-" * 40)
+
+        except Exception as e:
+            logger.error(f"Failed to fetch or print chunks: {e}")
+
 
 # Get chroma_collection from your ChromaDB setup
 client = chromadb.PersistentClient(
@@ -79,3 +118,4 @@ client = chromadb.PersistentClient(
 collection = client.get_collection(name="document_chunks")
 printer = ChromaDBDocumentPrinter(collection)
 printer.print_unique_documents()
+printer.print_all_chunks(10)
