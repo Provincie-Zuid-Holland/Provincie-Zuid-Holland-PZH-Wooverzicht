@@ -150,13 +150,23 @@ def read_metadata_file(metadata_path: str) -> dict:
         metadata = read_metadata_file('/path/to/metadata.txt')
     """
     metadata = {}
+    int_fields = {"datum"}
     with open(metadata_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     for line in lines:
         if ":" in line:  # Parse key-value pairs separated by a colon
             key, value = line.split(":", 1)
-            metadata[key.strip()] = value.strip()
+            key = key.strip()
+            value = value.strip()
+            if key in int_fields:
+                try:
+                    metadata[key] = int(value)  # Convert to integer if applicable
+                    print(f"Converted {key} to integer: {metadata[key]}")
+                except ValueError:
+                    metadata[key] = value
+            else:
+                metadata[key] = value
 
     return metadata
 
