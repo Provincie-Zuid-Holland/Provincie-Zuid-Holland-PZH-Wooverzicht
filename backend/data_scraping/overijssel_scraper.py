@@ -156,6 +156,60 @@ class Scraper:
                 time.sleep(2)
         return None
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting from the HTML.
+        The assumed structure is: <td><strong>Samenvatting:</strong>The actual summary text here</td>
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Look for the "Samenvatting:" strong tag
+            samenvatting_strong = soup.find("strong", string="Samenvatting:")
+            if samenvatting_strong:
+                # The parent should be a <td> containing both the label and the content
+                parent_cell = samenvatting_strong.parent
+                if parent_cell and parent_cell.name == "td":
+                    # Get all text from the cell and remove the "Samenvatting:" part
+                    full_text = parent_cell.get_text(strip=True)
+                    if full_text.startswith("Samenvatting:"):
+                        summary_text = full_text[len("Samenvatting:") :].strip()
+                        if summary_text and len(summary_text) > 10:
+                            return summary_text
+
+            # Alternative approach: look for any strong tag containing "samenvatting"
+            for strong_tag in soup.find_all("strong"):
+                strong_text = strong_tag.get_text().strip()
+                if strong_text.lower() == "samenvatting:":
+                    parent_cell = strong_tag.parent
+                    if parent_cell and parent_cell.name == "td":
+                        full_text = parent_cell.get_text(strip=True)
+                        # Find where the summary starts after the label
+                        if ":" in full_text:
+                            summary_text = full_text.split(":", 1)[1].strip()
+                            if summary_text and len(summary_text) > 10:
+                                return summary_text
+
+            # Fallback: look for table structure more broadly
+            for table in soup.find_all("table"):
+                for row in table.find_all("tr"):
+                    cells = row.find_all(["td", "th"])
+                    for cell in cells:
+                        cell_text = cell.get_text(strip=True)
+                        if cell_text.lower().startswith("samenvatting:"):
+                            summary_text = cell_text[len("samenvatting:") :].strip()
+                            if summary_text and len(summary_text) > 10:
+                                return summary_text
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Generates metadata from the HTML content.
@@ -171,6 +225,7 @@ class Scraper:
                 "titel": "titel",
                 "datum": "01-11-1999",
                 "type": "woo-verzoek",
+                "publiekssamenvatting": "",
             }
 
         Example:
@@ -186,6 +241,7 @@ class Scraper:
                 "titel": "",
                 "datum": "",
                 "type": "",
+                "publiekssamenvatting": "",
             }
             # Get the title
             title_div = soup.find("div", class_="print-document")
@@ -199,6 +255,10 @@ class Scraper:
                 else ""
             )
             metadata["titel"] = title
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
+
             # Get the creation year
             creation_year_tag = soup.find("td", string="Creatie jaar")
             creation_year = (
@@ -402,7 +462,8 @@ class Scraper:
         Checkt de grootte van het zip bestand.
         """
         try:
-            response = self.session.head(url, headers=self.headers, timeout=30)
+            response = requests.head(url, timeout=30)
+            response.raise_for_status()
             file_size = int(response.headers.get("content-length", 0))
             # Load max size from .env
             max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
