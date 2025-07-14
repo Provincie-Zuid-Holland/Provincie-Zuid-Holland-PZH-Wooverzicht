@@ -12,6 +12,9 @@ const apiClient = axios.create({
     timeout: 30000000,
 });
 
+// Track ongoing requests to prevent duplicates
+const ongoingRequests = new Map<string, Promise<any>>();
+
 // Add request interceptor for logging
 apiClient.interceptors.request.use(
     (config) => {
@@ -35,18 +38,40 @@ apiClient.interceptors.response.use(
 export const searchDocuments = async (
     request: SearchRequest
 ): Promise<SearchResponse> => {
+    // Create a unique key for this request
+    const requestKey = `search:${request.query}:${JSON.stringify(request.filters)}`;
+
+    // Check if this exact request is already ongoing
+    if (ongoingRequests.has(requestKey)) {
+        console.log(`🔄 Reusing ongoing request for: ${request.query}`);
+        return await ongoingRequests.get(requestKey)!;
+    }
+
+    console.log(`🚀 New search request: ${request.query}`);
+
     try {
-        const response = await apiClient.post<SearchResponse>(
+        const requestPromise = apiClient.post<SearchResponse>(
             "/api/query/documents",
             {
                 query: request.query,
-                // Note: Filters not implemented in backend yet
                 filters: request.filters
             }
-        );
+        ).then(response => response.data);
 
-        return response.data;
+        // Store the promise to prevent duplicates
+        ongoingRequests.set(requestKey, requestPromise);
+
+        const result = await requestPromise;
+
+        // Clean up after completion
+        ongoingRequests.delete(requestKey);
+
+        return result;
+
     } catch (error) {
+        // Clean up on error
+        ongoingRequests.delete(requestKey);
+
         if (axios.isAxiosError(error)) {
             throw new Error(error.response?.data?.error || error.message);
         }
