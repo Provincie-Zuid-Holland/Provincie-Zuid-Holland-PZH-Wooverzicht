@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import timezone
 import os
+import dateparser
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -12,7 +13,6 @@ import time
 from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
-import hashlib
 
 
 class Scraper:
@@ -30,7 +30,6 @@ class Scraper:
         wait (WebDriverWait): WebDriverWait instance for waiting for elements
 
     Functions:
-        _get_file_hash: Generates a unique hash for a file URL to identify duplicates
         _is_supported_file: Checks if a file type is supported for download
         fetch_html: Retrieves HTML content from a page, including JavaScript-rendered content
         generate_metadata: Extracts metadata from HTML content
@@ -80,22 +79,6 @@ class Scraper:
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=options)
         self.wait = WebDriverWait(self.driver, 20)
-
-    def _get_file_hash(self, url: str) -> str:
-        """
-        Generates a unique hash for a file URL.
-
-        Args:
-            url (str): The URL of the file
-
-        Returns:
-            str: MD5 hash of the URL as a hexadecimal string
-
-        Example:
-            hash_value = scraper._get_file_hash("https://example.com/document.pdf")
-            print(hash_value)  # Output: a1b2c3d4...
-        """
-        return hashlib.md5(url.encode()).hexdigest()
 
     def _is_supported_file(self, url: str) -> bool:
         """
@@ -268,7 +251,13 @@ class Scraper:
             )
             metadata["datum"] = (
                 int(
-                    datetime.strptime(creation_year, "%Y")
+                    dateparser.parse(
+                        creation_year,
+                        settings={
+                            "PREFER_MONTH_OF_YEAR": "first",
+                            "PREFER_DAY_OF_MONTH": "first",
+                        },
+                    )
                     .replace(tzinfo=timezone.utc)
                     .timestamp()
                 )
@@ -293,17 +282,17 @@ class Scraper:
 
     def get_filename_from_url(self, url: str) -> str:
         """
-        Extracts the original filename from the URL and adds a hash for uniqueness.
+        Extracts the original filename from the URL.
 
         Args:
             url (str): The URL of the file
 
         Returns:
-            str: A unique filename based on the URL with added hash
+            str: A filename based on the URL, with invalid characters replaced
 
         Example:
             filename = scraper.get_filename_from_url("https://example.com/documents/report.pdf")
-            print(filename)  # Output: a1b2c3d4_report.pdf
+            print(filename)  # Output: report.pdf
         """
         parsed_url = urlparse(url)
         original_filename = os.path.basename(unquote(parsed_url.path))
@@ -313,10 +302,7 @@ class Scraper:
         for char in invalid_chars:
             original_filename = original_filename.replace(char, "_")
 
-        # Add hash to filename for unique identification
-        file_hash = self._get_file_hash(url)
-        filename_parts = os.path.splitext(original_filename)
-        return f"{file_hash}_{filename_parts[0]}{filename_parts[1]}"
+        return f"{original_filename}"
 
     def find_documents(self, html_content: str) -> list:
         """
