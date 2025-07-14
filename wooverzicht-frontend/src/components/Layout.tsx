@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
     Box,
     Container,
@@ -33,29 +33,57 @@ export default function Layout() {
     });
     const [currentQuery, setCurrentQuery] = useState<string>("");
 
+    // Add flag to prevent duplicate searches
+    const isSearchingRef = useRef(false);
+
     const { data, loading, error, search, clearResults } = useSearch();
 
     const handleSearch = useCallback(
-        async (query: string) => {
-            setCurrentQuery(query);
-            if (!query.trim()) {
-                clearResults();
+        async (query: string, filters?: SearchFilters) => {
+            // Prevent duplicate searches
+            if (isSearchingRef.current) {
+                console.log("🚫 Search already in progress, skipping duplicate");
                 return;
             }
-            await search(query, currentFilters);
+
+            console.log(`🔍 Starting search for: "${query}"`);
+            isSearchingRef.current = true;
+
+            try {
+                setCurrentQuery(query);
+                if (!query.trim()) {
+                    clearResults();
+                    return;
+                }
+                // Use provided filters or current filters
+                const searchFilters = filters || currentFilters;
+                await search(query, searchFilters);
+            } finally {
+                // Always reset the flag
+                isSearchingRef.current = false;
+                console.log(`✅ Search completed for: "${query}"`);
+            }
         },
-        [search, clearResults, currentFilters]
+        [search, clearResults] // Removed currentFilters dependency
     );
 
     const handleFiltersChange = useCallback(
         (filters: SearchFilters) => {
+            console.log(`🎛️ Filters changed:`, filters);
             setCurrentFilters(filters);
-            // Re-search with new filters if there's an active query
-            if (currentQuery.trim()) {
-                search(currentQuery, filters);
+
+            // Only re-search if we're not already searching AND there's a query
+            if (!isSearchingRef.current && currentQuery.trim()) {
+                console.log(`🔄 Re-searching with new filters`);
+                // Pass filters directly to avoid using stale currentFilters
+                handleSearch(currentQuery, filters);
+            } else if (isSearchingRef.current) {
+                console.log(`⏳ Search in progress, filters will apply to next search`);
+            } else {
+                console.log(`📝 Filters updated, no active query to re-search`);
             }
         },
-        [search, currentQuery]
+        [currentQuery, handleSearch]
     );
 
     const handleDocumentClick = useCallback((document: Document) => {
