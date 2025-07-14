@@ -128,12 +128,7 @@ query = "personenvervoer over water Rotterdam-Drechtsteden"
 provincies = ["Zuid-Holland", "Utrecht"]
 start_date = "2000-01-01"
 end_date = "2025-10-01"
-meta_filter = {
-    "$and": [
-        {"provincie": {"$in": ["Zuid-Holland", "Utrecht"]}},
-        {"$and": [{"datum": {"$gte": 0}}, {"datum": {"$lte": 17039808000}}]},
-    ]
-}
+meta_filter = {"$and": [{"datum": {"$gte": 0}}, {"datum": {"$lte": 7258118400}}]}
 
 context_chunks = query_engine.search(
     query=query,
