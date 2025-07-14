@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import timezone
 import os
+import dateparser
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -190,7 +191,13 @@ class Scraper:
             )
             metadata["datum"] = (
                 int(
-                    datetime.strptime(creation_year, "%Y")
+                    dateparser.parse(
+                        creation_year,
+                        settings={
+                            "PREFER_MONTH_OF_YEAR": "first",
+                            "PREFER_DAY_OF_MONTH": "first",
+                        },
+                    )
                     .replace(tzinfo=timezone.utc)
                     .timestamp()
                 )
