@@ -1,7 +1,7 @@
-from typing import List
 import logging
 from chromadb.config import Settings
 import chromadb
+from backend.chromadb_query import ChromadbQuery
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -118,4 +118,36 @@ client = chromadb.PersistentClient(
 collection = client.get_collection(name="document_chunks")
 printer = ChromaDBDocumentPrinter(collection)
 printer.print_unique_documents()
-printer.print_all_chunks(10)
+printer.print_all_chunks(1)
+query_engine = ChromadbQuery()
+query = "personenvervoer over water Rotterdam-Drechtsteden"
+
+# Wat werkt:
+# meta_filter = {"provincie": {"$in": ["Zuid-Holland", "Utrecht"]}}
+
+provincies = ["Zuid-Holland", "Utrecht"]
+start_date = "2000-01-01"
+end_date = "2025-10-01"
+meta_filter = {"$and": [{"datum": {"$gte": 0}}, {"datum": {"$lte": 7258118400}}]}
+
+context_chunks = query_engine.search(
+    query=query,
+    limit=10,
+    min_relevance_score=0.52,
+    metadata_filter=meta_filter,
+)
+print("\\/" * 40)
+print(f"Found {len(context_chunks)} context chunks:")
+print("/\\" * 40)
+for chunk in context_chunks:
+    print(f"Title: {chunk.metadata.get('titel', 'N/A')}")
+    print(f"URL: {chunk.metadata.get('url', 'N/A')}")
+    print(f"Provincie: {chunk.metadata.get('provincie', 'N/A')}")
+    print(f"Datum: {chunk.metadata.get('datum', 'N/A')}")
+    # Print type of datum
+    print(f"Type datum: {type(chunk.metadata["datum"])}")
+    print(f"Type: {chunk.metadata.get('type', 'N/A')}")
+    print(f"File Type: {chunk.metadata.get('file_type', 'N/A')}")
+    print(f"File Name: {chunk.metadata.get('file_name', 'N/A')}")
+    print("\n")
+    break
