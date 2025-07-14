@@ -6,8 +6,8 @@ from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
 import re
-import locale
-from datetime import datetime, timezone
+from datetime import timezone
+import dateparser
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -238,9 +238,7 @@ class Scraper:
                 if date_paragraph:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
                     # Convert to datetime object
-                    d = datetime.strptime(date_part, "%Y%m%d").replace(
-                        tzinfo=timezone.utc
-                    )
+                    d = dateparser.parse(date_part).replace(tzinfo=timezone.utc)
                     metadata["datum"] = int(d.timestamp())
             else:
                 datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
@@ -249,8 +247,7 @@ class Scraper:
                 date_paragraph = datum_heading.find_next("p") if datum_heading else None
 
                 if date_paragraph:
-                    locale.setlocale(locale.LC_ALL, "nl_NL")
-                    d = datetime.strptime(date_paragraph.text, "%d %B %Y").replace(
+                    d = dateparser.parse(date_paragraph.text).replace(
                         tzinfo=timezone.utc
                     )
                     metadata["datum"] = int(d.timestamp())

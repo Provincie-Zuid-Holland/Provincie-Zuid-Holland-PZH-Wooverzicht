@@ -1,8 +1,8 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
-import locale
+import dateparser
+from datetime import timezone
 import time
 from urllib.parse import urlparse, unquote, urljoin
 import zipfile
@@ -217,9 +217,9 @@ class Scraper:
                 date_str = date_tag.get_text(strip=True)
                 # Remove "Datum Besluit: " from string
                 date_str = date_str.replace("Datum besluit: ", "")
-                locale.setlocale(locale.LC_ALL, "nl_NL")
-                d = datetime.strptime(date_str, "%d %B %Y").replace(tzinfo=timezone.utc)
+                d = dateparser.parse(date_str).replace(tzinfo=timezone.utc)
                 metadata["datum"] = int(d.timestamp())
+                print(f"Datum in metadata: {metadata["datum"]}")
 
             return metadata
 
