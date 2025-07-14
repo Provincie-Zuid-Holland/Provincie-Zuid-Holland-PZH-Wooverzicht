@@ -180,6 +180,62 @@ class Scraper:
                 time.sleep(2)
         return None
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting from the <div class="summary"> section.
+        The summary may be directly in the div or in nested paragraphs.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Look for the summary div
+            summary_div = soup.find("div", class_="summary")
+            if summary_div:
+                # First try to get all paragraphs within the summary div
+                paragraphs = summary_div.find_all("p")
+                if paragraphs:
+                    # Get text from all paragraphs and join them
+                    # Filter out paragraphs that are mainly links (likely document references)
+                    summary_parts = []
+                    for p in paragraphs:
+                        text = p.get_text(strip=True)
+                        # Check if paragraph is mostly links (more than 80% of content is in links)
+                        links = p.find_all("a")
+                        if links:
+                            link_text_length = sum(
+                                len(link.get_text(strip=True)) for link in links
+                            )
+                            total_text_length = len(text)
+                            if (
+                                total_text_length > 0
+                                and (link_text_length / total_text_length) > 0.8
+                            ):
+                                # This paragraph is mostly links, likely document references
+                                continue
+
+                        if (
+                            text and len(text) > 20
+                        ):  # Only include substantial paragraphs
+                            summary_parts.append(text)
+
+                    if summary_parts:
+                        return " ".join(summary_parts)
+
+                # If no good paragraphs found, try to get direct text from the div
+                # but exclude text from nested links
+                summary_text = summary_div.get_text(strip=True)
+                if summary_text and len(summary_text) > 20:
+                    return summary_text
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Generates metadata from HTML content.
@@ -207,6 +263,7 @@ class Scraper:
             "titel": "",
             "datum": "",
             "type": "woo-verzoek",
+            "publiekssamenvatting": "",
         }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
@@ -215,6 +272,9 @@ class Scraper:
             title_tag = soup.find("h1")
             if title_tag:
                 metadata["titel"] = title_tag.get_text(strip=True)
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
 
             # Find the div with class "datetime"
             date_tag = soup.find("div", class_="datetime")

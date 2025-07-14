@@ -203,6 +203,68 @@ class Scraper:
             if driver:
                 driver.quit()
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup, url: str) -> str:
+        """
+        Extracts the publiekssamenvatting from the HTML content.
+        Handles both newer sites (with 'Samenvatting' header) and older sites (positioned above 'Documenten' header).
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+            url (str): The URL of the page (for determining site type)
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Check if this is a newer site (flevoland.nl domain)
+            if "flevoland.nl" in url and "archiefweb.eu" not in url:
+                # Assumption: Site always has a 'Samenvatting' header, and the next paragraph contains the summary
+                samenvatting_header = soup.find("h2", string="Samenvatting")
+                if samenvatting_header:
+                    next_paragraph = samenvatting_header.find_next("p")
+                    if next_paragraph:
+                        return next_paragraph.get_text(strip=True)
+
+            # Older site: Look for content positioned before the "Documenten" header
+            documenten_header = soup.find("h2", string="Documenten")
+            if documenten_header:
+                preceding_elements = []
+                current = documenten_header.find_previous_sibling()
+
+                # Walk backwards through siblings until we find substantial content
+                while current:
+                    if current.name == "p":
+                        text = current.get_text(strip=True)
+                        if len(text) > 50:  # Filter out short paragraphs
+                            preceding_elements.append(text)
+                    elif current.name in ["h1", "h2", "h3"]:
+                        # Stop if we hit another header (we've gone too far back)
+                        break
+                    current = current.find_previous_sibling()
+
+                if preceding_elements:
+                    return max(preceding_elements, key=len)
+
+            # fallback: Look for text starting with common patterns
+            patterns = [
+                r"^Er is een verzoek gedaan in het kader van de Wet openbaarheid van bestuur",
+                r"^Naar aanleiding van een verzoek op grond van de Wet open overheid",
+                r"^Er is een verzoek gedaan.*Wet.*openbaarheid",
+                r"^Naar aanleiding van een.*verzoek.*Woo",
+            ]
+
+            paragraphs = soup.find_all("p")
+            for paragraph in paragraphs:
+                text = paragraph.get_text(strip=True)
+                for pattern in patterns:
+                    if re.match(pattern, text, re.IGNORECASE):
+                        return text
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str, selenium_url=None) -> dict:
         """
         Extracts metadata from the HTML content.
@@ -223,6 +285,7 @@ class Scraper:
             "titel": "",
             "datum": "",
             "type": "woo-verzoek",
+            "publiekssamenvatting": "",
         }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
@@ -241,6 +304,11 @@ class Scraper:
                     else:
                         metadata["titel"] = candidate.get_text(strip=True)
                     break
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(
+                soup, url
+            )
 
             # If using selenium/archive links the date is hidden in the link itself instead of on the HTML page
             if selenium_url:

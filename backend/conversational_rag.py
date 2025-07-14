@@ -349,6 +349,9 @@ class ConversationalRAG:
                             "titel": chunk.metadata.get("titel", ""),
                             "datum": chunk.metadata.get("datum", ""),
                             "type": chunk.metadata.get("type", ""),
+                            "publiekssamenvatting": chunk.metadata.get(
+                                "publiekssamenvatting", ""
+                            ),
                         },
                         "relevance_score": getattr(chunk, "relevance_score", None),
                     }
