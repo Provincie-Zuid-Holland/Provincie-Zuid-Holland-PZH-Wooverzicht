@@ -14,10 +14,13 @@ import {
 } from "@mui/material";
 import { Document, SearchFilters } from "@/types/api";
 import { useSearch } from "@/hooks/useSearch";
+import { useHelpDialog } from "@/hooks/useHelpDialog";
 import SearchBar from "./SearchBar";
 import FilterPanel from "./FilterPanel";
 import DocumentList from "./DocumentList";
 import SidePanel from "./SidePanel";
+import HelpButton from "./HelpButton";
+import HelpDialog from "./HelpDialog";
 
 export default function Layout() {
     const theme = useTheme();
@@ -37,6 +40,7 @@ export default function Layout() {
     const isSearchingRef = useRef(false);
 
     const { data, loading, error, search, clearResults } = useSearch();
+    const { isOpen: isHelpOpen, openHelp, closeHelp } = useHelpDialog();
 
     // Core search function that always uses explicit filters
     const executeSearch = useCallback(
@@ -153,12 +157,22 @@ export default function Layout() {
                                 backgroundColor: "background.paper",
                             }}
                         >
-                            <Box sx={{ mb: 3 }}>
-                                <SearchBar
-                                    onSearch={handleSearch}
-                                    loading={loading}
-                                    initialValue={currentQuery}
-                                />
+                            <Box
+                                sx={{
+                                    mb: 3,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0
+                                }}
+                            >
+                                <HelpButton onClick={openHelp} />
+                                <Box sx={{ flex: 1 }}>
+                                    <SearchBar
+                                        onSearch={handleSearch}
+                                        loading={loading}
+                                        initialValue={currentQuery}
+                                    />
+                                </Box>
                             </Box>
 
                             <FilterPanel
@@ -223,6 +237,12 @@ export default function Layout() {
                     variant="temporary"
                 />
             )}
+
+            {/* Help Dialog */}
+            <HelpDialog
+                open={isHelpOpen}
+                onClose={closeHelp}
+            />
 
             {/* Footer */}
             <Box
