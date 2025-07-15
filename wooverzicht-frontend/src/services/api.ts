@@ -13,7 +13,7 @@ const apiClient = axios.create({
 });
 
 // Track ongoing requests to prevent duplicates
-const ongoingRequests = new Map<string, Promise<any>>();
+const ongoingRequests = new Map<string, Promise<SearchResponse>>();
 
 // Add request interceptor for logging
 apiClient.interceptors.request.use(
