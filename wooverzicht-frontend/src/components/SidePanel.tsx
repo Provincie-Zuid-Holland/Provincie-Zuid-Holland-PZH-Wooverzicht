@@ -288,7 +288,7 @@ export default function SidePanel({
                                             variant="body2"
                                             fontWeight={500}
                                         >
-                                            Tekstfragment {index + 1}
+                                            <Box component="span" fontWeight={'bold'}>{index+1}{":"}</Box>{" "}{"\""}{chunk.metadata?.titel || `Titel onbekend`}{"\""}
                                             {chunk.relevance_score && (
                                                 <Chip
                                                     label={`${(
