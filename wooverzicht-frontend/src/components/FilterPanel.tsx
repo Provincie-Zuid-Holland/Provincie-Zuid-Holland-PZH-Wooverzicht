@@ -160,7 +160,11 @@ export default function FilterPanel({
                     slotProps={{
                         textField: {
                             size: "small",
-                            sx: { width: 160 },
+                            sx: { width: 160,
+                                '& .MuiInputLabel-root': {
+                                    fontSize: '0.75rem',
+                                }
+                             }
                         },
                     }}
                     maxDate={endDate || undefined}
@@ -174,7 +178,11 @@ export default function FilterPanel({
                     slotProps={{
                         textField: {
                             size: "small",
-                            sx: { width: 160 },
+                            sx: { width: 160,
+                                '& .MuiInputLabel-root': {
+                                    fontSize: '0.75rem',
+                                }
+                             }
                         },
                     }}
                     minDate={startDate || undefined}

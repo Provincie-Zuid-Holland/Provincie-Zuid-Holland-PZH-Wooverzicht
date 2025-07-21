@@ -283,12 +283,26 @@ export default function SidePanel({
                                 >
                                     <AccordionSummary
                                         expandIcon={<ExpandMoreIcon />}
+                                        sx={{ 
+                                            minWidth: 0, // Important: allows flex child to shrink
+                                            '& .MuiAccordionSummary-content': {
+                                                minWidth: 0, // Allows content to shrink
+                                                overflow: 'hidden' // Prevents overflow
+                                            }
+                                        }}
                                     >
                                         <Typography
                                             variant="body2"
                                             fontWeight={500}
+                                            sx={{
+                                                minWidth: 0, // Allows shrinking
+                                                wordBreak: 'break-all', // Breaks anywhere, including underscores
+                                                overflowWrap: 'anywhere', // Even more aggressive breaking
+                                                maxWidth: '100%',
+                                                width: '100%'
+                                            }}
                                         >
-                                            <Box component="span" fontWeight={'bold'}>{index+1}{":"}</Box>{" "}{"\""}{chunk.metadata?.file_name || `Titel onbekend`}{"\""}
+                                            <Box component="span" fontWeight={'bold'}>{index+1}{":"}</Box>{" "}{chunk.metadata?.file_name || `Titel onbekend`}
                                             {chunk.relevance_score && (
                                                 <Chip
                                                     label={`${(
