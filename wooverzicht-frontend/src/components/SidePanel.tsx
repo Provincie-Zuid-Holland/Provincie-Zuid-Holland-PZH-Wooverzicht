@@ -288,12 +288,11 @@ export default function SidePanel({
                                             variant="body2"
                                             fontWeight={500}
                                         >
-                                            <Box component="span" fontWeight={'bold'}>{index+1}{":"}</Box>{" "}{"\""}{chunk.metadata?.titel || `Titel onbekend`}{"\""}
+                                            <Box component="span" fontWeight={'bold'}>{index+1}{":"}</Box>{" "}{"\""}{chunk.metadata?.file_name || `Titel onbekend`}{"\""}
                                             {chunk.relevance_score && (
                                                 <Chip
                                                     label={`${(
-                                                        chunk.relevance_score *
-                                                        100
+                                                        chunk.relevance_score * 100
                                                     ).toFixed(1)}%`}
                                                     size="small"
                                                     sx={{ ml: 1, height: 20 }}

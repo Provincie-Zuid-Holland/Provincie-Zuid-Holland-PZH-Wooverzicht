@@ -111,14 +111,14 @@ export default function DocumentCard({
                         }}
                     >
                         {/* Province tag */}
-                        <Chip
-                            label={metadata.provincie}
-                            size="small"
-                            sx={{
-                                backgroundColor: provinceColor,
-                                color: "white",
-                                fontWeight: 500,
-                                fontSize: "0.75rem",
+                        <img 
+                            src={`/logos/${metadata.provincie.toLowerCase()}.png`}
+                            alt={metadata.provincie}
+                            style={{
+                                height: "24px", // Small chip height
+                                width: "auto", // Maintains aspect ratio
+                                borderRadius: "12px", // Matches chip's rounded appearance
+                                maxWidth: "120px", // Prevents it from getting too wide
                             }}
                         />
 
