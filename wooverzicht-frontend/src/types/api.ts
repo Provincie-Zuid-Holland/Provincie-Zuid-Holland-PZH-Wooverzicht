@@ -5,6 +5,8 @@ export interface DocumentMetadata {
     datum: string;
     type: string;
     publiekssamenvatting: string;
+    file_name: string;
+    file_type: string;
 }
 
 export interface Chunk {

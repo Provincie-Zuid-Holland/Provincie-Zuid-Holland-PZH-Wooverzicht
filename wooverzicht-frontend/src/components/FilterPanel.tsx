@@ -153,7 +153,7 @@ export default function FilterPanel({
                 </FormControl>
 
                 <DatePicker
-                    label="Begin datum"
+                    label="Besluitdatum vanaf"
                     value={startDate}
                     onChange={setStartDate}
                     disabled={disabled}
@@ -167,7 +167,7 @@ export default function FilterPanel({
                 />
 
                 <DatePicker
-                    label="Eind datum"
+                    label="Besluitdatum tot"
                     value={endDate}
                     onChange={setEndDate}
                     disabled={disabled}

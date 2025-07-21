@@ -130,6 +130,7 @@ async def retrieve_documents(request: RetrieveDocsDict):
         result = rag_system.retrieve_relevant_documents(
             query, provinces=provinces, startDate=startDate, endDate=endDate
         )
+        print("Result:", result)
         print({"success": True, "query": query, **result}, flush=True)
         return {"success": True, "query": query, **result}
 
