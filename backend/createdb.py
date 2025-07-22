@@ -226,8 +226,20 @@ class DocumentProcessor:
         return all_chunks
 
     def chunk_by_sentence_with_overlap(
-        self, text, chunk_size=1000, overlap_sentences=1
+        self, text, chunk_size=1000, sentence_limit_factor=10, overlap_sentences=1
     ):
+        """
+        Splits text into chunks based on sentences while preserving overlap.
+
+        Args:
+            text (str): The text to be chunked.
+            chunk_size (int): Maximum size of each chunk in characters.
+            sentence_limit_factor (int): Factor to limit how often a 'sentence'(already split by sentence tokenizer) can exceed chunk size, and still be split into smaller parts. After that, it will be skipped.
+            overlap_sentences (int): Number of sentences to overlap between chunks.
+
+        Returns:
+            List[str]: List of text chunks.
+        """
         sentences = sent_tokenize(text, language="dutch")
         chunks = []
         current_chunk = []  # Sentences will be stored here
@@ -237,6 +249,23 @@ class DocumentProcessor:
                 current_chunk.append(
                     sentence
                 )  # add current sentence to the chunk if char limit is not exceeded
+            elif len(sentence) > sentence_limit_factor * chunk_size:
+                logger.warning(
+                    f"Sentence way too long even after sentence tokenization ({len(sentence)} characters), longer than chunk size limit ({chunk_size} characters), multiplied by factor {sentence_limit_factor}. Skipping."
+                )
+                continue
+            elif len(sentence) > chunk_size:
+                logger.warning(
+                    f"Sentence ({len(sentence)} characters) exceeds chunk size limit ({chunk_size} characters). Splitting sentence."
+                )
+                # First save the current chunk if it has content
+                if current_chunk:
+                    chunks.append(" ".join(current_chunk))
+                    current_chunk = []
+                # Split the sentence into smaller parts if it exceeds chunk size
+                for i in range(0, len(sentence), chunk_size):
+                    part = sentence[i : i + chunk_size]
+                    chunks.append(part)
             else:  # if chunk size would be exceeded
                 chunks.append(
                     " ".join(current_chunk)
@@ -483,7 +512,7 @@ def db_pipeline(data):
         chunks = processor.load_and_chunk_data_by_sentence(data)
 
         if not chunks:
-            logger.error("No chunks were created. Exiting.")
+            logger.warning("No chunks were created. Exiting.")
             return
 
         # Step 2: Generate embeddings
