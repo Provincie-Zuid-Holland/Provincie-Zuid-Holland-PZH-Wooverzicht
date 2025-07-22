@@ -5,7 +5,6 @@ import {
     Card,
     CardContent,
     Typography,
-    Chip,
     Box,
     IconButton,
 } from "@mui/material";
@@ -14,7 +13,6 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 
 import DescriptionIcon from "@mui/icons-material/Description";
 import { Document } from "@/types/api";
-import { PROVINCE_COLORS } from "@/utils/constants";
 
 interface DocumentCardProps {
     document: Document;
@@ -43,8 +41,6 @@ export default function DocumentCard({
         const year = date.getUTCFullYear();
         return `${day}-${month}-${year}`;
     };
-
-    const provinceColor = PROVINCE_COLORS[metadata.provincie] || "#666";
 
     return (
         <Card
