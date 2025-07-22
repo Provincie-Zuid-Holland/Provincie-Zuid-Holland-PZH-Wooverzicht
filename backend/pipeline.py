@@ -113,7 +113,7 @@ def execute_pipeline() -> None:
     #     "gelderland",
     # ]  # All provinces
     provinces = [
-        "zuid_holland",
+        "gelderland",
     ]  # All provinces
     # provinces = ["gelderland"]  # For debugging
     # Import the appropriate modules based on source
@@ -128,7 +128,7 @@ def execute_pipeline() -> None:
             print("\n" + "<>" * 40)
             print(f"Starting {province.upper()} crawler to collect URLs...")
             print("<>" * 40)
-            crawler = Crawler(base_url, max_urls=3)
+            crawler = Crawler(base_url, max_urls=2)
             urls = crawler.get_new_links()
 
             if not urls:
