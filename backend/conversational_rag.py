@@ -329,6 +329,8 @@ class ConversationalRAG:
                         "titel": chunk.metadata.get("titel", ""),
                         "datum": chunk.metadata.get("datum", ""),
                         "type": chunk.metadata.get("type", ""),
+                        "file_type": chunk.metadata.get("file_type", ""),
+                        "file_name": chunk.metadata.get("file_name", ""),
                     },
                 }
                 chunks.append(chunk_data)
@@ -349,6 +351,8 @@ class ConversationalRAG:
                             "titel": chunk.metadata.get("titel", ""),
                             "datum": chunk.metadata.get("datum", ""),
                             "type": chunk.metadata.get("type", ""),
+                            "file_type": chunk.metadata.get("file_type", ""),
+                            "file_name": chunk.metadata.get("file_name", ""),
                             "publiekssamenvatting": chunk.metadata.get(
                                 "publiekssamenvatting", ""
                             ),

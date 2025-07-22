@@ -153,28 +153,36 @@ export default function FilterPanel({
                 </FormControl>
 
                 <DatePicker
-                    label="Begin datum"
+                    label="Besluitdatum vanaf"
                     value={startDate}
                     onChange={setStartDate}
                     disabled={disabled}
                     slotProps={{
                         textField: {
                             size: "small",
-                            sx: { width: 160 },
+                            sx: { width: 160,
+                                '& .MuiInputLabel-root': {
+                                    fontSize: '0.75rem',
+                                }
+                             }
                         },
                     }}
                     maxDate={endDate || undefined}
                 />
 
                 <DatePicker
-                    label="Eind datum"
+                    label="Besluitdatum tot"
                     value={endDate}
                     onChange={setEndDate}
                     disabled={disabled}
                     slotProps={{
                         textField: {
                             size: "small",
-                            sx: { width: 160 },
+                            sx: { width: 160,
+                                '& .MuiInputLabel-root': {
+                                    fontSize: '0.75rem',
+                                }
+                             }
                         },
                     }}
                     minDate={startDate || undefined}
