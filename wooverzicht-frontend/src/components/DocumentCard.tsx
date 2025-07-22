@@ -5,7 +5,6 @@ import {
     Card,
     CardContent,
     Typography,
-    Chip,
     Box,
     IconButton,
 } from "@mui/material";
@@ -14,7 +13,6 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 
 import DescriptionIcon from "@mui/icons-material/Description";
 import { Document } from "@/types/api";
-import { PROVINCE_COLORS } from "@/utils/constants";
 
 interface DocumentCardProps {
     document: Document;
@@ -43,8 +41,6 @@ export default function DocumentCard({
         const year = date.getUTCFullYear();
         return `${day}-${month}-${year}`;
     };
-
-    const provinceColor = PROVINCE_COLORS[metadata.provincie] || "#666";
 
     return (
         <Card
@@ -111,14 +107,14 @@ export default function DocumentCard({
                         }}
                     >
                         {/* Province tag */}
-                        <Chip
-                            label={metadata.provincie}
-                            size="small"
-                            sx={{
-                                backgroundColor: provinceColor,
-                                color: "white",
-                                fontWeight: 500,
-                                fontSize: "0.75rem",
+                        <img 
+                            src={`/logos/${metadata.provincie.toLowerCase()}.png`}
+                            alt={metadata.provincie}
+                            style={{
+                                height: "24px", // Small chip height
+                                width: "auto", // Maintains aspect ratio
+                                borderRadius: "12px", // Matches chip's rounded appearance
+                                maxWidth: "120px", // Prevents it from getting too wide
                             }}
                         />
 
