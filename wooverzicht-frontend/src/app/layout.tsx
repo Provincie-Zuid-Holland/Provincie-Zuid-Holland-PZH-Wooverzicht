@@ -11,7 +11,6 @@ export const metadata: Metadata = {
         "Search and explore WOO (Wet Open Overheid) documents from Dutch provinces",
     keywords: ["WOO", "open overheid", "documenten", "zoeken", "provincies"],
     authors: [{ name: "WOO Search Team" }],
-    viewport: "width=device-width, initial-scale=1",
 };
 
 export default function RootLayout({
