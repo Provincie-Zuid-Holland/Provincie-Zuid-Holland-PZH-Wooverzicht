@@ -276,6 +276,11 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         # List files in the folder for debugging
         files_in_folder = os.listdir(folder_path)
         len_files = len(files_in_folder)
+        # raise error if less than 1 files found
+        if len_files <= 1:
+            raise ValueError(
+                f"Only 1 file found in folder, should be metadatafile and other files: {folder_path}"
+            )
         print(f"\nProcessing folder {folder_path}:")
         print(f"Files found: {files_in_folder}")
         combined_data_list = []
