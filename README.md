@@ -6,52 +6,88 @@ This project provides a containerized application for searching through and aski
 
 The project is organized with the following structure:
 
-```
-project-root/
-│
-├── backend/                # Backend code and API
-│   ├── api.py              # FastAPI backend service
-│   ├── conversational_rag.py
-│   ├── query_logger.py
-│   ├── chromadb_query.py
-│   ├── pipeline.py         # Data collection pipeline
-│   ├── healthcheck.py      # Database health verification
-│   ├── Dockerfile.api      # Dockerfile for API container
-│   ├── Dockerfile.pipeline # Dockerfile for pipeline container
-│   ├── requirements.api.txt
-│   └── requirements.pipeline.txt
-│
-├── frontend/               # Frontend application
-│   ├── app.py              # Streamlit frontend
-│   └── Dockerfile
-│
-├── database/               # ChromaDB database directory
-│
-├── logging_database.db     # SQLite database for query logging
-├── URLs.txt                # Tracked URLs for crawler
-│
-├── docker-compose.yml      # Docker Compose configuration
-├── run_pipeline.sh         # Helper script to run the pipeline
-├── .env                    # Environment variables
-└── README.md               # Project documentation
+```bash
+.
+├── Dockerfile.dbcheck                    # Docker container for database health checks
+├── README.md                            # Project documentation
+├── backend/                             # Backend services and data processing
+│   ├── Dockerfile.api                   # Docker container for FastAPI backend
+│   ├── Dockerfile.pipeline              # Docker container for data pipeline
+│   ├── URLs.txt                         # List of tracked URLs for crawling
+│   ├── api.py                          # FastAPI backend service
+│   ├── chromadb_query.py               # ChromaDB vector database query interface
+│   ├── config.py                       # Configuration settings and environment variables
+│   ├── conversational_rag.py           # RAG (Retrieval Augmented Generation) system
+│   ├── createdb.py                     # Database initialization script
+│   ├── data_scraping/                  # Province-specific web scraping modules
+│   │   ├── flevoland_crawler.py        # Flevoland province website crawler
+│   │   ├── flevoland_scraper.py        # Flevoland province data scraper
+│   │   ├── gelderland_crawler.py       # Gelderland province website crawler
+│   │   ├── gelderland_scraper.py       # Gelderland province data scraper
+│   │   ├── noordbrabant_crawler.py     # Noord-Brabant province website crawler
+│   │   ├── noordbrabant_scraper.py     # Noord-Brabant province data scraper
+│   │   ├── overijssel_crawler.py       # Overijssel province website crawler
+│   │   ├── overijssel_scraper.py       # Overijssel province data scraper
+│   │   ├── zuidholland_crawler.py      # Zuid-Holland province website crawler
+│   │   └── zuidholland_scraper.py      # Zuid-Holland province data scraper
+│   ├── extract.py                      # Document text extraction and processing
+│   ├── failed_downloads.txt            # Log of failed download attempts
+│   ├── healthcheck.py                  # System health monitoring
+│   ├── manual_pipeline.py              # Manual pipeline execution script to add one specific woo-verzoek
+│   ├── pipeline.py                     # Main data collection and processing pipeline to build/add to DB
+│   ├── requirements.api.txt            # Python dependencies for API service
+│   ├── requirements.pipeline.txt       # Python dependencies for pipeline service
+│   ├── requirements.txt                # General Python dependencies
+│   └── start.sh                        # Backend startup script
+├── bitbucket-pipelines.yml             # CI/CD pipeline configuration
+├── check.py                            # System verification script
+├── database/                           # ChromaDB vector database storage
+├── docker-compose.yml                  # Multi-container Docker orchestration
+├── requirements.txt                    # Root level Python dependencies
+└── wooverzicht-frontend/               # Next.js frontend application
+    ├── Dockerfile                      # Frontend container configuration
+    ├── README.md                       # Frontend documentation
+    ├── eslint.config.mjs               # ESLint code quality configuration
+    ├── next.config.js                  # Next.js framework configuration
+    ├── next.config.ts                  # TypeScript Next.js configuration
+    ├── package-lock.json               # Locked dependency versions
+    ├── package.json                    # Node.js dependencies and scripts
+    ├── postcss.config.mjs              # PostCSS styling configuration
+    ├── public/                         # Static assets and images like logos
+    ├── src/                            # Source code
+    │   ├── app/                        # Next.js app directory (routing)
+    │   ├── components/                 # Reusable UI components
+    │   ├── hooks/                      # Custom React hooks
+    │   ├── services/                   # API communication layer
+    │   ├── theme/                      # UI theming and design tokens
+    │   ├── types/                      # TypeScript type definitions
+    │   └── utils/                      # Utility functions and constants
+    └── tsconfig.json                   # TypeScript compiler configuration
 ```
 
 ## Setup Instructions
 
 1. **Prepare the environment file**
-   - Copy `.env.example` to `.env`
+   - Copy `.env.example` to `.env` in the backend folder
    - Fill in your OpenAI API key and other configuration
 
-2. **Build and start the main services**
+2. **Build database if none exists**
+
+   ```bash
+   docker-compose up -d --build --backend-pipeline
+   ```
+
+3. **Build and start the main services**
+
    ```bash
    docker-compose up -d --build
    ```
 
-3. **Access the application**
-   - Frontend: http://localhost:8501
-   - Backend API: http://localhost:8000/docs
+4. **Access the application**
+   - Frontend: <http://localhost:3000/>
+   - Backend API: <http://localhost:8000/>
 
-4. **Run the pipeline when needed**
+5. **Run the pipeline when needed**
    ```bash
    # Run the pipeline once immediately
    ./run_pipeline.sh --run
