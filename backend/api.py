@@ -13,7 +13,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from conversational_rag import ConversationalRAG
-from query_logger import QueryLogger
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 from pathlib import Path
@@ -54,7 +53,6 @@ app.add_middleware(
 
 # Initialize RAG system and query logger
 rag_system = ConversationalRAG()
-query_logger = QueryLogger()
 
 
 # Define data models
@@ -198,14 +196,8 @@ async def query_documents_stream(request: QueryRequest):
                 "timestamp": datetime.now().isoformat(),
             }
 
-            log_id = query_logger.log_interaction(
-                request.session_id, request.query, response_text, metadata
-            )
-            # print("Logged interaction with ID:", log_id)
-            # print("Response text:", response_text)
-
             # Send completion event
-            yield {"event": "complete", "data": json.dumps({"log_id": log_id})}
+            yield {"event": "complete", "data": json.dumps({"metada": metadata})}
 
         except Exception as e:
             # Send error event
