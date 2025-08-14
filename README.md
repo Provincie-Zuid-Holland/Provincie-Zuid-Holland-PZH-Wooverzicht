@@ -2,9 +2,17 @@
 
 This project provides a containerized application for finding relevant Woo-documents given a query from the user. The application is split into a backend API, a frontend UI, and a separate pipeline service for data collection, all running in Docker containers. The pipeline service collects Woo-documents from the province sites, vectorises them and puts them in the vector database.
 
+## Quick start
+
+1. Prerequisites: Docker, openAI api key
+2. Clone repo
+3. Copy .env.example to .env and fill required fields
+4. Run docker-compose up -d --build
+5. Visit <http://localhost:3000>
+
 ## Project Structure
 
-This repository is split into two main directories: `backend/` and `Wooverzicht-frontend/`. The `backend/` folder contains all files relevant to the backend of the application running on the server. `backend/api.py` contains all api functions for the frontend to communicatie with the backend. The backend folder also contains all files related to building and updating the database. The main script that handles all logic for updating the vector database can be found at `backend/pipeline.py`. the `backend/data_scraping/` folder containts all relevant scripts for crawling and scraping province websites.
+This repository is split into two main directories: `backend/` and `Wooverzicht-frontend/`. The `backend/` folder contains all files relevant to the backend of the application running on the server. `backend/api.py` contains all api functions for the frontend to communicate with the backend. The backend folder also contains all files related to building and updating the database. The main script that handles all logic for updating the vector database can be found at `backend/pipeline.py`. the `backend/data_scraping/` folder containts all relevant scripts for crawling and scraping province websites.
 Below a file tree of the project can be found:
 
 ```bash
@@ -88,12 +96,31 @@ Project_root
    ```
 
 4. **Access the application (locally)**
-   - Frontend: <http://localhost:3000/>
-   - Backend API: <http://localhost:8000/>
+   - Frontend: <http://localhost:3000>
+   - Backend API: <http://localhost:8000>
 
-### Configurutaion
+### Environment Configuration
 
-- `.env` variables here TODO
+### Mandatory variables
+
+```bash
+OPENAI_API_KEY=your_key_here # API key used to call openAI model
+CHROMA_DB_PATH=database # Path to the database file
+```
+
+### Optional variables
+
+All values below correspond to the default values if the environment variable is left empty
+
+```bash
+CHUNK_SIZE=1200 # Size of the chunks the woo-documents will be split into
+CHUNK_OVERLAP=50 # Number of charaters overlap between the chunks
+COLLECTION_NAME=document_chunks #ChromaDB collection name
+EMBEDDING_MODEL=text-embedding-3-small # OpenAI model used for embeddings
+MAX_WORKERS=5 # Number of parallel embedding workers
+BATCH_SIZE=100 # Batch size for API calls and DB operations
+MAX_ZIP_SIZE=2684354560 # max size for downloading woo-request from websites. This value corresponds to 2.5 GB
+```
 
 ---
 
@@ -129,7 +156,8 @@ json{
 }
 ```
 
-Base URL: http://localhost:8000 (development)
+Base URL: <http://localhost:8000> (development)
+
 CORS: Currently allows all origins (⚠️ update for production)
 
 ---
@@ -222,7 +250,7 @@ This is a list of the current technologies used in the application:
 In this section limitations of the current application will be listed.
 
 1. At the moment chromaDB is used. This is a 'lightweight' database most used for local development and prototyping. The speed of the database/retrieval of relevant vectors is reduced with large amounts of data.
-2. This implemenetation can only handle PDFs with text in them. No OCR is used.
+2. This implementation can only handle PDFs with text in them. No OCR is used.
 3. Woo-documents are split up into chunks before they are vectorised. This can cause bias because bigger documents can be over-represented in the database. E.g. a document of 1000 characters gets one chunk in the database, but a document of 10.000 characters ten 10 chunks.
    1. Not all data in a Woo-document is relevant for retrieval. So there is also a lot of redundant data in the database.
 4. The application only uses vectors to find relevant documents. No term search is used. Embeddings are not good at specific jargon, so it might have more trouble finding very specific documents.
@@ -235,7 +263,8 @@ This application has been developed as a prototype to proof that this implementa
 To bring this application from a prototype to production here are some recommendations:
 
 1. Use a professional vector database that is able to handle large amounts of data.
+   1. Host database on own server and acces database using API calls.
 2. Combat bias in the database by making sure that each document has the same amount of chunks in the database.
 3. If possible, use a direct API connection to collect Woo-documents.
-4. Use OCR to increase possibilty of collection relevant data from PDFs.
+4. Use OCR to increase possibility of collection relevant data from PDFs.
 5. If recall needs to be increased, introduce term search together with vector search.
