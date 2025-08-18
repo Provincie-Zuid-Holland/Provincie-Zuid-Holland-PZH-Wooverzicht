@@ -207,6 +207,8 @@ Number of vectors * Dimensionality of vectors * 4 bytes = RAM required
 73998 * 1536 * 4 = 0.42 GB RAM required
 ```
 
+The size of the database is 1.26 GB
+
 ## Pipeline service
 
 The pipeline script `/backend/pipeline.py` works in several steps to retrieve and vectorize relevant documents:
