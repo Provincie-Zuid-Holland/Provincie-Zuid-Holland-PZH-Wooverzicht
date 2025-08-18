@@ -192,6 +192,21 @@ TODO: ADD Why this tech stack was chosen
 
 ---
 
+## System requirements
+
+The biggest bottleneck for vector databases is the amount of RAM availibilty. The amount of RAM needed is heaviliy dependent on the type of database used. Here are the requirements for [chromaDB](https://cookbook.chromadb.dev/core/resources/#ram):
+
+```
+Number of vectors * Dimensionality of vectors * 4 bytes = RAM required
+```
+
+- Number of vectors: This is the number of vectors indexed. These are the documents/chunks in your Chroma collection. All Woo-documents published before 18/08/25 of the province South-Holland are represented as 73998 vectors.
+- Dimensionality of vectors: This is the dimensionality of the vectors output by your embedding model. For example, if you use the text-embedding-small-3, the dimensionality of the vectors is 1536.
+
+```
+73998 * 1536 * 4 = 0.42 GB RAM required
+```
+
 ## Pipeline service
 
 The pipeline script `/backend/pipeline.py` works in several steps to retrieve and vectorize relevant documents:
