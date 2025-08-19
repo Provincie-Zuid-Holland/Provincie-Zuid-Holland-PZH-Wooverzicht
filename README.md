@@ -4,11 +4,12 @@ This project provides a containerized application for finding relevant Woo-docum
 
 ## Quick start
 
-1. Prerequisites: Docker, openAI api key
-2. Clone repo
-3. Copy .env.example to .env and fill required fields
-4. Run docker-compose up -d --build
-5. Visit <http://localhost:3000>
+_**Prerequisites: Docker, openAI API key**_
+
+1. Clone the repository
+2. Copy `.env.example` to `.env` and fill required fields
+3. Run `docker-compose up -d --build`
+4. Visit <http://localhost:3000>
 
 ## Project Structure
 
@@ -81,9 +82,9 @@ Project_root
 
 1. **Prepare the environment file**
    - Copy `.env.example` to `.env` in the backend folder
-   - Fill in your OpenAI API key and other configuration
+   - Fill in your OpenAI API key and other configuration settings
 
-2. **Build vector database if none exists/update the vector database**
+2. **Build the vector database if none exists/update the vector database**
 
    ```bash
    docker-compose up -d --build backend-pipeline
@@ -204,8 +205,8 @@ The biggest bottleneck for vector databases is the amount of RAM availibilty. Th
 Number of vectors * Dimensionality of vectors * 4 bytes = RAM required
 ```
 
-- Number of vectors: This is the number of vectors indexed. These are the documents/chunks in your Chroma collection. All Woo-documents published before 18/08/25 of the province South-Holland are represented as 73998 vectors.
-- Dimensionality of vectors: This is the dimensionality of the vectors output by your embedding model. For example, if you use the text-embedding-small-3, the dimensionality of the vectors is 1536.
+- Number of vectors: This is the number of vectors indexed. These are the documents/chunks in your Chroma collection. Using the default settings mentioned in [Optional variables](#optional-variables), all Woo-documents published before 18/08/25 of the province South-Holland are represented as 73998 vectors.
+- Dimensionality of vectors: This is the dimensionality of the vectors output by your embedding model. For example, if you use OpenAI's `text-embedding-small-3`, the dimensionality of the vectors is 1536.
 
 ```
 73998 * 1536 * 4 = 0.42 GB RAM required
@@ -213,7 +214,7 @@ Number of vectors * Dimensionality of vectors * 4 bytes = RAM required
 
 So 0.42 GB RAM is required to load a vector database of this size in memory. Hosting the web-app and the backend also requires some memory.
 
-The size of the database is 1.26 GB
+The size of this database is 1.26 GB
 
 ### Example
 
@@ -226,7 +227,7 @@ The pipeline script `/backend/pipeline.py` works in several steps to retrieve an
 1. **Import appropriate crawler and scraper for the selected province**
    Dynamically loads the right Crawler and Scraper classes based on the province’s configuration.
 
-2. **Retrieve Woo-documents from one Woo-request from a province website**
+2. **Retrieve Woo-documents (one Woo-request at a time) from a province website**
    Uses the Crawler to collect new document URLs from the province’s site.
 
 3. **Scrape each document**
@@ -264,7 +265,7 @@ This is a list of the current technologies used in the application:
 
 In this section limitations of the current application will be listed.
 
-1. At the moment chromaDB is used. This is a 'lightweight' database most used for local development and prototyping. The speed of the database/retrieval of relevant vectors is reduced with large amounts of data.
+1. At the moment a local version of chromaDB is used. This is a 'lightweight' database most used for local development and prototyping. The speed of the database/retrieval of relevant vectors is reduced with large amounts of data.
 2. This implementation can only handle PDFs with text in them. No OCR is used.
 3. This implementation can not handle 'too' large Woo-requests. When scraping a request it is downloaded into memory before being stored on the server. This means you can only download requests as big as the availible memory.
 4. Woo-documents are split up into chunks before they are vectorised. This can cause bias because bigger documents can be over-represented in the database. E.g. a document of 1000 characters gets one chunk in the database, but a document of 10.000 characters ten 10 chunks.
@@ -274,12 +275,12 @@ In this section limitations of the current application will be listed.
 
 ## Future development
 
-This application has been developed as a prototype to proof that this implementation adds value to a Woo team. Initial tests have shown that this is the case. Continuous testing needs to be done with a Woo team to confirm that this keeps being true.
+This application has been developed as a prototype to prove that this implementation adds value to a Woo team. Initial tests have shown that this is the case. Continuous testing needs to be done with a Woo team to confirm that this keeps being true.
 
 To bring this application from a prototype to production here are some recommendations:
 
 1. Use a professional vector database that is able to handle large amounts of data.
-   1. Host database on own server and acces database using API calls.
+   1. Host database on its own server and acces database using API calls.
 2. Combat bias in the database by making sure that each document has the same amount of chunks in the database.
 3. If possible, use a direct API connection to collect Woo-documents.
 4. Use OCR to increase possibility of collection relevant data from PDFs.
