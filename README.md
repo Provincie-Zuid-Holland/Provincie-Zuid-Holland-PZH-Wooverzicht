@@ -190,11 +190,17 @@ TODO: ADD Why this tech stack was chosen
 2. **Resource Optimization**: Pipeline resources are only used when needed.
 3. **Flexible Scheduling**: Run the pipeline on demand or on a schedule.
 
----
-
 ## System requirements
 
-The biggest bottleneck for vector databases is the amount of RAM availibilty. The amount of RAM needed is heaviliy dependent on the type of database used. Here are the requirements for [chromaDB](https://cookbook.chromadb.dev/core/resources/#ram):
+### Building database
+
+To build the database, Woo-request need to be downloaded and vectorized. This is a resource-heavy process. Currently, when scraping a Woo-request a document is downloaded into memory before being stored in a temporary folder on the server. Therefore you'll only be able to download request in size up to the availible memory of the server. If a request is bigger than the `MAX_ZIP_SIZE` specified as an environment variable it will be skipped. For our implementation we handle documents up to 2.5 GB.
+
+Of the 198 Woo-requests availible to download on 19/08/2025, ... percent are over 2.5 GB.
+
+### Hosting the database
+
+The biggest bottleneck for vector databases is the amount of RAM availibilty. The amount of RAM needed is heaviliy dependent on the type of database used. Here are the requirements specified by [chromaDB](https://cookbook.chromadb.dev/core/resources/#ram):
 
 ```
 Number of vectors * Dimensionality of vectors * 4 bytes = RAM required
@@ -207,7 +213,13 @@ Number of vectors * Dimensionality of vectors * 4 bytes = RAM required
 73998 * 1536 * 4 = 0.42 GB RAM required
 ```
 
+So 0.42 GB RAM is required to load a vector database of this size in memory. Hosting the web-app and the backend also requires some memory.
+
 The size of the database is 1.26 GB
+
+### Example
+
+For the Woo-request: [Woo-besluit mogelijke nieuwe wegverbinding tussen de A44 en de N208](https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/besluit/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208) the document [3-2024-04-02-plan-van-aanpak-n208-a44-regionaal-overleg-geredigeerd-pdf.pdf](https://www.zuid-holland.nl/publish/besluitenattachments/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208/3-2024-04-02-plan-van-aanpak-n208-a44-regionaal-overleg-geredigeerd-pdf.pdf)" has 12 pages. This translates to 16 vectors for a chunk size of 1200 characters. The document [Processed 2-2025-04-03-probleemanalyse-bereikbaarheid-verkeersveiligheid-en-leefbaarheid-a.pdf](https://www.zuid-holland.nl/publish/besluitenattachments/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208/2-2025-04-03-probleemanalyse-bereikbaarheid-verkeersveiligheid-en-leefbaarheid-a.pdf) is a 107 pages, which translates to 134 vectors. At the moment only (selectable) text is used to create vectors. Images, for example, are ignored.
 
 ## Pipeline service
 
@@ -268,10 +280,11 @@ In this section limitations of the current application will be listed.
 
 1. At the moment chromaDB is used. This is a 'lightweight' database most used for local development and prototyping. The speed of the database/retrieval of relevant vectors is reduced with large amounts of data.
 2. This implementation can only handle PDFs with text in them. No OCR is used.
-3. Woo-documents are split up into chunks before they are vectorised. This can cause bias because bigger documents can be over-represented in the database. E.g. a document of 1000 characters gets one chunk in the database, but a document of 10.000 characters ten 10 chunks.
+3. This implementation can not handle 'too' large Woo-requests. When scraping a request it is downloaded into memory before being stored on the server. This means you can only download requests as big as the availible memory.
+4. Woo-documents are split up into chunks before they are vectorised. This can cause bias because bigger documents can be over-represented in the database. E.g. a document of 1000 characters gets one chunk in the database, but a document of 10.000 characters ten 10 chunks.
    1. Not all data in a Woo-document is relevant for retrieval. So there is also a lot of redundant data in the database.
-4. The application only uses vectors to find relevant documents. No term search is used. Embeddings are not good at specific jargon, so it might have more trouble finding very specific documents.
-5. Currently the websites of the provinces are scrapes to collect relevant Woo-documents. A direct API endpoint to download Woo-documents into the database would be significantly better and future-proof. If a province changes the way the layout of the website looks, the scraper will stop working.
+5. The application only uses vectors to find relevant documents. No term search is used. Embeddings are not good at specific jargon, so it might have more trouble finding very specific documents.
+6. Currently the websites of the provinces are scrapes to collect relevant Woo-documents. A direct API endpoint to download Woo-documents into the database would be significantly better and future-proof. If a province changes the way the layout of the website looks, the scraper will stop working.
 
 ## Future development
 
