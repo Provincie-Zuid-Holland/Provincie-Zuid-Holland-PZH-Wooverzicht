@@ -245,7 +245,6 @@ The pipeline script `/backend/pipeline.py` works in several steps to retrieve an
 
 ![Diagram of pipeline script](./diagrams/pipeline_diagram.png "Title")
 
-
 ## Development
 
 To modify the application:
