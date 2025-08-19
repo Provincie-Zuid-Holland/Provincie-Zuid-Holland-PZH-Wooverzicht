@@ -2,6 +2,8 @@
 
 This project provides a containerized application for finding relevant Woo-documents given a query from the user. The application is split into a backend API, a frontend UI, and a separate pipeline service for data collection, all running in Docker containers. The pipeline service collects Woo-documents from the province sites, vectorises them and puts them in the vector database.
 
+This application has been created to make it easier for Woo-employees to retrieve past Woo-requests. The current search engine is term-based, which means you can only retrieve a Woo-request if you know the exact term that is used in the title of the request. This solution implements vector search based on the contents of documents related to a Woo-requests.
+
 ## Quick start
 
 _**Prerequisites: Docker, openAI API key**_
@@ -215,7 +217,7 @@ So 0.42 GB RAM is required to load a vector database of this size in memory. Hos
 
 The size of this database is 1.26 GB
 
-### Example
+### Examples
 
 For the Woo-request: [Woo-besluit mogelijke nieuwe wegverbinding tussen de A44 en de N208](https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/besluit/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208) the document [3-2024-04-02-plan-van-aanpak-n208-a44-regionaal-overleg-geredigeerd-pdf.pdf](https://www.zuid-holland.nl/publish/besluitenattachments/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208/3-2024-04-02-plan-van-aanpak-n208-a44-regionaal-overleg-geredigeerd-pdf.pdf)" has 12 pages. This translates to 16 vectors for a chunk size of 1200 characters. The document [Processed 2-2025-04-03-probleemanalyse-bereikbaarheid-verkeersveiligheid-en-leefbaarheid-a.pdf](https://www.zuid-holland.nl/publish/besluitenattachments/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208/2-2025-04-03-probleemanalyse-bereikbaarheid-verkeersveiligheid-en-leefbaarheid-a.pdf) is a 107 pages, which translates to 134 vectors. At the moment only (selectable) text is used to create vectors. Images, for example, are ignored.
 
