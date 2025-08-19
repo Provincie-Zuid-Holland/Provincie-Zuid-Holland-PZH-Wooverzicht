@@ -165,8 +165,7 @@ CORS: Currently allows all origins (⚠️ update for production)
 
 ## Architecture Overview
 
-This application is split up in three main components:
-TODO: ADD Why this tech stack was chosen
+This application is split up in three main components. These components have been chosen to create a minimal viable product. Therefore they might not be optimal for a production environment.
 
 1. **Frontend (Nextjs)**
    - Provides the user interface
@@ -280,8 +279,9 @@ This application has been developed as a prototype to prove that this implementa
 To bring this application from a prototype to production here are some recommendations:
 
 1. Use a professional vector database that is able to handle large amounts of data.
-   1. Host database on its own server and acces database using API calls.
-2. Combat bias in the database by making sure that each document has the same amount of chunks in the database.
-3. If possible, use a direct API connection to collect Woo-documents.
-4. Use OCR to increase possibility of collection relevant data from PDFs.
-5. If recall needs to be increased, introduce term search together with vector search.
+   - Host database on its own server and acces database using API calls.
+2. Combat bias in the vector database by making sure that each document has the same amount of chunks in the database.
+3. The script to update the database each day should be rewritten. At the moment it is unable to handle large documents, because it downloads documents into memory.
+4. If possible, use a direct API connection to collect Woo-documents.
+5. Use OCR to increase possibility of collection relevant data from PDFs.
+6. If recall needs to be increased, introduce term search together with vector search.
