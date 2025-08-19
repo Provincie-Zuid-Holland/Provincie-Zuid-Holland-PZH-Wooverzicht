@@ -196,8 +196,6 @@ TODO: ADD Why this tech stack was chosen
 
 To build the database, Woo-request need to be downloaded and vectorized. This is a resource-heavy process. Currently, when scraping a Woo-request a document is downloaded into memory before being stored in a temporary folder on the server. Therefore you'll only be able to download request in size up to the availible memory of the server. If a request is bigger than the `MAX_ZIP_SIZE` specified as an environment variable it will be skipped. For our implementation we handle documents up to 2.5 GB.
 
-Of the 198 Woo-requests availible to download on 19/08/2025, ... percent are over 2.5 GB.
-
 ### Hosting the database
 
 The biggest bottleneck for vector databases is the amount of RAM availibilty. The amount of RAM needed is heaviliy dependent on the type of database used. Here are the requirements specified by [chromaDB](https://cookbook.chromadb.dev/core/resources/#ram):
@@ -221,7 +219,7 @@ The size of the database is 1.26 GB
 
 For the Woo-request: [Woo-besluit mogelijke nieuwe wegverbinding tussen de A44 en de N208](https://www.zuid-holland.nl/politiek-bestuur/gedeputeerde-staten/besluiten/besluit/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208) the document [3-2024-04-02-plan-van-aanpak-n208-a44-regionaal-overleg-geredigeerd-pdf.pdf](https://www.zuid-holland.nl/publish/besluitenattachments/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208/3-2024-04-02-plan-van-aanpak-n208-a44-regionaal-overleg-geredigeerd-pdf.pdf)" has 12 pages. This translates to 16 vectors for a chunk size of 1200 characters. The document [Processed 2-2025-04-03-probleemanalyse-bereikbaarheid-verkeersveiligheid-en-leefbaarheid-a.pdf](https://www.zuid-holland.nl/publish/besluitenattachments/woo-besluit-mogelijke-nieuwe-wegverbinding-tussen-de-a44-en-de-n208/2-2025-04-03-probleemanalyse-bereikbaarheid-verkeersveiligheid-en-leefbaarheid-a.pdf) is a 107 pages, which translates to 134 vectors. At the moment only (selectable) text is used to create vectors. Images, for example, are ignored.
 
-## Pipeline service
+## Pipeline service (building the database)
 
 The pipeline script `/backend/pipeline.py` works in several steps to retrieve and vectorize relevant documents:
 
@@ -243,21 +241,10 @@ The pipeline script `/backend/pipeline.py` works in several steps to retrieve an
 6. **Repeat for all found URLs**
    Loops through all URLs found by the crawler and processes them in sequence.
 
-```mermaid
-flowchart TD
-  Start["Start: For each province Init Crawler()"]
-  Start --> GetLinks["crawler.get_new_links() → urls"]
-  GetLinks -->|no new urls| NoUrls["No new URLs found, skip province"]
-  GetLinks -->|urls found| ForEachURL["For each URL in urls"]
-  ForEachURL --> TempDir["Create Temporary Directory
-(tempfile.TemporaryDirectory())"]
-  TempDir --> Scrape["scrape_document(temp_dir, url, i)" *# Download to tempDir*]
-  Scrape --> Extract["extract_data(temp_dir) -> combined_data" *# Extract text from documents*]
-  Extract --> DB["db_pipeline(combined_data)
-*# chunk text, vectorize, and store embeddings & metadata*"]
-  DB --> Cleanup["Temporary directory removed"]
-  Cleanup --> ForEachURL
-```
+### Diagram of the pipeline script
+
+![Diagram of pipeline script](./diagrams/pipeline_diagram.png "Title")
+
 
 ## Development
 
