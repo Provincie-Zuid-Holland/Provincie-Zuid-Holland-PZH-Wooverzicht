@@ -16,7 +16,7 @@ _**Prerequisites: Docker, openAI API key**_
 ## Project Structure
 
 This repository is split into two main directories: `backend/` and `Wooverzicht-frontend/`. The `backend/` folder contains all files relevant to the backend of the application running on the server. `backend/api.py` contains all api functions for the frontend to communicate with the backend. The backend folder also contains all files related to building and updating the database. The main script that handles all logic for updating the vector database can be found at `backend/pipeline.py`. the `backend/data_scraping/` folder containts all relevant scripts for crawling and scraping province websites.
-Below a file tree of the project can be found:
+Below, a file tree of the project can be found:
 
 ```bash
 Project_root
@@ -196,7 +196,7 @@ This application is split up in three main components. These components have bee
 
 ### Building database
 
-To build the database, Woo-request need to be downloaded and vectorized. This is a resource-heavy process. Currently, when scraping a Woo-request a document is downloaded into memory before being stored in a temporary folder on the server. Therefore you'll only be able to download request in size up to the availible memory of the server. If a request is bigger than the `MAX_ZIP_SIZE` specified as an environment variable it will be skipped. For our implementation we handle documents up to 2.5 GB.
+To build the database, Woo-requests need to be downloaded and vectorized. This is a resource-heavy process. Currently, when scraping a Woo-request, a document is downloaded into memory before being stored in a temporary folder on the server. Therefore you'll only be able to download requests smaller than the available memory of the server. If a request is bigger than the `MAX_ZIP_SIZE` specified as an environment variable, it will be skipped. For our implementation we handle documents up to 2.5 GB.
 
 ### Hosting the database
 
@@ -292,7 +292,7 @@ To bring this application from a prototype to production here are some recommend
 
 ### Direct API connection
 
-For the province of South Holland we already checked if it is possible to retrieve documents using a direct API connection. Together with MY-LEX and the province of South Holland we set up a connection through the ESB to be able to download documents. Using a GET-request it is possible to directly query what documents are uploaded to a specific folder in the internal systems of the province. Then with another API request we are able to download these documents directly. This proves that it is possible for this application to use a direct API connection instead of scraping the website. However, it would mean that an extra step is required when uploading Woo-request to the Woo-portal, since they also need to be uploaded to the folder that can be reached through the API request.
+For the province of South Holland, we already checked if it is possible to retrieve documents using a direct API connection. Together with MY-LEX and the province of South Holland, we set up a connection through the ESB to be able to download documents. Using a GET-request it is possible to directly query what documents are uploaded to a specific folder in the internal systems of the province. Then, with another API request, we are able to download these documents directly. This proves that it is possible for this application to use a direct API connection instead of scraping the website. However, it would mean that an extra step is required when uploading Woo-requests to the Woo-portal, since they also need to be uploaded to the folder that can be reached through the API request.
 This was done in collaboration with:
 
 - Dirk van Duivendijk, employee of the province South Holland
