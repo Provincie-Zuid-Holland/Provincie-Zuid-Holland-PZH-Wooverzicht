@@ -289,3 +289,11 @@ To bring this application from a prototype to production here are some recommend
 4. If possible, use a direct API connection to collect Woo-documents.
 5. Use OCR to increase possibility of collection relevant data from PDFs.
 6. If recall needs to be increased, introduce term search together with vector search.
+
+### Direct API connection
+
+For the province of South Holland we already checked if it is possible to retrieve documents using a direct API connection. Together with MY-LEX and the province of South Holland we set up a connection through the ESB to be able to download documents. Using a GET-request it is possible to directly query what documents are uploaded to a specific folder in the internal systems of the province. Then with another API request we are able to download these documents directly. This proves that it is possible for this application to use a direct API connection instead of scraping the website. However, it would mean that an extra step is required when uploading Woo-request to the Woo-portal, since they also need to be uploaded to the folder that can be reached through the API request.
+This was done in collaboration with:
+
+- Dirk van Duivendijk, employee of the province South Holland
+- Ronald de Zanger, employee of MY-LEX
