@@ -196,7 +196,7 @@ This application is split up in three main components. These components have bee
 
 ### Building database
 
-To build the database, Woo-request need to be downloaded and vectorized. This is a resource-heavy process. Currently, when scraping a Woo-request a document is downloaded into memory before being stored in a temporary folder on the server. Therefore you'll only be able to download request in size up to the availible memory of the server. If a request is bigger than the `MAX_ZIP_SIZE` specified as an environment variable it will be skipped. For our implementation we handle documents up to 2.5 GB.
+To build the database, Woo-requests need to be downloaded and vectorized. This is a resource-heavy process. Currently, when scraping a Woo-request, a document is downloaded into memory before being stored in a temporary folder on the server. Therefore you'll only be able to download requests smaller than the available memory of the server. If a request is bigger than the `MAX_ZIP_SIZE` specified as an environment variable, it will be skipped. For our implementation we handle documents up to 2.5 GB.
 
 ### Hosting the database
 
