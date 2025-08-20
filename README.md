@@ -1,4 +1,4 @@
-# Wooverzicht: Containerized RAG System
+# Wooverzicht: Containerized Document processing and retrieval using vectorization
 
 This project provides a containerized application for finding relevant Woo-documents given a query from the user. The application is split into a backend API, a frontend UI, and a separate pipeline service for data collection, all running in Docker containers. The pipeline service collects Woo-documents from the province sites, vectorises them and puts them in the vector database.
 
