@@ -11,3 +11,4 @@ PyPDF2==3.0.1
 python-docx==1.1.2
 requests==2.31.0
 SQLAlchemy==2.0.38
+dateparser==1.2.2

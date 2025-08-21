@@ -1,5 +1,15 @@
 import os
 
+SUPPORTED_PROVINCES = [
+    "overijssel",
+    "zuid_holland",
+    "noord_brabant",
+    "flevoland",
+    "gelderland",
+]
+
+MAX_URLS = 1000  # Maximum number of URLs to crawl per province.
+
 # Base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

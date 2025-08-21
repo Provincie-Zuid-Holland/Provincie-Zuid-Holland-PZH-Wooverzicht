@@ -1,14 +1,15 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
-import locale
+import dateparser
+from datetime import timezone
 import time
 from urllib.parse import urlparse, unquote, urljoin
 import zipfile
 import tempfile
 import hashlib
 import re
+import logging
 
 
 class Scraper:
@@ -123,11 +124,6 @@ class Scraper:
         if filename in self.downloaded_files_cache:
             return True, self.downloaded_files_cache[filename]
 
-        file_hash = self._get_file_hash(url)
-        for existing_file, zip_path in self.downloaded_files_cache.items():
-            if existing_file.startswith(file_hash):
-                return True, zip_path
-
         return False, None
 
     def _is_supported_file(self, url: str) -> bool:
@@ -146,7 +142,7 @@ class Scraper:
         """
         return url.lower().endswith(self.supported_extensions)
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Retrieves HTML content using requests.
 
@@ -179,6 +175,62 @@ class Scraper:
                 time.sleep(2)
         return None
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting from the <div class="summary"> section.
+        The summary may be directly in the div or in nested paragraphs.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Look for the summary div
+            summary_div = soup.find("div", class_="summary")
+            if summary_div:
+                # First try to get all paragraphs within the summary div
+                paragraphs = summary_div.find_all("p")
+                if paragraphs:
+                    # Get text from all paragraphs and join them
+                    # Filter out paragraphs that are mainly links (likely document references)
+                    summary_parts = []
+                    for p in paragraphs:
+                        text = p.get_text(strip=True)
+                        # Check if paragraph is mostly links (more than 80% of content is in links)
+                        links = p.find_all("a")
+                        if links:
+                            link_text_length = sum(
+                                len(link.get_text(strip=True)) for link in links
+                            )
+                            total_text_length = len(text)
+                            if (
+                                total_text_length > 0
+                                and (link_text_length / total_text_length) > 0.8
+                            ):
+                                # This paragraph is mostly links, likely document references
+                                continue
+
+                        if (
+                            text and len(text) > 20
+                        ):  # Only include substantial paragraphs
+                            summary_parts.append(text)
+
+                    if summary_parts:
+                        return " ".join(summary_parts)
+
+                # If no good paragraphs found, try to get direct text from the div
+                # but exclude text from nested links
+                summary_text = summary_div.get_text(strip=True)
+                if summary_text and len(summary_text) > 20:
+                    return summary_text
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Generates metadata from HTML content.
@@ -200,20 +252,24 @@ class Scraper:
             metadata = scraper.generate_metadata(html, "https://example.com/page")
             print(f"Title: {metadata['title']}")
         """
+        metadata = {
+            "url": url,
+            "provincie": "Zuid-Holland",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+            "publiekssamenvatting": "",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Zuid-Holland",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Try to find title (h1 is most likely)
             title_tag = soup.find("h1")
             if title_tag:
                 metadata["titel"] = title_tag.get_text(strip=True)
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
 
             # Find the div with class "datetime"
             date_tag = soup.find("div", class_="datetime")
@@ -221,11 +277,9 @@ class Scraper:
                 date_str = date_tag.get_text(strip=True)
                 # Remove "Datum Besluit: " from string
                 date_str = date_str.replace("Datum besluit: ", "")
-                locale.setlocale(locale.LC_ALL, "nl_NL")
-                d = datetime.strptime(date_str, "%d %B %Y")
-                # Convert dd-month-yyyy to dd-mm-yyyy format
-                date_str = d.strftime("%d-%m-%Y")
-                metadata["datum"] = date_str
+                d = dateparser.parse(date_str).replace(tzinfo=timezone.utc)
+                metadata["datum"] = int(d.timestamp())
+                print(f"Datum in metadata: {metadata["datum"]}")
 
             return metadata
 
@@ -235,17 +289,17 @@ class Scraper:
 
     def get_filename_from_url(self, url: str) -> str:
         """
-        Extracts the original filename from the URL and adds a hash for uniqueness.
+        Extracts the original filename from the URL and adds a hash for uniqueness (if no filename is found).
 
         Args:
             url (str): The URL of the file
 
         Returns:
-            str: A unique filename based on the URL with added hash
+            str: A unique filename based on the URL
 
         Example:
             filename = scraper.get_filename_from_url("https://example.com/documents/report.pdf")
-            print(filename)  # Output: a1b2c3d4_report.pdf
+            print(filename)  # Output: report.pdf
         """
         parsed_url = urlparse(url)
         original_filename = os.path.basename(unquote(parsed_url.path))
@@ -287,13 +341,11 @@ class Scraper:
                 if url.lower().endswith(ext):
                     extension = ext
                     break
+            # Add hash to filename for uniqueness (in case of generic name)
+            hash = self._get_file_hash(url)
+            original_filename = f"{hash}_document{extension}"
 
-            original_filename = f"document{extension}"
-
-        # Add hash to filename for unique identification
-        file_hash = self._get_file_hash(url)
-        filename_parts = os.path.splitext(original_filename)
-        return f"{file_hash}_{filename_parts[0]}{filename_parts[1]}"
+        return f"{original_filename}"
 
     def find_documents(self, html_content: str, url: str) -> list:
         """
@@ -484,6 +536,23 @@ class Scraper:
                 f.write(f"{key}: {value}\n")
         return metadata_path
 
+    def check_file_size_not_too_large(self, url):
+        """
+        Checkt de grootte van het zip bestand.
+        """
+        try:
+            response = self.session.head(url, headers=self.headers, timeout=30)
+            file_size = int(response.headers.get("content-length", 0))
+            # Load max size from .env
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 1024 * 1024 * 1024))  # 1gb
+            if file_size > max_size:
+                print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
+                return False
+            return True
+        except Exception as e:
+            print(f"Fout bij controleren zip bestand grootte: {e}")
+            return False
+
     def scrape_document(
         self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
     ) -> None:
@@ -545,10 +614,18 @@ class Scraper:
             #     continue
 
             save_path = os.path.join(temp_dir, filename)
-            if self.download_document(doc_url, save_path):
-                downloaded_files.append(save_path)
-                # # Update cache with new file
-                # self.downloaded_files_cache[filename] = zip_path
+            if self.check_file_size_not_too_large(doc_url):
+                if self.download_document(doc_url, save_path):
+                    downloaded_files.append(save_path)
+            else:
+                # Log dat het zip bestand te groot is
+                print(
+                    f"Bestand is te groot ({doc_url}) en is niet gedownload. "
+                    f"Maximale grootte is {os.getenv('MAX_ZIP_SIZE', 2.5 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024)} GB"
+                )
+                # sla link naar zip bestand op in tekst bestand
+                with open("failed_downloads.txt", "a+") as f:
+                    f.write(f"Bestand te groot: {doc_url}\n")
 
         # # Create a zip file with metadata and any files
         # with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -565,14 +642,14 @@ class Scraper:
 
     def __del__(self):
         """
-        Cleanup when closing.
-
-        Ensures the session is properly closed to prevent resource leaks.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

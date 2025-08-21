@@ -1,17 +1,18 @@
+from datetime import timezone
 import os
+import dateparser
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
-import hashlib
 
 
 class Scraper:
@@ -29,7 +30,6 @@ class Scraper:
         wait (WebDriverWait): WebDriverWait instance for waiting for elements
 
     Functions:
-        _get_file_hash: Generates a unique hash for a file URL to identify duplicates
         _is_supported_file: Checks if a file type is supported for download
         fetch_html: Retrieves HTML content from a page, including JavaScript-rendered content
         generate_metadata: Extracts metadata from HTML content
@@ -80,22 +80,6 @@ class Scraper:
         self.driver = webdriver.Chrome(service=service, options=options)
         self.wait = WebDriverWait(self.driver, 20)
 
-    def _get_file_hash(self, url: str) -> str:
-        """
-        Generates a unique hash for a file URL.
-
-        Args:
-            url (str): The URL of the file
-
-        Returns:
-            str: MD5 hash of the URL as a hexadecimal string
-
-        Example:
-            hash_value = scraper._get_file_hash("https://example.com/document.pdf")
-            print(hash_value)  # Output: a1b2c3d4...
-        """
-        return hashlib.md5(url.encode()).hexdigest()
-
     def _is_supported_file(self, url: str) -> bool:
         """
         Checks if the file type is supported.
@@ -112,7 +96,7 @@ class Scraper:
         """
         return url.lower().endswith(self.supported_extensions)
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Retrieves HTML content using Selenium for JavaScript-rendered content.
 
@@ -155,6 +139,60 @@ class Scraper:
                 time.sleep(2)
         return None
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting from the HTML.
+        The assumed structure is: <td><strong>Samenvatting:</strong>The actual summary text here</td>
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Look for the "Samenvatting:" strong tag
+            samenvatting_strong = soup.find("strong", string="Samenvatting:")
+            if samenvatting_strong:
+                # The parent should be a <td> containing both the label and the content
+                parent_cell = samenvatting_strong.parent
+                if parent_cell and parent_cell.name == "td":
+                    # Get all text from the cell and remove the "Samenvatting:" part
+                    full_text = parent_cell.get_text(strip=True)
+                    if full_text.startswith("Samenvatting:"):
+                        summary_text = full_text[len("Samenvatting:") :].strip()
+                        if summary_text and len(summary_text) > 10:
+                            return summary_text
+
+            # Alternative approach: look for any strong tag containing "samenvatting"
+            for strong_tag in soup.find_all("strong"):
+                strong_text = strong_tag.get_text().strip()
+                if strong_text.lower() == "samenvatting:":
+                    parent_cell = strong_tag.parent
+                    if parent_cell and parent_cell.name == "td":
+                        full_text = parent_cell.get_text(strip=True)
+                        # Find where the summary starts after the label
+                        if ":" in full_text:
+                            summary_text = full_text.split(":", 1)[1].strip()
+                            if summary_text and len(summary_text) > 10:
+                                return summary_text
+
+            # Fallback: look for table structure more broadly
+            for table in soup.find_all("table"):
+                for row in table.find_all("tr"):
+                    cells = row.find_all(["td", "th"])
+                    for cell in cells:
+                        cell_text = cell.get_text(strip=True)
+                        if cell_text.lower().startswith("samenvatting:"):
+                            summary_text = cell_text[len("samenvatting:") :].strip()
+                            if summary_text and len(summary_text) > 10:
+                                return summary_text
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Generates metadata from the HTML content.
@@ -170,6 +208,7 @@ class Scraper:
                 "titel": "titel",
                 "datum": "01-11-1999",
                 "type": "woo-verzoek",
+                "publiekssamenvatting": "",
             }
 
         Example:
@@ -185,15 +224,24 @@ class Scraper:
                 "titel": "",
                 "datum": "",
                 "type": "",
+                "publiekssamenvatting": "",
             }
             # Get the title
             title_div = soup.find("div", class_="print-document")
             title = (
-                title_div.find("div", class_="document-hoofd")
-                .find("a")
-                .get_text(strip=True)
+                (
+                    title_div.find("div", class_="document-hoofd")
+                    .find("a")
+                    .get_text(strip=True)
+                )
+                if title_div
+                else ""
             )
             metadata["titel"] = title
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
+
             # Get the creation year
             creation_year_tag = soup.find("td", string="Creatie jaar")
             creation_year = (
@@ -201,8 +249,21 @@ class Scraper:
                 if creation_year_tag
                 else ""
             )
-            metadata["datum"] = f"01-01-{creation_year}"
-
+            metadata["datum"] = (
+                int(
+                    dateparser.parse(
+                        creation_year,
+                        settings={
+                            "PREFER_MONTH_OF_YEAR": "first",
+                            "PREFER_DAY_OF_MONTH": "first",
+                        },
+                    )
+                    .replace(tzinfo=timezone.utc)
+                    .timestamp()
+                )
+                if creation_year
+                else 0
+            )
             # Get the WOO themes
             woo_theme_tag = soup.find("td", string="WOO thema's")
             woo_theme = (
@@ -221,17 +282,17 @@ class Scraper:
 
     def get_filename_from_url(self, url: str) -> str:
         """
-        Extracts the original filename from the URL and adds a hash for uniqueness.
+        Extracts the original filename from the URL.
 
         Args:
             url (str): The URL of the file
 
         Returns:
-            str: A unique filename based on the URL with added hash
+            str: A filename based on the URL, with invalid characters replaced
 
         Example:
             filename = scraper.get_filename_from_url("https://example.com/documents/report.pdf")
-            print(filename)  # Output: a1b2c3d4_report.pdf
+            print(filename)  # Output: report.pdf
         """
         parsed_url = urlparse(url)
         original_filename = os.path.basename(unquote(parsed_url.path))
@@ -241,10 +302,7 @@ class Scraper:
         for char in invalid_chars:
             original_filename = original_filename.replace(char, "_")
 
-        # Add hash to filename for unique identification
-        file_hash = self._get_file_hash(url)
-        filename_parts = os.path.splitext(original_filename)
-        return f"{file_hash}_{filename_parts[0]}{filename_parts[1]}"
+        return f"{original_filename}"
 
     def find_documents(self, html_content: str) -> list:
         """
@@ -385,6 +443,24 @@ class Scraper:
                 f.write(f"{key}: {value}\n")
         return metadata_path
 
+    def check_file_size_not_too_large(self, url):
+        """
+        Checkt de grootte van het zip bestand.
+        """
+        try:
+            response = requests.head(url, timeout=30)
+            response.raise_for_status()
+            file_size = int(response.headers.get("content-length", 0))
+            # Load max size from .env
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
+            if file_size > max_size:
+                print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
+                return False
+            return True
+        except Exception as e:
+            print(f"Fout bij controleren zip bestand grootte: {e}")
+            return False
+
     def scrape_document(
         self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
     ) -> None:
@@ -425,8 +501,18 @@ class Scraper:
         downloaded_files = []
         for doc_url, filename in doc_links:
             save_path = os.path.join(temp_dir, filename)
-            if self.download_document(doc_url, save_path):
-                downloaded_files.append(save_path)
+            if self.check_file_size_not_too_large(doc_url):
+                if self.download_document(doc_url, save_path):
+                    downloaded_files.append(save_path)
+            else:
+                # Log dat het zip bestand te groot is
+                print(
+                    f"Bestand is te groot ({doc_url}) en is niet gedownload. "
+                    f"Maximale grootte is {os.getenv('MAX_ZIP_SIZE', 2.5 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024)} GB"
+                )
+                # sla link naar zip bestand op in tekst bestand
+                with open("failed_downloads.txt", "a+") as f:
+                    f.write(f"Bestand te groot: {doc_url}\n")
 
 
 if __name__ == "__main__":

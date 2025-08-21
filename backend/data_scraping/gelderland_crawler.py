@@ -1,6 +1,6 @@
 import requests
 import time
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 
 
 class Crawler:
@@ -287,7 +287,7 @@ if __name__ == "__main__":
     max_urls = 7
 
     try:
-        crawler = Crawler(max_urls)
+        crawler = Crawler(max_urls=max_urls)
         urls = crawler.get_new_links()
         crawler.print_results(urls)
     except KeyboardInterrupt:

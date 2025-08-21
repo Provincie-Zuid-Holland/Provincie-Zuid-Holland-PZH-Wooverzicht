@@ -1,10 +1,8 @@
 import os
-import zipfile
 import json
 from PyPDF2 import PdfReader
 from docx import Document
 import tempfile
-from config import DOWNLOADS_FOLDER, EXTRACTED_FOLDER, JSON_FOLDER
 
 """
 This script processes ZIP files containing PDF or DOCX documents along with their metadata files.
@@ -152,13 +150,23 @@ def read_metadata_file(metadata_path: str) -> dict:
         metadata = read_metadata_file('/path/to/metadata.txt')
     """
     metadata = {}
+    int_fields = {"datum"}
     with open(metadata_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     for line in lines:
         if ":" in line:  # Parse key-value pairs separated by a colon
             key, value = line.split(":", 1)
-            metadata[key.strip()] = value.strip()
+            key = key.strip()
+            value = value.strip()
+            if key in int_fields:
+                try:
+                    metadata[key] = int(value)  # Convert to integer if applicable
+                    print(f"Converted {key} to integer: {metadata[key]}")
+                except ValueError:
+                    metadata[key] = value
+            else:
+                metadata[key] = value
 
     return metadata
 
@@ -205,6 +213,9 @@ def combine_document_and_metadata(folder_path: str, file: str) -> dict:
         content = extract_text_from_docx(doc_path)
 
     metadata = read_metadata_file(metadata_file)
+    # Also add file name and type to metadata
+    metadata["file_name"] = os.path.basename(doc_path)
+    metadata["file_type"] = doc_type
 
     # Combine the data into a single dictionary
     combined_data = {
@@ -265,6 +276,11 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         # List files in the folder for debugging
         files_in_folder = os.listdir(folder_path)
         len_files = len(files_in_folder)
+        # raise error if less than 1 files found
+        if len_files <= 1:
+            raise ValueError(
+                f"Only 1 file found in folder, should be metadatafile and other files: {folder_path}"
+            )
         print(f"\nProcessing folder {folder_path}:")
         print(f"Files found: {files_in_folder}")
         combined_data_list = []
@@ -285,14 +301,13 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
 
     except ValueError as e:
         print(f"Error processing folder {folder_path}: {e}")
-        error_count += 1
     except Exception as e:
         print(f"Unexpected error in folder {folder_path}: {str(e)}")
-        error_count += 1
 
 
 def main() -> None:
-    extract_data()
+    # extract_data()
+    pass
 
 
 if __name__ == "__main__":

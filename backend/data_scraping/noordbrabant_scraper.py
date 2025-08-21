@@ -1,13 +1,11 @@
+from datetime import timezone
+import dateparser
 import os
 import requests
 from bs4 import BeautifulSoup
-import time
-from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
-import hashlib
-import re
-import json
+import logging
 
 
 class Scraper:
@@ -77,7 +75,7 @@ class Scraper:
             print(f"Warning: Error building cache: {e}")
         return cache
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Retrieves HTML content using requests.
         """
@@ -115,24 +113,59 @@ class Scraper:
         print(f"Found {len(document_ids)} document IDs")
         return payload
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting which appears as a paragraph after the h1 title.
+        The text is typically wrapped in a span inside the paragraph.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Find the h1 title
+            h1_tag = soup.find("h1")
+            if h1_tag:
+                # Look for the next paragraph after the h1
+                next_paragraph = h1_tag.find_next("p")
+                if next_paragraph:
+                    # Check if there's a span inside the paragraph
+                    span_tag = next_paragraph.find("span")
+                    if span_tag:
+                        return span_tag.get_text(strip=True)
+                    else:
+                        # Fallback to the paragraph text if no span
+                        return next_paragraph.get_text(strip=True)
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content: str, url: str) -> dict:
         """
         Extracts metadata from HTML content.
         """
+        metadata = {
+            "url": url,
+            "provincie": "Noord-Brabant",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+            "publiekssamenvatting": "",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Noord-Brabant",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Extract title
             title_tag = soup.find("h1")
             if title_tag:
                 metadata["titel"] = title_tag.get_text(strip=True)
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
 
             # Find the heading that says "Datum besluit"
             # datum_heading = soup.find("div", text="Rapportdatum")
@@ -143,8 +176,14 @@ class Scraper:
             # find date in dt class with Rapportdatum as text
 
             date_title = soup.find("dt", string="Rapportdatum:")
-            date = date_title.find_next("dd")
-            metadata["datum"] = date.text
+            date = date_title.find_next("dd") if date_title else None
+            metadata["datum"] = (
+                int(
+                    dateparser.parse(date.text).replace(tzinfo=timezone.utc).timestamp()
+                )
+                if date
+                else 0
+            )
 
             return metadata
         except Exception as e:
@@ -292,8 +331,8 @@ class Scraper:
             os.rmdir(os.path.join(temp_dir, "extracted_files"))
             os.remove(os.path.join(temp_dir, "downloaded_files.zip"))
 
-        except:
-            pass
+        except Exception as e:
+            print(f"Error removing files: {e}")
 
         # # Add all files to the zip
         # extract_dir = os.path.join(temp_dir, "extracted_files")
@@ -311,12 +350,14 @@ class Scraper:
 
     def __del__(self):
         """
-        Cleanup when closing.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":
