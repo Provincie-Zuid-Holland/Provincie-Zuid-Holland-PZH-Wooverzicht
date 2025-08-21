@@ -5,6 +5,7 @@ This module provides functionality to search and retrieve documents from the Chr
 It supports similarity-based searches with metadata filtering and returns ranked results.
 """
 
+from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
@@ -13,7 +14,6 @@ import os
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-from chromadb.api.models import Collection
 from pathlib import Path
 
 # Set up logging
@@ -76,12 +76,14 @@ class ChromadbQuery:
         # database_path = ".." + database_path
         print(database_path)
         print("Path exists:", os.path.exists(database_path))
+
+        logger.info(f"Path exists: {os.path.exists(database_path)}")
         print(os.path.abspath(database_path))
         # Print dir
         print(os.listdir(database_path))
         for root, dirs, files in os.walk(database_path):
             print(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
-
+            logger.info(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
 
@@ -96,7 +98,7 @@ class ChromadbQuery:
         try:
             self.collection = self.client.get_collection(name=collection_name)
             logger.info(f"Successfully connected to collection: {collection_name}")
-        except Exception as e:
+        except Exception:
             logger.warning(
                 f"Collection not found, creating new collection: {collection_name}"
             )
@@ -307,3 +309,66 @@ class ChromadbQuery:
         except Exception as e:
             logger.error(f"Error getting collection stats: {e}")
             raise
+
+
+def main():
+    # Example usage of the ChromadbQuery class
+    print("Starting ChromaDB Query Example...")
+    chroma_query = ChromadbQuery(
+        collection_name="document_chunks",
+        database_path="./database",
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    provinces = ["Gelderland"]
+    metadata_filter = {
+        "$and": [
+            {
+                "provincie": {"$in": provinces},
+            },
+            {
+                "$and": [
+                    {
+                        "datum": {
+                            "$gte": int(
+                                datetime.strptime("2024-7-6", "%Y-%m-%d")
+                                .replace(tzinfo=timezone.utc)
+                                .timestamp()
+                            )
+                        }
+                    },
+                    {
+                        "datum": {
+                            "$lte": int(
+                                datetime.strptime("2025-6-4", "%Y-%m-%d")
+                                .replace(tzinfo=timezone.utc)
+                                .timestamp()
+                            )
+                        }
+                    },
+                ]
+            },
+        ]
+    }
+
+    # Search for documents
+    results = chroma_query.search(
+        query="Wat kan je me vertellen over Faunaschade?",
+        limit=5,
+        metadata_filter=metadata_filter,
+    )
+    for result in results:
+        print(
+            f"Document ID: {result.document_id}, Score: {result.score}, Content: {result.content[:100]}..."
+        )
+        print(f"Metadata: {result.metadata}")
+        print("Type: ", type(result.metadata["datum"]), result.metadata["datum"])
+
+    # Get collection stats
+    stats = chroma_query.get_collection_stats()
+    print(
+        f"Collection '{stats['collection_name']}' has {stats['document_count']} documents."
+    )
+
+
+if __name__ == "__main__":
+    main()

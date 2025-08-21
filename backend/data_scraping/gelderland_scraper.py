@@ -2,13 +2,13 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import urlparse, unquote, urljoin
+from urllib.parse import urljoin
 import zipfile
 import tempfile
-import hashlib
-import re
-import zipfile, io
-from datetime import datetime
+import io
+from datetime import timezone
+import dateparser
+import logging
 
 # TODO
 # Modify code so it downloads everything using the download all as zip button. Then unzip in tempdir and remove zip file itself
@@ -92,24 +92,52 @@ class Scraper:
                 time.sleep(2)
         return None
 
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup) -> str:
+        """
+        Extracts the publiekssamenvatting from under the "Kenmerken" header.
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Look for the "Kenmerken" header
+            kenmerken_header = soup.find("h2", string="Kenmerken")
+            if kenmerken_header:
+                # Find the next paragraph after the header
+                next_paragraph = kenmerken_header.find_next("p")
+                if next_paragraph:
+                    return next_paragraph.get_text(strip=True)
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
     def generate_metadata(self, html_content, url):
         """
         Genereert metadata van de HTML content.
         """
+        metadata = {
+            "url": url,
+            "provincie": "Gelderland",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+            "publiekssamenvatting": "",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Gelderland",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Probeer titel te vinden (h1 is meest waarschijnlijk)
             title_tag = soup.find("h1")
             if title_tag:
                 metadata["titel"] = title_tag.get_text(strip=True)
+
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
 
             # datum
             date_strong = soup.select_one('strong:contains("Publicatiedatum")')
@@ -118,12 +146,11 @@ class Scraper:
                 # Get the parent div
                 parent_div = date_strong.parent
                 # Find the span within the same div
-                date_span = parent_div.find("span")
+                date_span = parent_div.find("span") if parent_div else None
                 if date_span:
                     # Convert d-m-yyyy to dd-mm-yyyy format
-                    d = datetime.strptime(date_span.text, "%d-%m-%Y")
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    d = dateparser.parse(date_span.text).replace(tzinfo=timezone.utc)
+                    metadata["datum"] = int(d.timestamp())
 
             categorie_strong = soup.select_one('strong:contains("Categorie")')
 
@@ -131,11 +158,12 @@ class Scraper:
                 # Get the parent div
                 parent_div = categorie_strong.parent
                 # Find the span within the same div
-                categorie_span = parent_div.find("span")
-                if categorie_span.text == "Woo-verzoeken":
-                    metadata["type"] = "woo-verzoek"
-                else:
-                    metadata["type"] = "categorie_span.text"
+                categorie_span = parent_div.find("span") if parent_div else None
+                if categorie_span:
+                    if categorie_span.text == "Woo-verzoeken":
+                        metadata["type"] = "woo-verzoek"
+                    else:
+                        metadata["type"] = categorie_span.text
 
             return metadata
 
@@ -163,6 +191,23 @@ class Scraper:
                 filename = absolute_url.split("/")[-1]
                 return absolute_url, filename
         return []
+
+    def check_zip_size_not_too_large(self, url):
+        """
+        Checkt de grootte van het zip bestand.
+        """
+        try:
+            response = self.session.head(url, headers=self.headers, timeout=30)
+            file_size = int(response.headers.get("content-length", 0))
+            # Load max size from .env
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
+            if file_size > max_size:
+                print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
+                return False
+            return True
+        except Exception as e:
+            print(f"Fout bij controleren zip bestand grootte: {e}")
+            return False
 
     def download_zip(self, url, save_path):
         """
@@ -241,28 +286,43 @@ class Scraper:
             print("Geen zip bestand gevonden")
             return
 
-        # Download zip bestand
-        downloaded = self.download_zip(zip_link[0], temp_dir)
-        if not downloaded:
-            print("Fout bij downloaden zip bestand")
-            return
+        # # Check of zip bestand niet groter dan capaciteit is (uit .env)
+        if self.check_zip_size_not_too_large(zip_link[0]):
+            # Download zip bestand
+            downloaded = self.download_zip(zip_link[0], temp_dir)
+            if not downloaded:
+                print("Fout bij downloaden zip bestand")
+                return
+        else:
+            # Log dat het zip bestand te groot is
+            print(
+                f"Zip bestand is te groot ({zip_link[1]}) en is niet gedownload. "
+                f"Maximale grootte is {os.getenv('MAX_ZIP_SIZE', 2.5 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024)} GB"
+            )
+            # sla link naar zip bestand op in tekst bestand
+            with open("failed_downloads.txt", "a+") as f:
+                f.write(f"Zip bestand te groot: {zip_link[0]}\n")
+
         return
 
     def __del__(self):
         """
-        Cleanup bij afsluiten.
+        Destructor to ensure the session is closed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":
     BASE_URL = "https://open.gelderland.nl/woo-documenten"
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"  # Klein Woo verzoek (3 bestanden)
+    EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-deelbesluit-2-over-windpark-echteld-lienden-2024-010161"
+    # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-brief-commissaris-van-de-koning-aan-minister-van-asiel-2025-002957"  # Klein Woo verzoek (3 bestanden)
     # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-projectplan-hagenbeek-2024-2024-014129" # Groot Woo verzoek (140 bestanden)
     # EXAMPLE_DOC_URL = "https://open.gelderland.nl/woo-documenten/woo-besluit-over-het-convenant-nedersaksisch-2024-015084"  # Middel Woo verzoek (25 bestanden)
 

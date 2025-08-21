@@ -8,20 +8,25 @@ This service provides API endpoints for:
 
 import json
 import os
-import uuid
-from typing import Dict, List, Any, Optional
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from conversational_rag import ConversationalRAG, StreamingChunk
+from conversational_rag import ConversationalRAG
 from query_logger import QueryLogger
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
+from typing import TypedDict
+import logging
 
-
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 # Get the directory where the script is located, to prevent issues with relative paths
 script_dir = Path(__file__).parent.absolute()
@@ -69,6 +74,75 @@ class Source(BaseModel):
     datum: str
     type: str
     relevance_score: float
+    publiekssamenvatting: str
+
+
+class RetrieveDocsDict(TypedDict, total=False):
+    """Type definition for dictionary structure when retrieving documents."""
+
+    query: str
+    filters: (
+        dict | None
+    )  # Optional field for additional filters. Elements that should be in the dict:
+    # provinces: List[str] | None  # Optional field for provinces used in filtering
+    # startDate: str  # Field for start date in YYYY-MM-DD format
+    # endDate: str  # Field for end date in YYYY-MM-DD format
+
+
+# API endpoint to add to your FastAPI app
+@app.post("/api/query/documents")
+async def retrieve_documents(request: RetrieveDocsDict):
+    """
+    Retrieve relevant documents for a query without generating a response.
+
+    Args:
+        request: Simple dict with 'query' key, 'provinces' key (optional) and 'daterange' key (optional).
+                    'provinces' key is a list of provinces used for filtering.
+                    'daterange' is also optional and should be a list of two date strings, format "%Y-%m-%d" (also used for filtering).
+
+    Returns:
+        JSON response with relevant documents and chunks
+    """
+    try:
+        query = request.get("query", "")
+        filters = request.get("filters", {})
+        if not isinstance(filters, dict):
+            raise ValueError("Filters must be a dictionary")
+        provinces = filters.get("provinces", None)
+        startDate = filters.get("startDate", None)
+        endDate = filters.get("endDate", None)
+        logger.info(
+            f"Received query: {query} with provinces: {provinces}, date range: {startDate} to {endDate}"
+        )
+        if not query:
+            return {"error": "Query is required"}
+        # Validate provinces if provided
+        if provinces is not None:
+            if not isinstance(provinces, list):
+                raise ValueError("Provinces must be a list")
+            for province in provinces:
+                if not isinstance(province, str):
+                    raise ValueError("Each province must be a string")
+        if startDate is None or endDate is None:
+            raise ValueError(
+                f"startDate and endDate are required, but one or both were not provided: {startDate}, {endDate}"
+            )
+        result = rag_system.retrieve_relevant_documents(
+            query, provinces=provinces, startDate=startDate, endDate=endDate
+        )
+        print("Result:", result)
+        print({"success": True, "query": query, **result}, flush=True)
+        return {"success": True, "query": query, **result}
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "chunks": [],
+            "documents": [],
+            "total_chunks": 0,
+            "total_documents": 0,
+        }
 
 
 # Define API endpoints
@@ -108,7 +182,10 @@ async def query_documents_stream(request: QueryRequest):
                     if "document_ids" in chunk:
                         chunks_used = chunk["document_ids"]
                     # print(f"Sending sources: {len(sources)} items")
-                    yield {"event": "sources", "data": json.dumps({"sources": sources})}
+                    yield {
+                        "event": "sources",
+                        "data": json.dumps({"sources": sources}),
+                    }
 
             # Calculate response time
             response_time = (datetime.now() - start_time).total_seconds()
