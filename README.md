@@ -20,17 +20,12 @@ Below, a file tree of the project can be found:
 
 ```bash
 Project_root
-├── Dockerfile.dbcheck                  # Docker container for database health checks, unused at the moment
-├── README.md                           # Project documentation
 ├── backend/                            # Backend services and data processing
-│   ├── Dockerfile.api                  # Docker container for FastAPI backend
-│   ├── Dockerfile.pipeline             # Docker container for data pipeline
-│   ├── URLs.txt                        # List of tracked URLs for crawling
-│   ├── api.py                          # FastAPI backend service
 │   ├── .env                            # environment file for the backend
+│   ├── .env.example                    # example environment file for the backend
+│   ├── api.py                          # FastAPI backend service
 │   ├── chromadb_query.py               # ChromaDB vector database query interface
 │   ├── config.py                       # Configuration settings and environment variables
-│   ├── conversational_rag.py           # RAG (Retrieval Augmented Generation) system
 │   ├── createdb.py                     # Database initialization script
 │   ├── data_scraping/                  # Province-specific web scraping modules
 │   │   ├── flevoland_crawler.py        # OUTDATED: Flevoland province website crawler
@@ -42,7 +37,10 @@ Project_root
 │   │   ├── overijssel_crawler.py       # OUTDATED: Overijssel province website crawler
 │   │   ├── overijssel_scraper.py       # OUTDATED: Overijssel province data scraper
 │   │   ├── zuidholland_crawler.py      # Zuid-Holland province website crawler
-│   │   └── zuidholland_scraper.py      # Zuid-Holland province data scraper
+│   │   └── zuidholland_scraper.py      # Zuid-Holland province data scraper]
+│   ├── Dockerfile.api                  # Docker container for FastAPI backend
+│   ├── Dockerfile.pipeline             # Docker container for data pipeline
+│   ├── document_retriever.py           # Retrieval of documents in database based on query
 │   ├── extract.py                      # Document text extraction and processing
 │   ├── failed_downloads.txt            # Log of failed download attempts
 │   ├── healthcheck.py                  # System health monitoring
@@ -51,11 +49,13 @@ Project_root
 │   ├── requirements.api.txt            # Python dependencies for API service
 │   ├── requirements.pipeline.txt       # Python dependencies for pipeline service
 │   ├── requirements.txt                # General Python dependencies
-│   └── start.sh                        # Backend startup script
+│   └── URLs.txt                        # List of already tracked URLs for crawling
 ├── bitbucket-pipelines.yml             # CI/CD pipeline configuration
 ├── check.py                            # System verification script
 ├── database/                           # ChromaDB vector database storage
+├── diagrams/                           # Folder with diagrams used in the README.md
 ├── docker-compose.yml                  # Multi-container Docker orchestration
+├── README.md                           # Project documentation
 ├── requirements.txt                    # Root level Python dependencies
 └── Wooverzicht-frontend/               # Next.js frontend application
     ├── Dockerfile                      # Frontend container configuration
