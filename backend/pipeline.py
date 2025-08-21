@@ -5,6 +5,7 @@ from typing import Tuple
 import tempfile
 from extract import extract_data
 from createdb import db_pipeline
+from config import SUPPORTED_PROVINCES, MAX_URLS
 
 
 def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
@@ -105,17 +106,8 @@ def execute_pipeline() -> None:
     sys.path.insert(0, current_dir)
     sys.path.insert(0, parent_dir)
 
-    # provinces = [
-    #     "overijssel",
-    #     "zuid_holland",
-    #     "noord_brabant",
-    #     "flevoland",
-    #     "gelderland",
-    # ]  # All provinces
-    provinces = [
-        "gelderland",
-    ]  # All provinces
-    # provinces = ["gelderland"]  # For debugging
+    provinces = SUPPORTED_PROVINCES
+
     # Import the appropriate modules based on source
     for province in provinces:
         try:
@@ -128,7 +120,7 @@ def execute_pipeline() -> None:
             print("\n" + "<>" * 40)
             print(f"Starting {province.upper()} crawler to collect URLs...")
             print("<>" * 40)
-            crawler = Crawler(base_url, max_urls=2)
+            crawler = Crawler(base_url, max_urls=MAX_URLS)
             urls = crawler.get_new_links()
 
             if not urls:
