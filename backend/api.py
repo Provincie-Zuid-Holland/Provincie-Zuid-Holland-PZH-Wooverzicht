@@ -6,15 +6,12 @@ This service provides API endpoints for:
 2. Health checking
 """
 
-import json
 import os
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from conversational_rag import ConversationalRAG
-from sse_starlette.sse import EventSourceResponse
-import asyncio
+from document_retriever import DocumentRetriever
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import TypedDict
@@ -51,8 +48,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize RAG system and query logger
-rag_system = ConversationalRAG()
+# Initialize document retriever
+document_retriever = DocumentRetriever()
 
 
 # Define data models
@@ -125,7 +122,7 @@ async def retrieve_documents(request: RetrieveDocsDict):
             raise ValueError(
                 f"startDate and endDate are required, but one or both were not provided: {startDate}, {endDate}"
             )
-        result = rag_system.retrieve_relevant_documents(
+        result = document_retriever.retrieve_relevant_documents(
             query, provinces=provinces, startDate=startDate, endDate=endDate
         )
         print("Result:", result)
@@ -141,69 +138,6 @@ async def retrieve_documents(request: RetrieveDocsDict):
             "total_chunks": 0,
             "total_documents": 0,
         }
-
-
-# Define API endpoints
-@app.post("/api/query/stream")
-async def query_documents_stream(request: QueryRequest):
-    """
-    Stream a response to a user query.
-
-    Args:
-        request: The query request containing the query and session_id.
-
-    Returns:
-        EventSourceResponse: A server-sent events response with chunks of the answer.
-    """
-
-    async def event_generator():
-        try:
-            # print("Starting event generation")
-            sources = []
-            chunks_used = []
-            response_text = ""
-            start_time = datetime.now()
-
-            # Generate streaming response
-            for chunk in rag_system.generate_response_stream(request.query):
-                if isinstance(chunk, str):
-                    # Send text chunk
-                    response_text += chunk
-                    # print(f"Sending chunk: {chunk}")
-                    yield {"event": "chunk", "data": chunk}
-                    await asyncio.sleep(
-                        0.01
-                    )  # Small delay to avoid overwhelming client
-                elif isinstance(chunk, dict) and "sources" in chunk:
-                    # Send sources
-                    sources = chunk["sources"]
-                    if "document_ids" in chunk:
-                        chunks_used = chunk["document_ids"]
-                    # print(f"Sending sources: {len(sources)} items")
-                    yield {
-                        "event": "sources",
-                        "data": json.dumps({"sources": sources}),
-                    }
-
-            # Calculate response time
-            response_time = (datetime.now() - start_time).total_seconds()
-
-            # Log the interaction
-            metadata = {
-                "sources": sources,
-                "response_time": response_time,
-                "chunks_used": chunks_used,
-                "timestamp": datetime.now().isoformat(),
-            }
-
-            # Send completion event
-            yield {"event": "complete", "data": json.dumps({"metada": metadata})}
-
-        except Exception as e:
-            # Send error event
-            yield {"event": "error", "data": {"error": str(e)}}
-
-    return EventSourceResponse(event_generator())
 
 
 @app.get("/api/health")
