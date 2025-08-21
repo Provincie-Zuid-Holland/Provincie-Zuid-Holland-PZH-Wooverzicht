@@ -102,7 +102,7 @@ Project_root
    - Frontend: <http://localhost:3000>
    - Backend API: <http://localhost:8000>
 
-### Environment Configuration
+## Environment Configuration
 
 ### Mandatory variables
 
@@ -124,8 +124,6 @@ MAX_WORKERS=5 # Number of parallel embedding workers
 BATCH_SIZE=100 # Batch size for API calls and DB operations
 MAX_ZIP_SIZE=2684354560 # max size for downloading woo-request from websites. This value corresponds to 2.5 GB
 ```
-
----
 
 ## API Documentation
 
@@ -296,7 +294,3 @@ To bring this application from a prototype to production here are some recommend
 ### Direct API connection
 
 For the province of South Holland, we already checked if it is possible to retrieve documents using a direct API connection. Together with MY-LEX and the province of South Holland, we set up a connection through the ESB to be able to download documents. Using a GET-request it is possible to directly query what documents are uploaded to a specific folder in the internal systems of the province. Then, with another API request, we are able to download these documents directly. This proves that it is possible for this application to use a direct API connection instead of scraping the website. However, it would mean that an extra step is required when uploading Woo-requests to the Woo-portal, since they also need to be uploaded to the folder that can be reached through the API request.
-This was done in collaboration with:
-
-- Dirk van Duivendijk, employee of the province South Holland
-- Ronald de Zanger, employee of MY-LEX
