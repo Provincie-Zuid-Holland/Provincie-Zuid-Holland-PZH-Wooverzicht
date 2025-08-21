@@ -102,7 +102,7 @@ Project_root
    - Frontend: <http://localhost:3000>
    - Backend API: <http://localhost:8000>
 
-### Environment Configuration
+## Environment Configuration
 
 ### Mandatory variables
 
@@ -124,8 +124,6 @@ MAX_WORKERS=5 # Number of parallel embedding workers
 BATCH_SIZE=100 # Batch size for API calls and DB operations
 MAX_ZIP_SIZE=2684354560 # max size for downloading woo-request from websites. This value corresponds to 2.5 GB
 ```
-
----
 
 ## API Documentation
 
