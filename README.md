@@ -15,7 +15,7 @@ _**Prerequisites: Docker, openAI API key**_
 
 ## Project Structure
 
-This repository is split into two main directories: `backend/` and `Wooverzicht-frontend/`. The `backend/` folder contains all files relevant to the backend of the application running on the server. `backend/api.py` contains all api functions for the frontend to communicate with the backend. The backend folder also contains all files related to building and updating the database. The main script that handles all logic for updating the vector database can be found at `backend/pipeline.py`. the `backend/data_scraping/` folder containts all relevant scripts for crawling and scraping province websites.
+This repository is split into two main directories: `backend/` and `frontend/`. The `backend/` folder contains all files relevant to the backend of the application running on the server. `backend/api.py` contains all api functions for the frontend to communicate with the backend. The backend folder also contains all files related to building and updating the database. The main script that handles all logic for updating the vector database can be found at `backend/pipeline.py`. the `backend/data_scraping/` folder containts all relevant scripts for crawling and scraping province websites.
 Below, a file tree of the project can be found:
 
 ```bash
@@ -57,7 +57,7 @@ Project_root
 ├── docker-compose.yml                  # Multi-container Docker orchestration
 ├── README.md                           # Project documentation
 ├── requirements.txt                    # Root level Python dependencies
-└── Wooverzicht-frontend/               # Next.js frontend application
+└── frontend/                           # Next.js frontend application
     ├── Dockerfile                      # Frontend container configuration
     ├── README.md                       # Frontend documentation
     ├── eslint.config.mjs               # ESLint code quality configuration

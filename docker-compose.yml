@@ -1,14 +1,14 @@
 services:
   frontend:
     build:
-      context: ./wooverzicht-frontend
+      context: ./frontend
       dockerfile: Dockerfile
       # Dockerfile for frontend is expected to have WORKDIR /app
       # and use CMD ["streamlit", "run", "app.py"] or similar
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      # - ./wooverzicht-frontend:/app
+      # - ./frontend:/app
       - /app/node_modules
         # Mounts your local ./frontend directory to /app in the container
         # Assumes /app is the WORKDIR in your frontend/Dockerfile
