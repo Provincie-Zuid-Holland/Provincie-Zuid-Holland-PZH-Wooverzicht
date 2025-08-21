@@ -15,9 +15,6 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://backend-api:8000
-      # Streamlit usually hot reloads by default when files are mounted.
-      # If you face issues, you might try:
-      # command: streamlit run app.py --server.fileWatcherType poll
     depends_on:
       - backend-api
     restart: unless-stopped
