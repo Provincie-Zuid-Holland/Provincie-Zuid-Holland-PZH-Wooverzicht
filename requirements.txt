@@ -9,3 +9,4 @@ beautifulsoup4==4.12.2
 selenium==4.16.0
 webdriver-manager==4.0.2
 sse-starlette==2.3.3
+dateparser==1.2.2

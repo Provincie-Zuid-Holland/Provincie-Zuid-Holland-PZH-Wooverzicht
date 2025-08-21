@@ -2,27 +2,23 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import urlparse, unquote, urljoin
+from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
-import hashlib
 import re
-import locale
-from datetime import datetime
+from datetime import timezone
+import dateparser
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import requests
 from selenium.common.exceptions import (
     TimeoutException,
-    NoSuchElementException,
-    NoSuchFrameException,
     InvalidArgumentException,
 )
+from typing import Tuple
+import logging
 
 
 class Scraper:
@@ -92,21 +88,6 @@ class Scraper:
             print(f"Warning: Error building cache: {e}")
         return cache
 
-    def _get_file_hash(self, url: str) -> str:
-        """
-        Generates a unique hash for a file URL.
-
-        Args:
-            url (str): The URL to hash
-
-        Returns:
-            str: MD5 hash of the URL
-
-        Example:
-            hash = scraper._get_file_hash("https://example.com/document.pdf")
-        """
-        return hashlib.md5(url.encode()).hexdigest()
-
     def _is_supported_file(self, url: str) -> bool:
         """
         Checks if a file type is supported for download.
@@ -123,7 +104,7 @@ class Scraper:
         """
         return url.lower().endswith(self.supported_extensions)
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str) -> str | None:
         """
         Fetches HTML content using requests.
 
@@ -151,7 +132,7 @@ class Scraper:
                 time.sleep(2)
         return None
 
-    def fetch_html_with_selenium(self, url: str) -> str:
+    def fetch_html_with_selenium(self, url: str) -> Tuple[str, str] | Tuple[None, None]:
         """
         Fetches HTML content using selenium. This is necessary for pages that load content dynamically. (e.g. with javascript)
         This function is used for archived woo verzoeken of Flevoland
@@ -206,7 +187,69 @@ class Scraper:
             if driver:
                 driver.quit()
 
-    def generate_metadata(self, html_content: str, url: str, selenium_url: str) -> dict:
+    def _extract_publiekssamenvatting(self, soup: BeautifulSoup, url: str) -> str:
+        """
+        Extracts the publiekssamenvatting from the HTML content.
+        Handles both newer sites (with 'Samenvatting' header) and older sites (positioned above 'Documenten' header).
+
+        Args:
+            soup (BeautifulSoup): Parsed HTML content
+            url (str): The URL of the page (for determining site type)
+
+        Returns:
+            str: The publiekssamenvatting text, or empty string if not found
+        """
+        try:
+            # Check if this is a newer site (flevoland.nl domain)
+            if "flevoland.nl" in url and "archiefweb.eu" not in url:
+                # Assumption: Site always has a 'Samenvatting' header, and the next paragraph contains the summary
+                samenvatting_header = soup.find("h2", string="Samenvatting")
+                if samenvatting_header:
+                    next_paragraph = samenvatting_header.find_next("p")
+                    if next_paragraph:
+                        return next_paragraph.get_text(strip=True)
+
+            # Older site: Look for content positioned before the "Documenten" header
+            documenten_header = soup.find("h2", string="Documenten")
+            if documenten_header:
+                preceding_elements = []
+                current = documenten_header.find_previous_sibling()
+
+                # Walk backwards through siblings until we find substantial content
+                while current:
+                    if current.name == "p":
+                        text = current.get_text(strip=True)
+                        if len(text) > 50:  # Filter out short paragraphs
+                            preceding_elements.append(text)
+                    elif current.name in ["h1", "h2", "h3"]:
+                        # Stop if we hit another header (we've gone too far back)
+                        break
+                    current = current.find_previous_sibling()
+
+                if preceding_elements:
+                    return max(preceding_elements, key=len)
+
+            # fallback: Look for text starting with common patterns
+            patterns = [
+                r"^Er is een verzoek gedaan in het kader van de Wet openbaarheid van bestuur",
+                r"^Naar aanleiding van een verzoek op grond van de Wet open overheid",
+                r"^Er is een verzoek gedaan.*Wet.*openbaarheid",
+                r"^Naar aanleiding van een.*verzoek.*Woo",
+            ]
+
+            paragraphs = soup.find_all("p")
+            for paragraph in paragraphs:
+                text = paragraph.get_text(strip=True)
+                for pattern in patterns:
+                    if re.match(pattern, text, re.IGNORECASE):
+                        return text
+
+        except Exception as e:
+            print(f"Error extracting publiekssamenvatting: {e}")
+
+        return ""
+
+    def generate_metadata(self, html_content: str, url: str, selenium_url=None) -> dict:
         """
         Extracts metadata from the HTML content.
 
@@ -220,15 +263,16 @@ class Scraper:
         Example:
             metadata = scraper.generate_metadata(html, "https://example.com")
         """
+        metadata = {
+            "url": url,
+            "provincie": "Flevoland",
+            "titel": "",
+            "datum": "",
+            "type": "woo-verzoek",
+            "publiekssamenvatting": "",
+        }
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            metadata = {
-                "url": url,
-                "provincie": "Flevoland",
-                "titel": "",
-                "datum": "",
-                "type": "woo-verzoek",
-            }
 
             # Try to find title
             title_candidates = [
@@ -245,6 +289,11 @@ class Scraper:
                         metadata["titel"] = candidate.get_text(strip=True)
                     break
 
+            # Extract publiekssamenvatting
+            metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(
+                soup, url
+            )
+
             # If using selenium/archive links the date is hidden in the link itself instead of on the HTML page
             if selenium_url:
                 # Find timestamp in selenium_url in between /archiefweb/ and /
@@ -252,27 +301,24 @@ class Scraper:
                 pattern = r"/archiefweb/(\d+)/"
                 # Search for the pattern in the URL/string using regex
                 match = re.search(pattern, selenium_url)
-                date_paragraph = match.group(1)
+                date_paragraph = match.group(1) if match else None
                 # Convert YYYYMMDD to dd-mm-yyyy format
                 if date_paragraph:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
                     # Convert to datetime object
-                    d = datetime.strptime(date_part, "%Y%m%d")
-                    # Format as dd-mm-yyyy
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    d = dateparser.parse(date_part).replace(tzinfo=timezone.utc)
+                    metadata["datum"] = int(d.timestamp())
             else:
                 datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
                     "h2", string="Datum"
                 )
-                date_paragraph = datum_heading.find_next("p")
+                date_paragraph = datum_heading.find_next("p") if datum_heading else None
 
                 if date_paragraph:
-                    locale.setlocale(locale.LC_ALL, "nl_NL")
-                    d = datetime.strptime(date_paragraph.text, "%d %B %Y")
-                    # Convert dd-month-yyyy to dd-mm-yyyy format
-                    date_str = d.strftime("%d-%m-%Y")
-                    metadata["datum"] = date_str
+                    d = dateparser.parse(date_paragraph.text).replace(
+                        tzinfo=timezone.utc
+                    )
+                    metadata["datum"] = int(d.timestamp())
 
             return metadata
 
@@ -330,13 +376,12 @@ class Scraper:
 
     def get_filename_from_url(self, url: str) -> str:
         """
-        Extracts original filename from URL and adds hash for uniqueness.
-
+        Extracts original filename from URL.
         Args:
             url (str): The URL of the file
 
         Returns:
-            str: A unique filename based on the URL
+            str: A filename based on the URL, sanitized for invalid characters.
 
         Example:
             filename = scraper.get_filename_from_url("https://example.com/doc.pdf")
@@ -349,10 +394,7 @@ class Scraper:
         for char in invalid_chars:
             original_filename = original_filename.replace(char, "_")
 
-        # Add hash to filename for uniqueness
-        file_hash = self._get_file_hash(url)
-        filename_parts = os.path.splitext(original_filename)
-        return f"{file_hash}_{filename_parts[0]}{filename_parts[1]}"
+        return f"{original_filename}"
 
     def download_document(self, url: str, save_path: str) -> bool:
         """
@@ -421,6 +463,23 @@ class Scraper:
                 f.write(f"{key}: {value}\n")
         return metadata_path
 
+    def check_file_size_not_too_large(self, url):
+        """
+        Checkt de grootte van het zip bestand.
+        """
+        try:
+            response = self.session.head(url, headers=self.headers, timeout=30)
+            file_size = int(response.headers.get("content-length", 0))
+            # Load max size from .env
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
+            if file_size > max_size:
+                print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
+                return False
+            return True
+        except Exception as e:
+            print(f"Fout bij controleren zip bestand grootte: {e}")
+            return False
+
     def scrape_document(
         self, temp_dir: tempfile.TemporaryDirectory, url: str, index: int
     ) -> None:
@@ -464,19 +523,29 @@ class Scraper:
 
         for doc_url, filename in doc_links:
             save_path = os.path.join(temp_dir, filename)
-            if self.download_document(doc_url, save_path):
-                downloaded_files.append(save_path)
+            if self.check_file_size_not_too_large(doc_url):
+                if self.download_document(doc_url, save_path):
+                    downloaded_files.append(save_path)
+            else:
+                # Log dat het zip bestand te groot is
+                print(
+                    f"Bestand is te groot ({doc_url}) en is niet gedownload. "
+                    f"Maximale grootte is {os.getenv('MAX_ZIP_SIZE', 2.5 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024)} GB"
+                )
+                # sla link naar zip bestand op in tekst bestand
+                with open("failed_downloads.txt", "a+") as f:
+                    f.write(f"Bestand te groot: {doc_url}\n")
 
     def __del__(self):
         """
         Destructor to ensure the session is closed.
-
-        Ensures proper cleanup of resources when the object is destroyed.
         """
         try:
             self.session.close()
-        except:
-            pass
+        except AttributeError as e:
+            logging.warning("Session attribute not found in destructor: %s", e)
+        except Exception as e:
+            logging.error("Failed to close session in destructor: %s", e)
 
 
 if __name__ == "__main__":

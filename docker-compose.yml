@@ -1,64 +1,83 @@
-version: '3'
-
 services:
   frontend:
     build:
-      context: ./frontend
+      context: ./wooverzicht-frontend
+      dockerfile: Dockerfile
+      # Dockerfile for frontend is expected to have WORKDIR /app
+      # and use CMD ["streamlit", "run", "app.py"] or similar
     ports:
-      - "127.0.0.1:8501:8501" # Only expose to localhost for security
-    env_file:
-      - ./frontend/.env
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # - ./wooverzicht-frontend:/app
+      - /app/node_modules
+        # Mounts your local ./frontend directory to /app in the container
+        # Assumes /app is the WORKDIR in your frontend/Dockerfile
     environment:
-      - API_URL=http://backend-api:8000
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend-api:8000
     depends_on:
       - backend-api
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 300m
+          memory: 512m
         reservations:
-          memory: 200m
-    mem_limit: 300m
-    memswap_limit: 600m
+          memory: 300m
+    mem_limit: 512m
+    memswap_limit: 1024m
 
   backend-api:
     build:
       context: ./backend
       dockerfile: Dockerfile.api
+      # Dockerfile.api for backend is expected to have WORKDIR /app
     ports:
-      - "127.0.0.1:8000:8000"  # Only expose to localhost for security
+      - "127.0.0.1:8000:8000"
     volumes:
-      - ${PWD}/database:/database
-      - ${PWD}/backend/logging_database.db:/logging_database.db # Persist logging database on host machine
+      - ./backend:/app
+        # Mounts your local ./backend directory to /app in the container
+        # Assumes /app is the WORKDIR in your backend/Dockerfile.api
+      - ./database:/database
+      - ./backend/logging_database.db:/logging_database.db
     env_file:
       - ./backend/.env
     environment:
       - CHROMA_DB_PATH=/database
+      # If your application has specific Python path requirements, you might need:
+      # - PYTHONPATH=/app
+      # This command assumes you are using FastAPI with Uvicorn and your FastAPI app
+      # instance is named 'app' in a file named 'api.py' (i.e., backend/api.py).
+      # Adjust 'api:app' if your file or app instance variable is named differently.
+      # For example, if app is in 'main.py', use 'main:app'.
+      # This overrides any CMD in the Dockerfile or start.sh.
+    command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 500m
+          memory: 4g
         reservations:
-          memory: 300m
-    mem_limit: 500m
-    memswap_limit: 1000m
+          memory: 1g
+    mem_limit: 4g
+    memswap_limit: 8g
 
-  # Pipeline is defined but not started automatically
   backend-pipeline:
+    platform: linux/amd64
     build:
       context: ./backend
       dockerfile: Dockerfile.pipeline
     volumes:
-      - ${PWD}/database:/database
-      - ${PWD}/backend/URLs.txt:/app/URLs.txt # Persist URLs.txt on host machine
+      # If you also want hot-reloading for pipeline development (e.g., if you frequently edit pipeline scripts):
+      # - ./backend:/app # Assumes /app is the WORKDIR in your backend/Dockerfile.pipeline
+      - ./database:/database
+      - ./backend/URLs.txt:/app/URLs.txt # Ensure this path is correct if /app is the WORKDIR
+      - ./backend/failed_downloads.txt:/app/failed_downloads.txt # Persist failed (i.e. too large) downloads on host machine
     env_file:
       - ./backend/.env
     environment:
       - CHROMA_DB_PATH=/database
-    # No automatic execution - will only run when explicitly called
-    profiles: ["manual"]
+    profiles: [ "manual" ]
     deploy:
       resources:
         limits:
