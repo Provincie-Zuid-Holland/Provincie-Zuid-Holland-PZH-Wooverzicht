@@ -186,6 +186,9 @@ This application is split up in three main components. These components have bee
    - Updates the vector database
    - Only runs when explicitly/manually triggered
 
+A summary of this architecture and an overview of the interactions between components is shown in the image below.
+<img src="./diagrams/architecture_diagram.svg" alt="architecture diagram"/>
+
 ### Key Benefits of This Architecture
 
 1. **Complete Separation**: The pipeline container doesn't interfere with the API service. This means you can update the database seperately from the application.
