@@ -11,7 +11,7 @@ backend_files = [
     "backend",
     "check.py",
 ]  # Add non-frontend files that are not in the backend directory here
-frontend_files = ["frontend"]
+frontend_files = ["wooverzicht-frontend"]
 
 
 @dataclass
