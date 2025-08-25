@@ -572,12 +572,6 @@ class Scraper:
         """
         print(f"\n{'='*80}\nProcessing document {index}: {url}\n{'='*80}")
 
-        # # Check if zip file already exists
-        # zip_path = os.path.join(self.base_download_dir, f"woo-{index}.zip")
-        # if os.path.exists(zip_path):
-        #     print(f"Zip file woo-{index}.zip already exists")
-        #     return
-
         html_content = self.fetch_html(url)
         if not html_content:
             print(f"Could not retrieve content for {url}")
@@ -591,10 +585,6 @@ class Scraper:
         doc_links = self.find_documents(html_content, url)
         if not doc_links:
             print("No documents found")
-            # # Create a minimal zip with just metadata
-            # with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-            #     zipf.write(metadata_path, os.path.basename(metadata_path))
-            # print(f"Zip file created with metadata only: {zip_path}")
             return
 
         print(f"{len(doc_links)} document(s) found to download")
@@ -603,15 +593,6 @@ class Scraper:
         downloaded_files = []
         # skipped_files = []
         for doc_url, filename in doc_links:
-            # is_downloaded, existing_zip = self._is_file_downloaded(
-            #     filename, doc_url
-            # )
-            # if is_downloaded:
-            #     print(
-            #         f"File {filename} has already been downloaded in {existing_zip}"
-            #     )
-            #     skipped_files.append((filename, existing_zip))
-            #     continue
 
             save_path = os.path.join(temp_dir, filename)
             if self.check_file_size_not_too_large(doc_url):
@@ -626,19 +607,6 @@ class Scraper:
                 # sla link naar zip bestand op in tekst bestand
                 with open("failed_downloads.txt", "a+") as f:
                     f.write(f"Bestand te groot: {doc_url}\n")
-
-        # # Create a zip file with metadata and any files
-        # with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        #     # Add metadata
-        #     zipf.write(metadata_path, os.path.basename(metadata_path))
-
-        #     # Add new files
-        #     for file_path in downloaded_files:
-        #         zipf.write(file_path, os.path.basename(file_path))
-
-        # print(f"Zip file created: woo-{index}.zip")
-        # print(f"Number of new files: {len(downloaded_files)}")
-        # print(f"Number of skipped files: {len(skipped_files)}")
 
     def __del__(self):
         """
