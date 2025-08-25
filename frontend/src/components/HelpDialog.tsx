@@ -227,17 +227,12 @@ export default function HelpDialog({ open, onClose }: HelpDialogProps) {
                         <Box component="ul" sx={{ ml: 2, "& li": { mb: 0.5 } }}>
                             <li>
                                 <Typography variant="body1">
-                                    Te voorkomen dat je dubbel werk doet
+                                    Vage en technische documenttitels te omzeilen.
                                 </Typography>
                             </li>
                             <li>
                                 <Typography variant="body1">
-                                    Je verzoek preciezer en gerichter te formuleren
-                                </Typography>
-                            </li>
-                            <li>
-                                <Typography variant="body1">
-                                    Sneller toegang te krijgen tot reeds openbaar gemaakte informatie
+                                    Erachter te komen of informatie al openbaar is gemaakt.
                                 </Typography>
                             </li>
                         </Box>
