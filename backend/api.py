@@ -73,15 +73,18 @@ class Source(BaseModel):
 
 
 class RetrieveDocsDict(TypedDict, total=False):
-    """Type definition for dictionary structure when retrieving documents."""
+    """Type definition for dictionary structure when retrieving documents.
+
+    Elements that should be in the dict:
+        - query: str
+        - filters: dict | None --> Optional field for additional filters. Elements that should be in the filters dict (if provided):
+            - provinces: List[str] | None  -->  Optional field for provinces used in filtering
+            - startDate: str  -->  Field for start date in YYYY-MM-DD format
+            - endDate: str  -->  Field for end date in YYYY-MM-DD format
+    """
 
     query: str
-    filters: (
-        dict | None
-    )  # Optional field for additional filters. Elements that should be in the dict:
-    # provinces: List[str] | None  # Optional field for provinces used in filtering
-    # startDate: str  # Field for start date in YYYY-MM-DD format
-    # endDate: str  # Field for end date in YYYY-MM-DD format
+    filters: dict | None
 
 
 # API endpoint to add to your FastAPI app
