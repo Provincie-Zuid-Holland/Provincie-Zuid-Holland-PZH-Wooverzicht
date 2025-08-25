@@ -10,8 +10,9 @@ _**Prerequisites: Docker, openAI API key**_
 
 1. Clone the repository
 2. Copy `.env.example` to `.env` and fill required fields
-3. Run `docker-compose up -d --build`
-4. Visit <http://localhost:3000>
+3. Create an empty file `URLs.txt` in `backend` (e.g. by running `touch backend/URLs.txt` from the root of the project)
+4. Run `docker-compose up -d --build`
+5. Visit <http://localhost:3000>
 
 ## Project Structure
 
@@ -86,19 +87,23 @@ Project_root
    - Copy `.env.example` to `.env` in the backend folder
    - Fill in your OpenAI API key and other configuration settings
 
-2. **Build the vector database if none exists/update the vector database**
+2. **Ensure an empty `URLs.txt` file exists**
+   - Create an empty file `URLs.txt` in `backend` (e.g. by running `touch backend/URLs.txt` from the root of the project)
+      - This will be used by the pipeline process to keep track of what requests have already been processed
+
+3. **Build the vector database if none exists/update the vector database**
 
    ```bash
    docker-compose up -d --build backend-pipeline
    ```
 
-3. **Build and start the main services**
+4. **Build and start the main services**
 
    ```bash
    docker-compose up -d --build
    ```
 
-4. **Access the application (locally)**
+5. **Access the application (locally)**
    - Frontend: <http://localhost:3000>
    - Backend API: <http://localhost:8000>
 
