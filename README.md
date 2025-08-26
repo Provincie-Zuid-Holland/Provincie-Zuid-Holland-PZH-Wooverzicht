@@ -10,27 +10,23 @@ _**Prerequisites: Docker, openAI API key**_
 
 1. Clone the repository
 2. Copy `.env.example` to `.env` and fill required fields
-3. Run `docker-compose up -d --build`
-4. Visit <http://localhost:3000>
+3. Create an empty file `URLs.txt` in `backend` (e.g. by running `touch backend/URLs.txt` from the root of the project)
+4. Run `docker-compose up -d --build`
+5. Visit <http://localhost:3000>
 
 ## Project Structure
 
-This repository is split into two main directories: `backend/` and `Wooverzicht-frontend/`. The `backend/` folder contains all files relevant to the backend of the application running on the server. `backend/api.py` contains all api functions for the frontend to communicate with the backend. The backend folder also contains all files related to building and updating the database. The main script that handles all logic for updating the vector database can be found at `backend/pipeline.py`. the `backend/data_scraping/` folder containts all relevant scripts for crawling and scraping province websites.
+This repository is split into two main directories: `backend/` and `frontend/`. The `backend/` folder contains all files relevant to the backend of the application running on the server. `backend/api.py` contains all api functions for the frontend to communicate with the backend. The backend folder also contains all files related to building and updating the database. The main script that handles all logic for updating the vector database can be found at `backend/pipeline.py`. the `backend/data_scraping/` folder containts all relevant scripts for crawling and scraping province websites.
 Below, a file tree of the project can be found:
 
 ```bash
 Project_root
-├── Dockerfile.dbcheck                  # Docker container for database health checks, unused at the moment
-├── README.md                           # Project documentation
 ├── backend/                            # Backend services and data processing
-│   ├── Dockerfile.api                  # Docker container for FastAPI backend
-│   ├── Dockerfile.pipeline             # Docker container for data pipeline
-│   ├── URLs.txt                        # List of tracked URLs for crawling
-│   ├── api.py                          # FastAPI backend service
 │   ├── .env                            # environment file for the backend
+│   ├── .env.example                    # example environment file for the backend
+│   ├── api.py                          # FastAPI backend service
 │   ├── chromadb_query.py               # ChromaDB vector database query interface
 │   ├── config.py                       # Configuration settings and environment variables
-│   ├── conversational_rag.py           # RAG (Retrieval Augmented Generation) system
 │   ├── createdb.py                     # Database initialization script
 │   ├── data_scraping/                  # Province-specific web scraping modules
 │   │   ├── flevoland_crawler.py        # OUTDATED: Flevoland province website crawler
@@ -42,7 +38,10 @@ Project_root
 │   │   ├── overijssel_crawler.py       # OUTDATED: Overijssel province website crawler
 │   │   ├── overijssel_scraper.py       # OUTDATED: Overijssel province data scraper
 │   │   ├── zuidholland_crawler.py      # Zuid-Holland province website crawler
-│   │   └── zuidholland_scraper.py      # Zuid-Holland province data scraper
+│   │   └── zuidholland_scraper.py      # Zuid-Holland province data scraper]
+│   ├── Dockerfile.api                  # Docker container for FastAPI backend
+│   ├── Dockerfile.pipeline             # Docker container for data pipeline
+│   ├── document_retriever.py           # Retrieval of documents in database based on query
 │   ├── extract.py                      # Document text extraction and processing
 │   ├── failed_downloads.txt            # Log of failed download attempts
 │   ├── healthcheck.py                  # System health monitoring
@@ -51,13 +50,15 @@ Project_root
 │   ├── requirements.api.txt            # Python dependencies for API service
 │   ├── requirements.pipeline.txt       # Python dependencies for pipeline service
 │   ├── requirements.txt                # General Python dependencies
-│   └── start.sh                        # Backend startup script
+│   └── URLs.txt                        # List of already tracked URLs for crawling
 ├── bitbucket-pipelines.yml             # CI/CD pipeline configuration
 ├── check.py                            # System verification script
 ├── database/                           # ChromaDB vector database storage
+├── diagrams/                           # Folder with diagrams used in the README.md
 ├── docker-compose.yml                  # Multi-container Docker orchestration
+├── README.md                           # Project documentation
 ├── requirements.txt                    # Root level Python dependencies
-└── Wooverzicht-frontend/               # Next.js frontend application
+└── frontend/                           # Next.js frontend application
     ├── Dockerfile                      # Frontend container configuration
     ├── README.md                       # Frontend documentation
     ├── eslint.config.mjs               # ESLint code quality configuration
@@ -86,19 +87,23 @@ Project_root
    - Copy `.env.example` to `.env` in the backend folder
    - Fill in your OpenAI API key and other configuration settings
 
-2. **Build the vector database if none exists/update the vector database**
+2. **Ensure an empty `URLs.txt` file exists**
+   - Create an empty file `URLs.txt` in `backend` (e.g. by running `touch backend/URLs.txt` from the root of the project)
+      - This will be used by the pipeline process to keep track of what requests have already been processed
+
+3. **Build the vector database if none exists/update the vector database**
 
    ```bash
    docker-compose up -d --build backend-pipeline
    ```
 
-3. **Build and start the main services**
+4. **Build and start the main services**
 
    ```bash
    docker-compose up -d --build
    ```
 
-4. **Access the application (locally)**
+5. **Access the application (locally)**
    - Frontend: <http://localhost:3000>
    - Backend API: <http://localhost:8000>
 
