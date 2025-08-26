@@ -14,9 +14,6 @@ Key Features:
 Required Environment Variables:
 - OPENAI_API_KEY: Your OpenAI API key
 - Optional: CHUNK_SIZE, CHUNK_OVERLAP, COLLECTION_NAME, EMBEDDING_MODEL, MAX_WORKERS, BATCH_SIZE
-
-Author: [Your name]
-Date: [Date]
 """
 
 import os

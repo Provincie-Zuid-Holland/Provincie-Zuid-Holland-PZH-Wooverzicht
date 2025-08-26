@@ -20,7 +20,7 @@ The workflow:
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """
-    Extract text content from a PDF file and clean it thoroughly for RAG applications.
+    Extract text content from a PDF file and clean it thoroughly for searching applications.
 
     Args:
         pdf_path (str): Path to the PDF file.
@@ -47,7 +47,7 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 
 def extract_text_from_docx(docx_path: str) -> str:
     """
-    Extract text content from a DOCX file and clean it for RAG applications.
+    Extract text content from a DOCX file and clean it for searching applications.
 
     Args:
         docx_path (str): Path to the DOCX file.
@@ -89,7 +89,7 @@ def extract_text_from_docx(docx_path: str) -> str:
 
 def clean_text(text: str) -> str:
     """
-    Clean and standardize extracted text for better RAG processing.
+    Clean and standardize extracted text for better processing.
 
     Args:
         text (str): Raw extracted text.
@@ -188,9 +188,6 @@ def combine_document_and_metadata(folder_path: str, file: str) -> dict:
     Example:
         combined_data = combine_document_and_metadata('/path/to/extracted/folder', 'filename')
     """
-    # Look for PDF and DOCX files
-    # pdf_files = [f for f in os.listdir(folder_path) if f.endswith(".pdf")]
-    # docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx")]
     # Check extentsion of file is pdf or docx. If not raise error
     if file.lower().endswith(".pdf"):
         doc_type = "pdf"
