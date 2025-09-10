@@ -84,34 +84,27 @@ export default function HelpDialog({ open, onClose }: HelpDialogProps) {
                             fontWeight={600}
                             sx={{ mb: 2, color: "primary.main" }}
                         >
-                            Zoeken op soortgelijke termen
+                            Zoeken met een duidelijke zoekopdracht, niet met enkele termen
                         </Typography>
                         <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
-                            In de zoekbalk kun je een trefwoord invoeren (bijv. &ldquo;windmolens&rdquo;,
-                            &ldquo;stikstofbeleid&rdquo;). De zoekmachine vindt niet alleen exacte matches,
-                            maar ook inhoudelijk soortgelijke verzoeken. Zo kun je ontdekken of
-                            anderen eerder een soortgelijk Woo-verzoek hebben opgevraagd, ook als
-                            ze andere woorden gebruikten.
+                            Dankzij slimme AI-technologie zoekt de machine niet met exacte termen,
+                            maar juist op inhoudelijk soortgelijke verzoeken, ook als andere woorden zijn gebruikt.
+                            Het belangrijkste om tijdens jouw zoekopdracht rekening mee te houden is om context te geven.
+                            Voer daarom hele vragen in, zoals je ook bij een andere AI chatbot gebruikt, zoals:
                         </Typography>
+                        <Box sx={{ textAlign: "center", mt: 2, mb: 2 }}>
+                            <Typography variant="body1" sx={{ lineHeight: 1.7, mb: 2 }}>
+                                <i>“Geef mij documenten over het stikstofbeleid die betrekking hebben tot het windmolenpark in Zuid-Holland”</i>
+                            </Typography>
+                            <Typography variant="body1" sx={{ lineHeight: 1.7, mb: 2 }}>
+                                of
+                            </Typography>
+                            <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
+                                <i>“Geef mij documenten over faunaschade met betrekking tot de wolf”</i>.
+                            </Typography>
+                        </Box>
                     </Box>
 
-                    {/* Section: Zoeken op volledig Woo-verzoek */}
-                    <Box sx={{ mb: 4 }}>
-                        <Typography
-                            variant="h6"
-                            component="h3"
-                            fontWeight={600}
-                            sx={{ mb: 2, color: "primary.main" }}
-                        >
-                            Zoeken op volledig Woo-verzoek
-                        </Typography>
-                        <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
-                            Daarnaast kan je in de zoekbalk ook een volledig Woo-verzoek van een
-                            indiener plakken. De zoekmachine vergelijkt jouw zoekopdracht
-                            automatisch met bestaande Woo-verzoeken en -documenten, en toont
-                            overeenkomsten op basis van inhoudelijke gelijkenis.
-                        </Typography>
-                    </Box>
 
                     {/* Section: Filteren */}
                     <Box sx={{ mb: 4 }}>
@@ -130,14 +123,13 @@ export default function HelpDialog({ open, onClose }: HelpDialogProps) {
                         <Box component="ul" sx={{ ml: 2, "& li": { mb: 1 } }}>
                             <li>
                                 <Typography variant="body1">
-                                    <strong>Provincie:</strong> Selecteer één of meerdere provincies
-                                    waarin je geïnteresseerd bent.
+                                    <strong>Provincie:</strong> Selecteer één of meerdere provincies.
                                 </Typography>
                             </li>
                             <li>
                                 <Typography variant="body1">
                                     <strong>Periode:</strong> Stel een begindatum en einddatum in om
-                                    alleen Woo-besluiten binnen een bepaalde tijdspanne te tonen.
+                                    alleen Woo-besluiten binnen een bepaalde tijd te tonen.
                                 </Typography>
                             </li>
                         </Box>
@@ -151,18 +143,17 @@ export default function HelpDialog({ open, onClose }: HelpDialogProps) {
                             fontWeight={600}
                             sx={{ mb: 2, color: "primary.main" }}
                         >
-                            Waarom deze resultaten? Fragmenten uit Woo-documenten
+                            Waarom deze resultaten?
                         </Typography>
                         <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
                             Bij elk zoekresultaat zie je tekstfragmenten uit de Woo-documenten
-                            waar jouw zoekterm of vergelijkbare termen in voorkomen. Je kunt op
-                            een resultaat klikken om te zien waarom het getoond wordt – bijvoorbeeld
-                            een stukje tekst waar jouw onderwerp wordt besproken.
+                            waar jouw zoekterm of vergelijkbare termen in voorkomen. Je ziet dan het
+                            tekstdeel waain jouw onderwerp besproken wordt.
                         </Typography>
                     </Box>
 
                     {/* Section: Gebruik per check */}
-                    <Box sx={{ mb: 4 }}>
+                    {/* <Box sx={{ mb: 4 }}>
                         <Typography
                             variant="h6"
                             component="h3"
@@ -196,7 +187,7 @@ export default function HelpDialog({ open, onClose }: HelpDialogProps) {
                                 </Typography>
                             </li>
                         </Box>
-                    </Box>
+                    </Box> */}
 
                     {/* Section: Resultaten over provincies */}
                     <Box sx={{ mb: 4 }}>
@@ -209,8 +200,7 @@ export default function HelpDialog({ open, onClose }: HelpDialogProps) {
                             Resultaten over vijf provincies heen
                         </Typography>
                         <Typography variant="body1" sx={{ lineHeight: 1.7 }}>
-                            De zoekmachine toont Woo-verzoeken van de provincies Flevoland,
-                            Zuid-Holland, Gelderland, Overijssel en Noord-Brabant.
+                            Let op: Op het moment staan alleen Woo-verzoeken van de provincie Zuid-Holland in de applicatie.
                         </Typography>
                     </Box>
 
@@ -237,17 +227,12 @@ export default function HelpDialog({ open, onClose }: HelpDialogProps) {
                         <Box component="ul" sx={{ ml: 2, "& li": { mb: 0.5 } }}>
                             <li>
                                 <Typography variant="body1">
-                                    Te voorkomen dat je dubbel werk doet
+                                    Vage en technische documenttitels te omzeilen.
                                 </Typography>
                             </li>
                             <li>
                                 <Typography variant="body1">
-                                    Je verzoek preciezer en gerichter te formuleren
-                                </Typography>
-                            </li>
-                            <li>
-                                <Typography variant="body1">
-                                    Sneller toegang te krijgen tot reeds openbaar gemaakte informatie
+                                    Erachter te komen of informatie al openbaar is gemaakt.
                                 </Typography>
                             </li>
                         </Box>

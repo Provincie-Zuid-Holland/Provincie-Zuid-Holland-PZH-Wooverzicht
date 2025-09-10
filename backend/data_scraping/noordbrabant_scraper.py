@@ -291,10 +291,6 @@ class Scraper:
         download_id = url[
             url.rindex("/") + 1 :
         ]  # Get unique ID after last slash in url "e.g. https://open.brabant.nl/woo-verzoeken/e661cfe8-5f7a-49d5-8cf3-c8bcb65309d8"
-        # zip_path = os.path.join(self.base_download_dir, f"woo-{download_id}.zip")
-        # if os.path.exists(zip_path):
-        #     print(f"Zip file woo-{download_id}.zip already exists")
-        #     return
 
         html_content = self.fetch_html(url)
         if not html_content:
@@ -314,11 +310,6 @@ class Scraper:
         # Download files to temp directory
         _ = self.download_files(download_url, payload, temp_dir)
 
-        # # Create zip file with metadata and downloaded files
-        # with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        #     # Add metadata file
-        #     zipf.write(metadata_path, arcname="metadata.txt")
-
         # Move all downloaded files (where in subdirectory `extracted_files`) to the temp directory
         for root, dirs, files in os.walk(temp_dir):
             for file in files:
@@ -333,20 +324,6 @@ class Scraper:
 
         except Exception as e:
             print(f"Error removing files: {e}")
-
-        # # Add all files to the zip
-        # extract_dir = os.path.join(temp_dir, "extracted_files")
-        # if download_success and os.path.exists(extract_dir):
-        #     for root, dirs, files in os.walk(extract_dir):
-        #         for file in files:
-        #             file_path = os.path.join(root, file)
-        #             # Calculate relative path for the archive
-        #             arcname = os.path.relpath(file_path, extract_dir)
-        #             # Add file to the zip
-        #             zipf.write(file_path, arcname=arcname)
-        #             print(f"Added to zip: {arcname}")
-
-        # print(f"Zip file created: {zip_path}")
 
     def __del__(self):
         """

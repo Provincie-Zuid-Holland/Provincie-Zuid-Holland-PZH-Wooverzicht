@@ -1,17 +1,12 @@
 services:
   frontend:
     build:
-      context: ./wooverzicht-frontend
+      context: ./frontend
       dockerfile: Dockerfile
-      # Dockerfile for frontend is expected to have WORKDIR /app
-      # and use CMD ["streamlit", "run", "app.py"] or similar
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      # - ./wooverzicht-frontend:/app
       - /app/node_modules
-        # Mounts your local ./frontend directory to /app in the container
-        # Assumes /app is the WORKDIR in your frontend/Dockerfile
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://backend-api:8000
@@ -31,7 +26,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.api
-      # Dockerfile.api for backend is expected to have WORKDIR /app
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -44,13 +38,6 @@ services:
       - ./backend/.env
     environment:
       - CHROMA_DB_PATH=/database
-      # If your application has specific Python path requirements, you might need:
-      # - PYTHONPATH=/app
-      # This command assumes you are using FastAPI with Uvicorn and your FastAPI app
-      # instance is named 'app' in a file named 'api.py' (i.e., backend/api.py).
-      # Adjust 'api:app' if your file or app instance variable is named differently.
-      # For example, if app is in 'main.py', use 'main:app'.
-      # This overrides any CMD in the Dockerfile or start.sh.
     command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     deploy:
@@ -68,7 +55,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.pipeline
     volumes:
-      # If you also want hot-reloading for pipeline development (e.g., if you frequently edit pipeline scripts):
+      # If you want hot-reloading for pipeline development:
       # - ./backend:/app # Assumes /app is the WORKDIR in your backend/Dockerfile.pipeline
       - ./database:/database
       - ./backend/URLs.txt:/app/URLs.txt # Ensure this path is correct if /app is the WORKDIR
