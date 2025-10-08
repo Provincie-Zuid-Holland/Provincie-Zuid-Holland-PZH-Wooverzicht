@@ -96,6 +96,18 @@ def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
         raise
 
 
+def log_failed_download(url: str, error: Exception) -> None:
+    """
+    Logs failed download attempts to a file.
+
+    Args:
+        url (str): The URL that failed to download.
+        error (Exception): The exception that was raised during the download attempt.
+    """
+    with open("failed_downloads.txt", "a+") as f:
+        f.write(f"Failed to download: {url}: {error}\n")
+
+
 def execute_pipeline() -> None:
     """
     Main program that integrates Crawler and Scraper for all supported provinces.
@@ -142,8 +154,13 @@ def execute_pipeline() -> None:
                         for combined_data in combined_data_list:
                             db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
                         print("")
+                except RuntimeError as fe:
+                    print(f"Fetch error for URL {url}: {fe}")
+                    log_failed_download(url, fe)
+                    continue
                 except Exception as e:
                     print(f"Error processing URL {url}: {e}")
+                    log_failed_download(url, e)
                     continue
 
             print("\nProcessing complete!")
