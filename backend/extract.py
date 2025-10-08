@@ -162,7 +162,7 @@ def read_metadata_file(metadata_path: str) -> dict:
             if key in int_fields:
                 try:
                     metadata[key] = int(value)  # Convert to integer if applicable
-                    print(f"Converted {key} to integer: {metadata[key]}")
+                    # print(f"Converted {key} to integer: {metadata[key]}")
                 except ValueError:
                     metadata[key] = value
             else:
