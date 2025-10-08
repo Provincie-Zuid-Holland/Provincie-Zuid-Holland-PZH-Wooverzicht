@@ -243,7 +243,7 @@ class Scraper:
                 file_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download-zip/{zip_id}"
                 print(f"Constructed file URL: {file_url}")
 
-                # ✅ Enable streaming for large downloads
+                # Enable streaming for large downloads
                 file_response = requests.get(file_url, stream=True)
                 if file_response.status_code == 200:
                     # Save the downloaded zip file to the temp directory
