@@ -1,9 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, unquote
 import sys
 import logging
-
+from flevoland_scraper import Scraper
 
 class Crawler:
     """
@@ -171,6 +171,73 @@ class Crawler:
 
         return archive_urls
 
+    def remove_duplicates(self, urls: list) -> list:
+        """
+        Removes duplicate URLs from a list while preserving order.
+        The problem is that the example URLs lead to the same Woo-verzoek, yet they have different URLS. Therefore we check if the string after the last "/" character is the same.
+        
+        Example URLs:
+        https://www.flevoland.nl/loket/openbare-documenten/overzicht-openbare-documenten/woo-verzoek-netwerkschade-te-luttelgeest,-oosterri
+        https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Overzicht-openbare-documenten/Woo-verzoek-netwerkschade-te-Luttelgeest,-Oosterri
+
+        Args:
+            urls (list): The list of URLs to process
+
+        Returns:
+            list: A list of unique URLs
+
+        Example:
+            unique_urls = crawler.remove_duplicates(urls)
+            print(f"Reduced to {len(unique_urls)} unique URLs")
+        """
+        seen = set() # Set of seen unique identifiers
+        unique_urls = []
+        for url in urls:
+            clean_url = url
+            if url[-1] == "/":
+                clean_url = url[:-1] # Remove trailing slash if present
+            ident = clean_url.rsplit("/", 1)[-1].lower() # Grab everything after the last "/"
+            if ident not in seen:
+                unique_urls.append(url)
+                seen.add(ident)
+            else:
+                self.log(f"Duplicate found and removed: {ident} for URL {url}")
+        return unique_urls
+
+    def get_titles_for_links(self, url: str) -> str:
+        """
+        Fetches the page title for each URL.
+
+        Args:
+            urls (list): List of document URLs.
+
+        Returns:
+            dict: Mapping of URL to page title.
+        """
+        titles = {}
+
+        try:
+                
+            response = self.session.get(url, headers=self.headers, timeout=15)
+            response.raise_for_status()
+            html = response.text
+            if "archiefweb.eu" in url:
+                html = Scraper.fetch_html_with_selenium(Scraper, url)
+            soup = BeautifulSoup(html, "html.parser")
+
+            # Probeer eerst <h1>, anders <title>
+            title_tag = soup.find("h1") or soup.find("title")
+            title = title_tag.get_text(strip=True) if title_tag else "Geen titel gevonden"
+
+            # titles[url] = title
+            self.log(f"✓ Titel gevonden voor {url}: {title}")
+
+        except Exception as e:
+            self.log(f"⚠️ Fout bij ophalen titel voor {url}: {e}")
+            return "X"
+
+        return title
+
     def get_links(self) -> list:
         """
         Main function for collecting document links by crawling pages.
@@ -222,7 +289,8 @@ class Crawler:
                 all_links = all_links[: self.max_urls]
 
             self.log(f"Final URL count: {len(all_links)}")
-            return all_links
+            all_uniq_links = self.remove_duplicates(all_links)
+            return all_uniq_links
 
         except Exception as e:
             self.log(f"Error during crawling: {e}")
@@ -264,7 +332,8 @@ class Crawler:
 
             # Update the URLs.txt file with the new links
             for link in new_links:
-                f.write(f"{link}\n")
+                title = self.get_titles_for_links(link)  # Fetch and log titles for new links
+                f.write(f"{title}: {link}\n")
 
         return new_links
 
@@ -308,7 +377,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Command line arguments
-    max_urls = 1000
+    max_urls = 10000
     if len(sys.argv) > 1:
         try:
             max_urls = int(sys.argv[1])
@@ -323,6 +392,7 @@ if __name__ == "__main__":
         urls = crawler.get_new_links()
         crawler.print_results(urls)
         print(f"\nFinal count: {len(urls)} (new) URLs collected")
+        print(crawler.is_woo_document_url("https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-actueel/Woo-verzoek-over-de-luchthaven-Lelystad"))
     except KeyboardInterrupt:
         print("\nCrawling interrupted by user")
     except Exception as e:
