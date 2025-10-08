@@ -140,7 +140,7 @@ class Scraper:
             metadata["publiekssamenvatting"] = self._extract_publiekssamenvatting(soup)
 
             # datum
-            date_strong = soup.select_one('strong:contains("Publicatiedatum")')
+            date_strong = soup.select_one('strong:-soup-contains("Publicatiedatum")')
 
             if date_strong:
                 # Get the parent div
@@ -152,7 +152,7 @@ class Scraper:
                     d = dateparser.parse(date_span.text).replace(tzinfo=timezone.utc)
                     metadata["datum"] = int(d.timestamp())
 
-            categorie_strong = soup.select_one('strong:contains("Categorie")')
+            categorie_strong = soup.select_one('strong:-soup-contains("Categorie")')
 
             if categorie_strong:
                 # Get the parent div
