@@ -294,8 +294,7 @@ class Scraper:
 
         html_content = self.fetch_html(url)
         if not html_content:
-            print(f"Could not retrieve content for {url}")
-            return
+            raise RuntimeError(f"Could not retrieve content for {url}")
 
         metadata = self.generate_metadata(html_content, url)
         _ = self.create_metadata_file(metadata, temp_dir)

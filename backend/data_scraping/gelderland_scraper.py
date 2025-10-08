@@ -273,8 +273,7 @@ class Scraper:
 
         html_content = self.fetch_html(url)
         if not html_content:
-            print(f"Kon geen content ophalen voor {url}")
-            return
+            raise RuntimeError(f"Could not retrieve content for {url}")
 
         # Genereer en sla metadata op
         metadata = self.generate_metadata(html_content, url)
