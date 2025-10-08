@@ -224,7 +224,14 @@ class Scraper:
                 )
                 response.raise_for_status()
                 if response.status_code == 200:
-                    z = zipfile.ZipFile(io.BytesIO(response.content))
+                    # Stream response into memory using BytesIO
+                    buffer = io.BytesIO()
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            buffer.write(chunk)
+                    buffer.seek(0)
+
+                    z = zipfile.ZipFile(buffer)
                     z.extractall(save_path)
                     print(
                         f"Zip bestand succesvol gedownload naar: {os.path.basename(save_path)}"
