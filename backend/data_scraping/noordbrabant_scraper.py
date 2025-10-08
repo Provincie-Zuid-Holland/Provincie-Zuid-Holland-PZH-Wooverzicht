@@ -243,12 +243,15 @@ class Scraper:
                 file_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download-zip/{zip_id}"
                 print(f"Constructed file URL: {file_url}")
 
-                file_response = requests.get(file_url)
+                # ✅ Enable streaming for large downloads
+                file_response = requests.get(file_url, stream=True)
                 if file_response.status_code == 200:
                     # Save the downloaded zip file to the temp directory
                     temp_zip_path = os.path.join(temp_dir, "downloaded_files.zip")
                     with open(temp_zip_path, "wb") as file:
-                        file.write(file_response.content)
+                        for chunk in file_response.iter_content(chunk_size=8192):
+                            if chunk:
+                                file.write(chunk)
 
                     # Create a directory to extract the files
                     extract_dir = os.path.join(temp_dir, "extracted_files")
@@ -266,7 +269,9 @@ class Scraper:
                         with open(
                             os.path.join(extract_dir, "downloaded_file"), "wb"
                         ) as f:
-                            f.write(file_response.content)
+                            for chunk in file_response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
                         print("Saved raw downloaded file")
                         return True
                 else:
@@ -341,7 +346,7 @@ if __name__ == "__main__":
 
     # Example document URL (replace with actual URL)
     EXAMPLE_DOC_URL = (
-        "https://open.brabant.nl/woo-verzoeken/457b0102-8db1-433c-a958-10c5491c6945"
+        "https://open.brabant.nl/woo-verzoeken/844b47f8-4a64-4ea2-aee0-87974ea0f760"
     )
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
