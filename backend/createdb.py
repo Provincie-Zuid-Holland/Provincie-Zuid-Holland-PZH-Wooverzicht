@@ -26,10 +26,10 @@ from config import JSON_FOLDER
 from openai import OpenAI
 from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import chromadb
-from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
 from db_scripts.chromadb import ChromaDB_database
+import numpy as np
+from types import SimpleNamespace  # TODO remove later
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -57,6 +57,21 @@ BATCH_SIZE = int(
 # List of field names that might contain the main document content
 # Add more field names here if your JSON uses different keys
 CONTENT_FIELDS = ["content", "pdf_content", "text", "body", "main_content"]
+
+
+def generate_fake_embeddings(texts: list[str], dim: int = 768):  # TODO remove later
+    """
+    Generates fake embeddings for a list of texts, mimicking OpenAI's response format.
+
+    Args:
+        texts (list[str]): List of input texts.
+        dim (int): Dimension of the embedding vector.
+
+    Returns:
+        SimpleNamespace: Mimics OpenAI's response object with a `.data` attribute.
+    """
+    fake_data = [SimpleNamespace(embedding=np.random.rand(dim).tolist()) for _ in texts]
+    return SimpleNamespace(data=fake_data)
 
 
 @dataclass
@@ -424,9 +439,12 @@ class DocumentProcessor:
                 batch = chunks[i : i + BATCH_SIZE]
                 try:
                     # Generate embeddings for the batch
-                    response = self.client.embeddings.create(
-                        model=EMBEDDING_MODEL, input=[chunk.content for chunk in batch]
-                    )
+                    # response = self.client.embeddings.create(
+                    #     model=EMBEDDING_MODEL, input=[chunk.content for chunk in batch]
+                    # )
+                    response = generate_fake_embeddings(
+                        [chunk.content for chunk in batch]
+                    )  # TODO remove later
 
                     # Create EmbeddedChunk objects with the results
                     for idx, embedding_data in enumerate(response.data):
