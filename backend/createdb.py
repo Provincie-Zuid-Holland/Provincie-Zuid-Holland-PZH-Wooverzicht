@@ -53,10 +53,6 @@ BATCH_SIZE = int(
     os.getenv("BATCH_SIZE", 100)
 )  # Batch size for API calls and DB operations
 
-# List of field names that might contain the main document content
-# Add more field names here if your JSON uses different keys
-CONTENT_FIELDS = ["content", "pdf_content", "text", "body", "main_content"]
-
 
 @dataclass
 class ChunkData:
