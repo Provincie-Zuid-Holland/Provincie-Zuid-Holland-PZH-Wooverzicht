@@ -218,9 +218,27 @@ class Scraper:
                 f.write(f"{key}: {value}\n")
         return metadata_path
 
+    def check_zip_size_not_too_large(self, url: str) -> bool:
+        """
+        Checkt de grootte van het zip bestand. Heeft de file URLs nodig naar de echte download van het zip bestand.
+        """
+        try:  # Make the HEAD request with the required headers and payload
+
+            response = requests.head(url)
+            file_size = int(response.headers.get("content-length", 0))
+            # Load max size from .env
+            max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
+            if file_size > max_size:
+                print(f"Zip bestand is te groot ({file_size / (1024 * 1024):.2f} MB)")
+                return False
+            return True
+        except Exception as e:
+            print(f"Fout bij controleren zip bestand grootte: {e}")
+            return False
+
     def download_files(self, url, payload, temp_dir):
         """
-        Downloads files using the API and extracts them to the temporary directory.
+        Downloads zip file using the API and extracts the files in the zip to the temporary directory.
 
         Args:
             url (str): The API URL to download files
@@ -242,6 +260,9 @@ class Scraper:
                 # Construct the URL to download the file using the zipId
                 file_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download-zip/{zip_id}"
                 print(f"Constructed file URL: {file_url}")
+
+                if not self.check_zip_size_not_too_large(file_url):
+                    raise RuntimeError("Zip file is too large to download")
 
                 # Enable streaming for large downloads
                 file_response = requests.get(file_url, stream=True)
