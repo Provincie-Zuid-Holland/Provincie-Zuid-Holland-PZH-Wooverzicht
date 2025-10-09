@@ -29,6 +29,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
+from dotenv import load_dotenv
+
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -37,6 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load configuration from environment variables with sensible defaults
+load_dotenv()
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1200))  # Size of text chunks for processing
 CHUNK_OVERLAP = int(
     os.getenv("CHUNK_OVERLAP", 50)
