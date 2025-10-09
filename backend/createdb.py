@@ -29,6 +29,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
+from db_scripts.chromadb import ChromaDB_database
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -121,12 +122,8 @@ class DocumentProcessor:
         # Initialize ChromaDB with persistent storage
         db_path = os.environ.get("CHROMA_DB_PATH", "database")
         logger.info(f"Using ChromaDB path: {db_path}")
-        self.chroma_client = chromadb.PersistentClient(
-            path=db_path,  # Use environment variable
-            settings=Settings(
-                anonymized_telemetry=False,  # Disable usage tracking
-                allow_reset=False,  # Prevent accidental database resets
-            ),
+        self.db = ChromaDB_database(
+            collection_name=COLLECTION_NAME, database_path=db_path
         )
 
     def flatten_json(self, prefix: str, obj: Dict) -> Dict[str, Any]:
@@ -451,37 +448,17 @@ class DocumentProcessor:
 
         return embedded_chunks
 
-    def load_embedded_chunks_to_chromadb(
+    def load_embedded_chunks_to_db(
         self,
         embedded_chunks: List[EmbeddedChunk],
-        collection_name: str = COLLECTION_NAME,
     ) -> None:
         """
-        Stores embedded chunks in ChromaDB for later retrieval.
+        Stores embedded chunks in DB for later retrieval.
 
         Args:
             embedded_chunks (List[EmbeddedChunk]): List of chunks with embeddings to store.
-            collection_name (str): Name of the ChromaDB collection to use.
         """
-        # Get or create the collection
-        collection = self.chroma_client.get_or_create_collection(name=collection_name)
-
-        # Add chunks to database in batches
-        for i in range(0, len(embedded_chunks), BATCH_SIZE):
-            batch = embedded_chunks[i : i + BATCH_SIZE]
-            try:
-                collection.add(
-                    documents=[chunk.content for chunk in batch],  # The text content
-                    embeddings=[
-                        chunk.embedding for chunk in batch
-                    ],  # The embedding vectors
-                    metadatas=[chunk.metadata for chunk in batch],  # All metadata
-                    ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
-                )
-                logger.info(f"Loaded batch {i//BATCH_SIZE + 1} into ChromaDB")
-            except Exception as e:
-                logger.error(f"Error loading batch to ChromaDB: {e}")
-                continue
+        self.db.add_embeddings(embedded_chunks)
 
 
 def db_pipeline(data):
@@ -522,7 +499,7 @@ def db_pipeline(data):
 
         # Step 3: Store in database
         logger.info("Loading embedded chunks into ChromaDB...")
-        processor.load_embedded_chunks_to_chromadb(embedded_chunks)
+        processor.load_embedded_chunks_to_db(embedded_chunks)
 
         logger.info("Processing completed successfully!")
 
