@@ -1,5 +1,4 @@
-from base import VectorDatabase
-from createdb import EmbeddedChunk
+from .base import VectorDatabase
 import os
 import logging
 import time
@@ -33,7 +32,7 @@ class ChromaDB_database(VectorDatabase):
         )
         self.collection = self.client.get_or_create_collection(name=collection_name)
 
-    def add_embeddings(self, embedded_chunks: list[EmbeddedChunk]):
+    def add_embeddings(self, embedded_chunks: list):
         """
         Add embeddings to the ChromaDB collection.
 
