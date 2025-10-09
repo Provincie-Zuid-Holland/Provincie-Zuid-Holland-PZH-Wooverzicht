@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any
 from chromadb_query import ChromadbQuery
+from db_scripts.chromadb import ChromaDB_database
 
 # Set up logging
 logging.basicConfig(
@@ -29,7 +30,7 @@ class DocumentRetriever:
         Args:
             max_context_chunks (int): Maximum number of context chunks to retrieve.
         """
-        self.query_engine = ChromadbQuery()
+        self.db = ChromaDB_database()  # TODO: pass collection name and path
         self.max_context_chunks = max_context_chunks
 
     def generate_metadata_filter(
@@ -109,7 +110,7 @@ class DocumentRetriever:
             )
             logger.info(f"Using metadata filter: {meta_filter}")
             # Search for relevant chunks
-            context_chunks = self.query_engine.search(
+            context_chunks = self.db.query(
                 query=query,
                 limit=self.max_context_chunks,
                 min_relevance_score=0.52,
