@@ -1,4 +1,5 @@
 """
+DEPRACTED: Use db_scripts/chromadb.py instead.
 ChromaDB Query Module
 
 This module provides functionality to search and retrieve documents from the ChromaDB vector database.
