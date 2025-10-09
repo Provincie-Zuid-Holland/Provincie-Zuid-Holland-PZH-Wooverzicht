@@ -3,6 +3,7 @@ import logging
 from typing import List, Dict, Any
 from chromadb_query import ChromadbQuery
 from db_scripts.chromadb import ChromaDB_database
+import os
 
 # Set up logging
 logging.basicConfig(
@@ -30,7 +31,11 @@ class DocumentRetriever:
         Args:
             max_context_chunks (int): Maximum number of context chunks to retrieve.
         """
-        self.db = ChromaDB_database()  # TODO: pass collection name and path
+        db_path = os.environ.get("CHROMA_DB_PATH")
+        collection_name = os.getenv("COLLECTION_NAME", "document_chunks")
+        self.db = ChromaDB_database(
+            collection_name, db_path
+        )  # TODO: pass collection name and path
         self.max_context_chunks = max_context_chunks
 
     def generate_metadata_filter(
