@@ -33,11 +33,7 @@ class ChromaDB_database(VectorDatabase):
         )
         self.collection = self.client.get_or_create_collection(name=collection_name)
 
-    def add_embeddings(
-        self,
-        embedded_chunks: list[EmbeddedChunk],
-        collection_name: str,
-    ):
+    def add_embeddings(self, embedded_chunks: list[EmbeddedChunk]):
         """
         Add embeddings to the ChromaDB collection.
 
@@ -49,7 +45,6 @@ class ChromaDB_database(VectorDatabase):
 
         Args:
             embedded_chunks (List[EmbeddedChunk]): List of chunks with embeddings to store.
-            collection_name (str): Name of the ChromaDB collection to use.
         """
 
         # Add chunks to database in batches
