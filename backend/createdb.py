@@ -25,7 +25,7 @@ import logging
 from config import JSON_FOLDER
 from openai import OpenAI
 from dotenv import load_dotenv
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
@@ -204,7 +204,7 @@ class DocumentProcessor:
 
         if not content:
             logger.warning(
-                f"No content field found in {data["pdf_file"]}. "
+                f"No content field found in {data['pdf_file']}. "
                 f"Available fields: {list(data.keys())}"
             )
 
