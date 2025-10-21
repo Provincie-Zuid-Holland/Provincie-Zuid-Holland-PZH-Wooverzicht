@@ -25,12 +25,12 @@ import logging
 from config import JSON_FOLDER
 from openai import OpenAI
 from dotenv import load_dotenv
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
 from dotenv import load_dotenv
-
+import random
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -406,6 +406,39 @@ class DocumentProcessor:
                 continue
 
         return all_chunks
+    
+    def fake_embed_chunks(self, chunks: List[ChunkData]) -> List[EmbeddedChunk]:
+        """
+        Generates fake embeddings for chunks using random vectors.
+
+        Args:
+            chunks (List[ChunkData]): List of chunks to embed.
+
+        Returns:
+            List[EmbeddedChunk]: List of chunks with their embedding vectors.
+        """
+        embedded_chunks = []
+
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = []
+            for chunk in chunks:
+                futures.append(executor.submit(
+                    lambda c=chunk: EmbeddedChunk(
+                        chunk_id=c.chunk_id,
+                        content=c.content,
+                        metadata=c.metadata,
+                        embedding=[random.random() for _ in range(1536)]
+                    )
+                ))
+
+            for future in futures:
+                try:
+                    embedded_chunks.append(future.result())
+                except Exception as e:
+                    logger.error(f"Error generating fake embedding: {e}")
+
+        logger.info(f"Generated fake embeddings for {len(embedded_chunks)} chunks")
+        return embedded_chunks
 
     def embed_chunks(self, chunks: List[ChunkData]) -> List[EmbeddedChunk]:
         """
@@ -513,7 +546,7 @@ def db_pipeline(data):
 
         # Step 2: Generate embeddings
         logger.info("Embedding chunks using OpenAI embeddings...")
-        embedded_chunks = processor.embed_chunks(chunks)
+        embedded_chunks = processor.fake_embed_chunks(chunks)
 
         if not embedded_chunks:
             logger.error("No embeddings were created. Exiting.")
