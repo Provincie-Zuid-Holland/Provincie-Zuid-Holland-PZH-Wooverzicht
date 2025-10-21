@@ -73,10 +73,23 @@ class Scraper:
         options.add_argument("--window-size=1920,1080")
 
         # Use binary location to point to installed Chrome
-        options.binary_location = "/usr/bin/google-chrome"
+        # options.binary_location = "/usr/bin/google-chrome"
 
-        # Use ChromeDriverManager with the latest version
-        service = Service(ChromeDriverManager().install())
+        # Download and get path to chromedriver
+        driver_path = ChromeDriverManager().install()
+
+        # Ensure path ends with .exe (webdriver-manager bug workaround)
+        if not driver_path.endswith(".exe"):
+            directory = os.path.dirname(driver_path)
+            exe_candidates = [f for f in os.listdir(directory) if f.endswith(".exe")]
+            if exe_candidates:
+                driver_path = os.path.join(directory, exe_candidates[0])
+            else:
+                raise FileNotFoundError("ChromeDriver .exe not found in " + directory)
+
+        service = Service(driver_path)
+        # print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromedriver-win64', 'chromedriver.exe'))
+        # service = Service(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromedriver-win64', 'chromedriver.exe'))
         self.driver = webdriver.Chrome(service=service, options=options)
         self.wait = WebDriverWait(self.driver, 20)
 
