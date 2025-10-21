@@ -262,10 +262,6 @@ class Crawler:
                     new_links.append(link)
             self.log(f"Found {len(new_links)} *NEW* URLs")
 
-            # Update the URLs.txt file with the new links
-            for link in new_links:
-                f.write(f"{link}\n")
-
         return new_links
 
     def print_results(self, urls: list) -> None:
@@ -308,7 +304,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Command line arguments
-    max_urls = 1000
+    max_urls = 7
     if len(sys.argv) > 1:
         try:
             max_urls = int(sys.argv[1])
