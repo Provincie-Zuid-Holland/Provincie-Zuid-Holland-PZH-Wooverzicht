@@ -73,7 +73,7 @@ class Scraper:
         options.add_argument("--window-size=1920,1080")
 
         # Use binary location to point to installed Chrome
-        # options.binary_location = "/usr/bin/google-chrome"
+        options.binary_location = "/usr/bin/google-chrome"
 
         # Download and get path to chromedriver
         driver_path = ChromeDriverManager().install()
