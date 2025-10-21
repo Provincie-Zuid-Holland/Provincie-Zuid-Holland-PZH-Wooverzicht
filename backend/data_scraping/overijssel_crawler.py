@@ -234,10 +234,6 @@ class Crawler:
                     new_links.append(link)
             self.log(f"Found {len(new_links)} *NEW* URLs")
 
-            # Update the URLs.txt file with the new links
-            for link in new_links:
-                f.write(f"{link}\n")
-
         return new_links
 
     def print_results(self, urls):

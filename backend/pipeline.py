@@ -5,7 +5,7 @@ from typing import Tuple
 import tempfile
 from extract import extract_data
 from createdb import db_pipeline
-from config import SUPPORTED_PROVINCES, MAX_URLS
+from config import SUPPORTED_PROVINCES, MAX_URLS, URLS_WRITE_LOCATION
 
 
 def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
@@ -133,7 +133,7 @@ def execute_pipeline() -> None:
             print(f"Starting {province.upper()} crawler to collect URLs...")
             print("<>" * 40)
             crawler = Crawler(base_url, max_urls=MAX_URLS)
-            urls = crawler.get_new_links()
+            urls = crawler.get_new_links(URLS_WRITE_LOCATION)
 
             if not urls:
                 print("No URLs found to process.")
@@ -145,23 +145,25 @@ def execute_pipeline() -> None:
             scraper = Scraper()
 
             # Process each URL the crawler found
-            for i, url in enumerate(urls, 1):
-                print(f"\nProcessing URL {i}/{len(urls)}")
-                try:
-                    with tempfile.TemporaryDirectory() as temp_dir:
-                        scraper.scrape_document(temp_dir, url, i)  # SCRAPE
-                        combined_data_list = extract_data(temp_dir)  # EXTRACT
-                        for combined_data in combined_data_list:
-                            db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
-                        print("")
-                except RuntimeError as fe:
-                    print(f"Fetch error for URL {url}: {fe}")
-                    log_failed_download(url, fe)
-                    continue
-                except Exception as e:
-                    print(f"Error processing URL {url}: {e}")
-                    log_failed_download(url, e)
-                    continue
+            with open(URLS_WRITE_LOCATION, "a+") as f:
+                for i, url in enumerate(urls, 1):
+                    print(f"\nProcessing URL {i}/{len(urls)}")
+                    try:
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            scraper.scrape_document(temp_dir, url, i)  # SCRAPE
+                            combined_data_list = extract_data(temp_dir)  # EXTRACT
+                            for combined_data in combined_data_list:
+                                db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
+                            f.write(f"{url}\n")  # Log successfully processed URL
+                            print("")
+                    except RuntimeError as fe:
+                        print(f"Fetch error for URL {url}: {fe}")
+                        log_failed_download(url, fe)
+                        continue
+                    except Exception as e:
+                        print(f"Error processing URL {url}: {e}")
+                        log_failed_download(url, e)
+                        continue
 
             print("\nProcessing complete!")
 
@@ -170,7 +172,6 @@ def execute_pipeline() -> None:
         except Exception as e:
             print(f"An error occurred: {e}")
             import traceback
-
             traceback.print_exc()
 
 
