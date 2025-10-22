@@ -6,7 +6,16 @@ import tempfile
 from extract import extract_data
 from createdb import db_pipeline
 from config import SUPPORTED_PROVINCES, MAX_URLS, URLS_WRITE_LOCATION
+import logging
 
+# Set up logging
+
+handler = logging.StreamHandler(sys.stdout)
+handler.flush = sys.stdout.flush  # Ensures flushing
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[handler]
+)
+logger = logging.getLogger(__name__)
 
 def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
     """
@@ -125,21 +134,21 @@ def execute_pipeline() -> None:
         try:
             Crawler, Scraper, base_url = import_crawler_and_scraper(province)
         except ImportError as e:
-            print(f"Error importing required modules: {e}")
+            logger.info(f"Error importing required modules: {e}")
             sys.exit(1)
 
         try:
-            print("\n" + "<>" * 40)
-            print(f"Starting {province.upper()} crawler to collect URLs...")
-            print("<>" * 40)
+            logger.info("<>" * 40)
+            logger.info(f"Starting {province.upper()} crawler to collect URLs...")
+            logger.info("<>" * 40)
             crawler = Crawler(base_url, max_urls=MAX_URLS)
             urls = crawler.get_new_links(URLS_WRITE_LOCATION)
 
             if not urls:
-                print("No URLs found to process.")
+                logger.info("No URLs found to process.")
                 continue
 
-            print(f"\nFound {len(urls)} URLs")
+            logger.info(f"\nFound {len(urls)} URLs")
 
             # Initialize scraper
             scraper = Scraper()
@@ -147,21 +156,25 @@ def execute_pipeline() -> None:
             # Process each URL the crawler found
             with open(URLS_WRITE_LOCATION, "a+") as f:
                 for i, url in enumerate(urls, 1):
-                    print(f"\nProcessing URL {i}/{len(urls)}")
+                    logger.info(f"\n===\nProcessing URL {i}/{len(urls)}\n===")
                     try:
                         with tempfile.TemporaryDirectory() as temp_dir:
+                            logger.info(f"Start scraping URL: {url}")
                             scraper.scrape_document(temp_dir, url, i)  # SCRAPE
+                            logger.info(f"Start extracting data")
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
+                            logger.info(f"Start chunking and loading into DB")
                             for combined_data in combined_data_list:
                                 db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
                             f.write(f"{url}\n")  # Log successfully processed URL
-                            print("")
+                            f.flush()
+                            logger.info("")
                     except RuntimeError as fe:
-                        print(f"Fetch error for URL {url}: {fe}")
+                        logger.info(f"Fetch error for URL {url}: {fe}")
                         log_failed_download(url, fe)
                         continue
                     except Exception as e:
-                        print(f"Error processing URL {url}: {e}")
+                        logger.info(f"Error processing URL {url}: {e}")
                         log_failed_download(url, e)
                         continue
 
