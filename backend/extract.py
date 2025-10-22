@@ -3,6 +3,15 @@ import json
 from PyPDF2 import PdfReader
 from docx import Document
 import tempfile
+import logging
+import sys
+
+handler = logging.StreamHandler(sys.stdout)
+handler.flush = sys.stdout.flush  # Ensures flushing
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[handler]
+)
+logger = logging.getLogger(__name__)
 
 """
 This script processes ZIP files containing PDF or DOCX documents along with their metadata files.
@@ -278,28 +287,28 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
             raise ValueError(
                 f"Only 1 file found in folder, should be metadatafile and other files: {folder_path}"
             )
-        print(f"\nProcessing folder {folder_path}:")
-        print(f"Files found: {files_in_folder}")
+        logger.info(f"\nProcessing folder {folder_path}:")
+        logger.info(f"Files found: {files_in_folder}")
         combined_data_list = []
         for it, file in enumerate(files_in_folder):
             if file == "metadata.txt":
                 continue
-            print(f"Processing file {it + 1}/{len_files}: {file}", end="\r")
+            logger.info(f"Processing file {it + 1}/{len_files}: {file}")
             try:
                 combined_data = combine_document_and_metadata(folder_path, file)
                 # Check if content is empty or empty string
                 if not combined_data["content"] or combined_data["content"] == "":
-                    print(f"\nSkipping file {file} due to empty content.")
+                    logger.info(f"\nSkipping file {file} due to empty content.")
                     continue
                 combined_data_list.append(combined_data)
             except Exception as e:
-                print(f"\nSkipping file {file} due to error: {e}")
+                logger.info(f"\nSkipping file {file} due to error: {e}")
         return combined_data_list
 
     except ValueError as e:
-        print(f"Error processing folder {folder_path}: {e}")
+        logger.info(f"Error processing folder {folder_path}: {e}")
     except Exception as e:
-        print(f"Unexpected error in folder {folder_path}: {str(e)}")
+        logger.info(f"Unexpected error in folder {folder_path}: {str(e)}")
 
 
 def main() -> None:
