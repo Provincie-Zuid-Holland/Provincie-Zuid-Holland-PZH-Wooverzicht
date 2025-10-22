@@ -407,6 +407,20 @@ class DocumentProcessor:
 
         return all_chunks
     
+    
+    def _generate_fake_embedded_chunk(self, chunk):
+        import math
+        vec = [random.random() for _ in range(1536)]
+        length = math.sqrt(sum(x**2 for x in vec))
+        embedding = [x / length for x in vec]
+        return EmbeddedChunk(
+            chunk_id=chunk.chunk_id,
+            content=chunk.content,
+            metadata=chunk.metadata,
+            embedding=embedding
+        )
+
+
     def fake_embed_chunks(self, chunks: List[ChunkData]) -> List[EmbeddedChunk]:
         """
         Generates fake embeddings for chunks using random vectors.
@@ -418,18 +432,11 @@ class DocumentProcessor:
             List[EmbeddedChunk]: List of chunks with their embedding vectors.
         """
         embedded_chunks = []
-
+        
+        
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures = []
-            for chunk in chunks:
-                futures.append(executor.submit(
-                    lambda c=chunk: EmbeddedChunk(
-                        chunk_id=c.chunk_id,
-                        content=c.content,
-                        metadata=c.metadata,
-                        embedding=[random.random() for _ in range(1536)]
-                    )
-                ))
+            futures = [executor.submit(self._generate_fake_embedded_chunk, chunk) for chunk in chunks]
+
 
             for future in futures:
                 try:
