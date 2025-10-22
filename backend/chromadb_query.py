@@ -15,6 +15,7 @@ import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
 from pathlib import Path
+import random
 
 # Set up logging
 logging.basicConfig(
@@ -127,6 +128,20 @@ class ChromadbQuery:
             logger.error(f"Error getting embeddings: {e}")
             raise
 
+    def _get_fake_embeddings(self, text: str) -> List[float]:
+        """
+        Generates fake embeddings for testing purposes.
+        Args:
+            text (str): Input text to generate embeddings for.
+        Returns:
+            List[float]: Fake embedding vector for the input text.
+        """
+        import math
+        vec = [random.random() for _ in range(1536)]
+        length = math.sqrt(sum(x**2 for x in vec))
+        return [x / length for x in vec]
+        return [random.random() for _ in range(1536)]
+
     def search(
         self,
         query: str,
@@ -153,7 +168,8 @@ class ChromadbQuery:
 
         try:
             # Get embeddings for the query
-            query_embedding = self._get_embeddings(query)
+            # query_embedding = self._get_embeddings(query)
+            query_embedding = self._get_fake_embeddings(query)
 
             # Perform the search
             results = self.collection.query(
@@ -162,6 +178,7 @@ class ChromadbQuery:
                 where=metadata_filter,
                 include=["metadatas", "distances", "documents"],
             )
+            logger.info(f"number of raw results: {len(results['ids'][0])}")
 
             # Process results
             search_results = []
@@ -175,15 +192,16 @@ class ChromadbQuery:
                     )
                 ):
                     score = 1 - (distance / 2)
-                    if score >= min_relevance_score:
-                        search_results.append(
-                            SearchResult(
-                                content=document,
-                                metadata=metadata,
-                                score=score,
-                                document_id=doc_id,
-                            )
+                    logger.info(f"Result {idx}: ID={doc_id}, Score={score}")
+                    # if score >= min_relevance_score:
+                    search_results.append(
+                        SearchResult(
+                            content=document,
+                            metadata=metadata,
+                            score=score,
+                            document_id=doc_id,
                         )
+                    )
 
             query_time = time.time() - start_time
             logger.info(
