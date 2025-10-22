@@ -291,9 +291,9 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         logger.info(f"Files found: {files_in_folder}")
         combined_data_list = []
         for it, file in enumerate(files_in_folder):
+            logger.info(f"Processing file {it + 1}/{len_files}: {file}")
             if file == "metadata.txt":
                 continue
-            logger.info(f"Processing file {it + 1}/{len_files}: {file}")
             try:
                 combined_data = combine_document_and_metadata(folder_path, file)
                 # Check if content is empty or empty string
