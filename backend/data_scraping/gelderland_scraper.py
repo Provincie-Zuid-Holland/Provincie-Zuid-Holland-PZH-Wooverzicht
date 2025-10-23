@@ -220,16 +220,21 @@ class Scraper:
                     f"Document downloaden naar (poging {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
                 )
                 response = self.session.get(
-                    url, stream=True, headers=self.headers, timeout=30
+                    url, stream=True, headers=self.headers, timeout=60
                 )
                 response.raise_for_status()
-                if response.status_code == 200:
-                    z = zipfile.ZipFile(io.BytesIO(response.content))
+
+                zip_path = os.path.join(save_path, "temp.zip")
+                with open(zip_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+
+                with zipfile.ZipFile(zip_path, "r") as z:
                     z.extractall(save_path)
-                    print(
-                        f"Zip bestand succesvol gedownload naar: {os.path.basename(save_path)}"
-                    )
-                    return True
+
+                os.remove(zip_path)
+                return True
             except Exception as e:
                 print(f"Fout bij downloaden (poging {attempt + 1}): {e}")
                 return False
