@@ -6,7 +6,7 @@ from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
 import re
-from datetime import timezone
+from datetime import datetime, timezone
 import dateparser
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -306,7 +306,7 @@ class Scraper:
                 if date_paragraph:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
                     # Convert to datetime object
-                    d = dateparser.parse(date_part).replace(tzinfo=timezone.utc)
+                    d = datetime.strptime(date_part, '%Y%m%d').replace(tzinfo=timezone.utc)
                     metadata["datum"] = int(d.timestamp())
             else:
                 datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
@@ -553,7 +553,7 @@ if __name__ == "__main__":
     )
 
     # Example document URL (replace with actual URL)
-    EXAMPLE_DOC_URL = "https://deeplink.archiefweb.eu/FbBW/"
+    EXAMPLE_DOC_URL = "https://www.flevoland.nl/Content/Pages/loket/openbare-documenten/Woo-verzoeken-actueel/Woo-verzoek-Asfaltcentrale-interne-communicatie-en"
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
         scraper.scrape_document(temp_dir, EXAMPLE_DOC_URL, 1)
