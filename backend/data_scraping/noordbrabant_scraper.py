@@ -216,7 +216,7 @@ class Scraper:
                 f.write(f"{key}: {value}\n")
         return metadata_path
 
-    def download_files(self, url, payload, temp_dir):
+    def download_files(self, real_url, download_url, payload, temp_dir):
         """
         Downloads files using the API and extracts them to the temporary directory.
 
@@ -229,7 +229,7 @@ class Scraper:
             bool: True if successful, False otherwise
         """
         # Make the POST request with the required headers and payload
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = requests.post(download_url, headers=self.headers, json=payload)
 
         # Check if the request was successful
         if response.status_code == 200:
@@ -246,7 +246,7 @@ class Scraper:
                     # Save the downloaded zip file to the temp directory
                     temp_zip_path = os.path.join(temp_dir, "downloaded_files.zip")
                     downloaded = 0
-                    max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))
+                    max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # Default to 2.5 MB))
                     with open(temp_zip_path, "wb") as file:
                         for chunk in file_response.iter_content(chunk_size=8192):
                             if chunk:  # filter out keep-alive chunks
@@ -254,7 +254,11 @@ class Scraper:
                                 downloaded += len(chunk)
                                 if downloaded > max_size: # There is no content-length header, so we track size manually
                                     print("File too large — aborting")
-                                    break
+                                    file.close()  # explicitly close before deleting
+                                    os.remove(temp_zip_path)
+                                    with open("failed_downloads.txt", "a+") as f:
+                                        f.write(f"Zip bestand te groot: {real_url}\n")
+                                    return False
 
                     # Create a directory to extract the files
                     extract_dir = os.path.join(temp_dir, "extracted_files")
@@ -268,13 +272,7 @@ class Scraper:
                         return True
                     except zipfile.BadZipFile:
                         print("Downloaded file is not a valid zip file")
-                        # Save the raw file anyway in case it's a direct file download
-                        with open(
-                            os.path.join(extract_dir, "downloaded_file"), "wb"
-                        ) as f:
-                            f.write(file_response.content)
-                        print("Saved raw downloaded file")
-                        return True
+                        return False
                 else:
                     print(f"Error downloading file: {file_response.status_code}")
                     print(file_response.text)
@@ -313,8 +311,11 @@ class Scraper:
         )
 
         # Download files to temp directory
-        _ = self.download_files(download_url, payload, temp_dir)
-
+        downloaded = self.download_files(url, download_url, payload, temp_dir)
+        if not downloaded:
+            print(f"Failed to download files for document {index}: {url}")
+            return
+        
         # Move all downloaded files (where in subdirectory `extracted_files`) to the temp directory
         for root, dirs, files in os.walk(temp_dir):
             for file in files:
