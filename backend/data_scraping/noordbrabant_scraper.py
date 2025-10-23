@@ -6,8 +6,6 @@ from bs4 import BeautifulSoup
 import zipfile
 import tempfile
 import logging
-
-
 class Scraper:
     """
     A class for scraping and downloading documents from the Noord-Brabant WOO portal.
@@ -243,12 +241,20 @@ class Scraper:
                 file_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download-zip/{zip_id}"
                 print(f"Constructed file URL: {file_url}")
 
-                file_response = requests.get(file_url)
+                file_response = requests.get(file_url, stream=True)
                 if file_response.status_code == 200:
                     # Save the downloaded zip file to the temp directory
                     temp_zip_path = os.path.join(temp_dir, "downloaded_files.zip")
+                    downloaded = 0
+                    max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))
                     with open(temp_zip_path, "wb") as file:
-                        file.write(file_response.content)
+                        for chunk in file_response.iter_content(chunk_size=8192):
+                            if chunk:  # filter out keep-alive chunks
+                                file.write(chunk)
+                                downloaded += len(chunk)
+                                if downloaded > max_size: # There is no content-length header, so we track size manually
+                                    print("File too large — aborting")
+                                    break
 
                     # Create a directory to extract the files
                     extract_dir = os.path.join(temp_dir, "extracted_files")
@@ -341,7 +347,7 @@ if __name__ == "__main__":
 
     # Example document URL (replace with actual URL)
     EXAMPLE_DOC_URL = (
-        "https://open.brabant.nl/woo-verzoeken/457b0102-8db1-433c-a958-10c5491c6945"
+        "https://open.brabant.nl/woo-verzoeken/436adb62-3bbc-4f6b-a7e8-ce61ac7948d1"
     )
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
