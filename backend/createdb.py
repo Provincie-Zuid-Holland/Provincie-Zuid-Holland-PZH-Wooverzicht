@@ -511,9 +511,9 @@ class DocumentProcessor:
             try:
                 collection.add(
                     documents=[chunk.content for chunk in batch],  # The text content
-                    embeddings=[
-                        chunk.embedding for chunk in batch
-                    ],  # The embedding vectors
+                    # embeddings=[
+                    #     chunk.embedding for chunk in batch
+                    # ],  # The embedding vectors
                     metadatas=[chunk.metadata for chunk in batch],  # All metadata
                     ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
                 )
