@@ -13,9 +13,12 @@ import logging
 handler = logging.StreamHandler(sys.stdout)
 handler.flush = sys.stdout.flush  # Ensures flushing
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[handler]
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[handler],
 )
 logger = logging.getLogger(__name__)
+
 
 def import_crawler_and_scraper(source: str) -> Tuple[type, type, str]:
     """
@@ -129,7 +132,7 @@ def execute_pipeline() -> None:
 
     provinces = SUPPORTED_PROVINCES
     to_embed = False
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None) 
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
     if EMBEDDING_MODEL:
         to_embed = True
 
@@ -169,7 +172,9 @@ def execute_pipeline() -> None:
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
                             logger.info(f"Start chunking and loading into DB")
                             for combined_data in combined_data_list:
-                                db_pipeline(combined_data, to_embed)  # CHUNK AND PUT IN DATABASE
+                                db_pipeline(
+                                    combined_data, to_embed
+                                )  # CHUNK AND PUT IN DATABASE
                             f.write(f"{url}\n")  # Log successfully processed URL
                             f.flush()
                             logger.info("")
@@ -189,6 +194,7 @@ def execute_pipeline() -> None:
         except Exception as e:
             print(f"An error occurred: {e}")
             import traceback
+
             traceback.print_exc()
 
 
