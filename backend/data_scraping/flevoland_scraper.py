@@ -19,6 +19,7 @@ from selenium.common.exceptions import (
 )
 from typing import Tuple
 import logging
+from config import TIMEOUT
 
 
 class Scraper:
@@ -121,7 +122,7 @@ class Scraper:
         for attempt in range(max_retries):
             try:
                 print(f"Fetching HTML (attempt {attempt + 1}/{max_retries})")
-                response = self.session.get(url, headers=self.headers, timeout=30)
+                response = self.session.get(url, headers=self.headers, timeout=TIMEOUT)
                 response.raise_for_status()
                 return response.text
 
@@ -419,7 +420,7 @@ class Scraper:
                     f"Downloading document (attempt {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
                 )
                 response = self.session.get(
-                    url, stream=True, headers=self.headers, timeout=30
+                    url, stream=True, headers=self.headers, timeout=TIMEOUT
                 )
                 response.raise_for_status()
 
@@ -470,7 +471,7 @@ class Scraper:
         Checkt de grootte van het zip bestand.
         """
         try:
-            response = self.session.head(url, headers=self.headers, timeout=30)
+            response = self.session.head(url, headers=self.headers, timeout=TIMEOUT)
             file_size = int(response.headers.get("content-length", 0))
             # Load max size from .env
             max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB

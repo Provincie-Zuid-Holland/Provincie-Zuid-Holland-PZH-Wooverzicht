@@ -100,7 +100,7 @@ class DocumentProcessor:
         load_embedded_chunks_to_chromadb: Stores embedded chunks in ChromaDB for retrieval.
     """
 
-    def __init__(self, openai_api_key: Optional[str] = None):
+    def __init__(self):
         """
         Initializes the document processor.
 
@@ -110,7 +110,9 @@ class DocumentProcessor:
         Raises:
             ValueError: If no OpenAI API key is available.
         """
-        self.client = OpenAI(api_key=openai_api_key or os.getenv("OPENAI_API_KEY"))
+        api_key = os.getenv("OPENAI_API_KEY", None)
+        if api_key:
+            self.client = OpenAI(os.getenv("OPENAI_API_KEY"))
 
         # # Verify API key availability
         # if not self.client.api_key:

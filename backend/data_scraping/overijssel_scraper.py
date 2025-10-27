@@ -14,6 +14,7 @@ import platform
 from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
+from config import TIMEOUT
 
 
 class Scraper:
@@ -394,7 +395,7 @@ class Scraper:
                 print(
                     f"Downloading document (attempt {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
                 )
-                response = requests.get(url, stream=True, timeout=30)
+                response = requests.get(url, stream=True, timeout=TIMEOUT)
                 response.raise_for_status()
 
                 with open(save_path, "wb") as file:
