@@ -112,9 +112,9 @@ class DocumentProcessor:
         """
         self.client = OpenAI(api_key=openai_api_key or os.getenv("OPENAI_API_KEY"))
 
-        # Verify API key availability
-        if not self.client.api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set.")
+        # # Verify API key availability
+        # if not self.client.api_key:
+        #     raise ValueError("OPENAI_API_KEY environment variable is not set.")
 
         # Initialize ChromaDB with persistent storage
         db_path = os.environ.get("CHROMA_DB_PATH", "database")
