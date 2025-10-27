@@ -306,7 +306,9 @@ class Scraper:
                 if date_paragraph:
                     date_part = date_paragraph[:8]  # (YYYYMMDD format)
                     # Convert to datetime object
-                    d = datetime.strptime(date_part, '%Y%m%d').replace(tzinfo=timezone.utc)
+                    d = datetime.strptime(date_part, "%Y%m%d").replace(
+                        tzinfo=timezone.utc
+                    )
                     metadata["datum"] = int(d.timestamp())
             else:
                 datum_heading = soup.find("h2", string="Datum besluit") or soup.find(
