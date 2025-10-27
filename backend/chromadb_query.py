@@ -17,6 +17,8 @@ from openai import OpenAI
 from pathlib import Path
 import random
 
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -168,17 +170,25 @@ class ChromadbQuery:
 
         try:
             # Get embeddings for the query
-            # query_embedding = self._get_embeddings(query)
+            if EMBEDDING_MODEL:
+                query_embedding = self._get_embeddings(query)
+                # Perform the search
+                results = self.collection.query(
+                    query_texts=[query],
+                    n_results=limit,
+                    where=metadata_filter,
+                    include=["metadatas", "distances", "documents"],
+                )
+            else:
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],  # Use embeddings instead of text
+                    # query_texts=[query],
+                    n_results=limit,
+                    where=metadata_filter,
+                    include=["metadatas", "distances", "documents"],
+                )
             # query_embedding = self._get_fake_embeddings(query)
 
-            # Perform the search
-            results = self.collection.query(
-                # query_embeddings=[query_embedding],  # Use embeddings instead of text
-                query_texts=[query],
-                n_results=limit,
-                where=metadata_filter,
-                include=["metadatas", "distances", "documents"],
-            )
             logger.info(f"number of raw results: {len(results['ids'][0])}")
 
             # Process results
