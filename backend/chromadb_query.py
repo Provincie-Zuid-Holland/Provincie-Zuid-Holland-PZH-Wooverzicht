@@ -59,7 +59,6 @@ class ChromadbQuery:
         self,
         collection_name: str = "document_chunks",
         database_path: str = None,
-        openai_api_key: Optional[str] = None,
     ):
         """
         Initializes the query interface to ChromaDB.
@@ -90,8 +89,7 @@ class ChromadbQuery:
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
 
-        # Initialize OpenAI client for embeddings
-        self.openai_client = OpenAI(api_key=openai_api_key)
+        
 
         # Initialize ChromaDB client
         self.client = chromadb.PersistentClient(
@@ -121,6 +119,8 @@ class ChromadbQuery:
             Exception: If there's an error generating embeddings.
         """
         try:
+            # Initialize OpenAI client for embeddings
+            self.openai_client = OpenAI() # use default from environment variable
             response = self.openai_client.embeddings.create(
                 model="text-embedding-3-small",  # Use the same model as in createdb.py
                 input=text,
@@ -170,16 +170,9 @@ class ChromadbQuery:
 
         try:
             # Get embeddings for the query
+            logger.info(f"Using EMBEDDING_MODEL: {EMBEDDING_MODEL}")
             if EMBEDDING_MODEL:
                 query_embedding = self._get_embeddings(query)
-                # Perform the search
-                results = self.collection.query(
-                    query_texts=[query],
-                    n_results=limit,
-                    where=metadata_filter,
-                    include=["metadatas", "distances", "documents"],
-                )
-            else:
                 results = self.collection.query(
                     query_embeddings=[query_embedding],  # Use embeddings instead of text
                     # query_texts=[query],
@@ -187,6 +180,15 @@ class ChromadbQuery:
                     where=metadata_filter,
                     include=["metadatas", "distances", "documents"],
                 )
+            else:
+                # Perform the search
+                results = self.collection.query(
+                    query_texts=[query],
+                    n_results=limit,
+                    where=metadata_filter,
+                    include=["metadatas", "distances", "documents"],
+                )
+                
             # query_embedding = self._get_fake_embeddings(query)
 
             logger.info(f"number of raw results: {len(results['ids'][0])}")
