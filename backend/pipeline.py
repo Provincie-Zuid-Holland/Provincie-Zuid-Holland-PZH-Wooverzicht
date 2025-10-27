@@ -165,7 +165,7 @@ def execute_pipeline() -> None:
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
                             logger.info(f"Start chunking and loading into DB")
                             for combined_data in combined_data_list:
-                                db_pipeline(combined_data)  # CHUNK AND PUT IN DATABASE
+                                db_pipeline(combined_data, False)  # CHUNK AND PUT IN DATABASE
                             f.write(f"{url}\n")  # Log successfully processed URL
                             f.flush()
                             logger.info("")
