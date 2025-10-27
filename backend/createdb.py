@@ -525,7 +525,7 @@ class DocumentProcessor:
         for i in range(0, len(embedded_chunks), BATCH_SIZE):
             batch = embedded_chunks[i : i + BATCH_SIZE]
             try:
-                if embedded_chunks:
+                if to_embed:
                     collection.add(
                         documents=[chunk.content for chunk in batch],  # The text content
                         embeddings=[
