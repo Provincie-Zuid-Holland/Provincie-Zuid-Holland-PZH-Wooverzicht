@@ -406,10 +406,10 @@ class DocumentProcessor:
                 continue
 
         return all_chunks
-    
-    
+
     def _generate_fake_embedded_chunk(self, chunk):
         import math
+
         vec = [random.random() for _ in range(1536)]
         length = math.sqrt(sum(x**2 for x in vec))
         embedding = [x / length for x in vec]
@@ -417,9 +417,8 @@ class DocumentProcessor:
             chunk_id=chunk.chunk_id,
             content=chunk.content,
             metadata=chunk.metadata,
-            embedding=embedding
+            embedding=embedding,
         )
-
 
     def fake_embed_chunks(self, chunks: List[ChunkData]) -> List[EmbeddedChunk]:
         """
@@ -432,11 +431,12 @@ class DocumentProcessor:
             List[EmbeddedChunk]: List of chunks with their embedding vectors.
         """
         embedded_chunks = []
-        
-        
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures = [executor.submit(self._generate_fake_embedded_chunk, chunk) for chunk in chunks]
 
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = [
+                executor.submit(self._generate_fake_embedded_chunk, chunk)
+                for chunk in chunks
+            ]
 
             for future in futures:
                 try:
@@ -447,7 +447,9 @@ class DocumentProcessor:
         logger.info(f"Generated fake embeddings for {len(embedded_chunks)} chunks")
         return embedded_chunks
 
-    def embed_chunks(self, chunks: List[ChunkData], to_embed: bool) -> List[EmbeddedChunk]:
+    def embed_chunks(
+        self, chunks: List[ChunkData], to_embed: bool
+    ) -> List[EmbeddedChunk]:
         """
         Creates Embeddedchunk objects. If to_embed is true includes generated embeddings for chunks.
 
@@ -480,12 +482,15 @@ class DocumentProcessor:
                     # Generate embeddings for the batch if to_embed is True
                     if to_embed:
                         response = self.client.embeddings.create(
-                            model=EMBEDDING_MODEL, input=[chunk.content for chunk in batch]
+                            model=EMBEDDING_MODEL,
+                            input=[chunk.content for chunk in batch],
                         )
                         # add embeddings to the corresponding EmbeddedChunk objects
                         # Create EmbeddedChunk objects with the results
                         for idx, embedding_data in enumerate(response.data):
-                            embedded_chunks[i + idx].embedding = embedding_data.embedding
+                            embedded_chunks[i + idx].embedding = (
+                                embedding_data.embedding
+                            )
                             # embedded_chunks.append(
                             #     EmbeddedChunk(
                             #         chunk_id=batch[idx].chunk_id,
@@ -527,7 +532,9 @@ class DocumentProcessor:
             try:
                 if to_embed:
                     collection.add(
-                        documents=[chunk.content for chunk in batch],  # The text content
+                        documents=[
+                            chunk.content for chunk in batch
+                        ],  # The text content
                         embeddings=[
                             chunk.embedding for chunk in batch
                         ],  # The embedding vectors
@@ -536,7 +543,9 @@ class DocumentProcessor:
                     )
                 else:
                     collection.add(
-                        documents=[chunk.content for chunk in batch],  # The text content
+                        documents=[
+                            chunk.content for chunk in batch
+                        ],  # The text content
                         metadatas=[chunk.metadata for chunk in batch],  # All metadata
                         ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
                     )
