@@ -8,6 +8,7 @@ import tempfile
 from datetime import timezone
 import dateparser
 import logging
+from config import TIMEOUT
 
 # TODO
 # Modify code so it downloads everything using the download all as zip button. Then unzip in tempdir and remove zip file itself
@@ -196,7 +197,7 @@ class Scraper:
         Checkt de grootte van het zip bestand.
         """
         try:
-            response = self.session.head(url, headers=self.headers, timeout=30)
+            response = self.session.head(url, headers=self.headers, timeout=TIMEOUT)
             file_size = int(response.headers.get("content-length", 0))
             # Load max size from .env
             max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # 2.5GB
@@ -219,7 +220,7 @@ class Scraper:
                     f"Document downloaden naar (poging {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
                 )
                 response = self.session.get(
-                    url, stream=True, headers=self.headers, timeout=60
+                    url, stream=True, headers=self.headers, timeout=TIMEOUT
                 )
                 response.raise_for_status()
 

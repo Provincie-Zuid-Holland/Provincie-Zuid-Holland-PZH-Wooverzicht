@@ -168,6 +168,12 @@ def execute_pipeline() -> None:
                         with tempfile.TemporaryDirectory() as temp_dir:
                             logger.info(f"Start scraping URL: {url}")
                             scraper.scrape_document(temp_dir, url, i)  # SCRAPE
+
+                            # Add check to see if any files were downloaded
+                            if len(os.listdir(temp_dir)) <= 1:
+                                raise ValueError(
+                                    "Only 1 file found in folder, scraper likely failed."
+                                )
                             logger.info("Start extracting data")
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
                             logger.info("Start chunking and loading into DB")
