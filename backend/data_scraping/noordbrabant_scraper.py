@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import zipfile
 import tempfile
 import logging
+from config import TIMEOUT
 
 
 class Scraper:
@@ -231,7 +232,9 @@ class Scraper:
             bool: True if successful, False otherwise
         """
         # Make the POST request with the required headers and payload
-        response = requests.post(download_url, headers=self.headers, json=payload)
+        response = requests.post(
+            download_url, headers=self.headers, json=payload, timeout=TIMEOUT
+        )
 
         # Check if the request was successful
         if response.status_code == 200:
@@ -243,7 +246,7 @@ class Scraper:
                 file_url = f"https://api-brabant.iprox-open.nl/api/v1/public/download-zip/{zip_id}"
                 print(f"Constructed file URL: {file_url}")
 
-                file_response = requests.get(file_url, stream=True)
+                file_response = requests.get(file_url, stream=True, timeout=TIMEOUT)
                 if file_response.status_code == 200:
                     # Save the downloaded zip file to the temp directory
                     temp_zip_path = os.path.join(temp_dir, "downloaded_files.zip")
@@ -354,7 +357,7 @@ if __name__ == "__main__":
 
     # Example document URL (replace with actual URL)
     EXAMPLE_DOC_URL = (
-        "https://open.brabant.nl/woo-verzoeken/436adb62-3bbc-4f6b-a7e8-ce61ac7948d1"
+        "https://open.brabant.nl/woo-verzoeken/08b5e9ab-7002-4343-8971-9705162c18cd"
     )
     scraper = Scraper()
     with tempfile.TemporaryDirectory() as temp_dir:
