@@ -9,7 +9,9 @@ import sys
 handler = logging.StreamHandler(sys.stdout)
 handler.flush = sys.stdout.flush  # Ensures flushing
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[handler]
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[handler],
 )
 logger = logging.getLogger(__name__)
 

@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 import zipfile
 import tempfile
 import logging
+
+
 class Scraper:
     """
     A class for scraping and downloading documents from the Noord-Brabant WOO portal.
@@ -246,13 +248,17 @@ class Scraper:
                     # Save the downloaded zip file to the temp directory
                     temp_zip_path = os.path.join(temp_dir, "downloaded_files.zip")
                     downloaded = 0
-                    max_size = int(os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024))  # Default to 2.5 MB))
+                    max_size = int(
+                        os.getenv("MAX_ZIP_SIZE", 2.5 * 1024 * 1024 * 1024)
+                    )  # Default to 2.5 MB))
                     with open(temp_zip_path, "wb") as file:
                         for chunk in file_response.iter_content(chunk_size=8192):
                             if chunk:  # filter out keep-alive chunks
                                 file.write(chunk)
                                 downloaded += len(chunk)
-                                if downloaded > max_size: # There is no content-length header, so we track size manually
+                                if (
+                                    downloaded > max_size
+                                ):  # There is no content-length header, so we track size manually
                                     print("File too large — aborting")
                                     file.close()  # explicitly close before deleting
                                     os.remove(temp_zip_path)
@@ -315,7 +321,7 @@ class Scraper:
         if not downloaded:
             print(f"Failed to download files for document {index}: {url}")
             return
-        
+
         # Move all downloaded files (where in subdirectory `extracted_files`) to the temp directory
         for root, dirs, files in os.walk(temp_dir):
             for file in files:

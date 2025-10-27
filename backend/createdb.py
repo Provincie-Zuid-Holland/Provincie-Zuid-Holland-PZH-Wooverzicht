@@ -29,7 +29,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
-from dotenv import load_dotenv
 import random
 
 # Set up logging configuration for tracking progress and errors
@@ -406,10 +405,10 @@ class DocumentProcessor:
                 continue
 
         return all_chunks
-    
-    
+
     def _generate_fake_embedded_chunk(self, chunk):
         import math
+
         vec = [random.random() for _ in range(1536)]
         length = math.sqrt(sum(x**2 for x in vec))
         embedding = [x / length for x in vec]
@@ -417,9 +416,8 @@ class DocumentProcessor:
             chunk_id=chunk.chunk_id,
             content=chunk.content,
             metadata=chunk.metadata,
-            embedding=embedding
+            embedding=embedding,
         )
-
 
     def fake_embed_chunks(self, chunks: List[ChunkData]) -> List[EmbeddedChunk]:
         """
@@ -432,11 +430,12 @@ class DocumentProcessor:
             List[EmbeddedChunk]: List of chunks with their embedding vectors.
         """
         embedded_chunks = []
-        
-        
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures = [executor.submit(self._generate_fake_embedded_chunk, chunk) for chunk in chunks]
 
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = [
+                executor.submit(self._generate_fake_embedded_chunk, chunk)
+                for chunk in chunks
+            ]
 
             for future in futures:
                 try:
@@ -447,12 +446,15 @@ class DocumentProcessor:
         logger.info(f"Generated fake embeddings for {len(embedded_chunks)} chunks")
         return embedded_chunks
 
-    def embed_chunks(self, chunks: List[ChunkData]) -> List[EmbeddedChunk]:
+    def embed_chunks(
+        self, chunks: List[ChunkData], to_embed: bool
+    ) -> List[EmbeddedChunk]:
         """
-        Generates embeddings for chunks using OpenAI's API in parallel.
+        Creates Embeddedchunk objects. If to_embed is true includes generated embeddings for chunks.
 
         Args:
             chunks (List[ChunkData]): List of chunks to embed.
+            to_embed (bool): Whether to generate embeddings or not.
 
         Returns:
             List[EmbeddedChunk]: List of chunks with their embedding vectors.
@@ -465,21 +467,37 @@ class DocumentProcessor:
             for i in range(0, len(chunks), BATCH_SIZE):
                 batch = chunks[i : i + BATCH_SIZE]
                 try:
-                    # Generate embeddings for the batch
-                    response = self.client.embeddings.create(
-                        model=EMBEDDING_MODEL, input=[chunk.content for chunk in batch]
-                    )
-
-                    # Create EmbeddedChunk objects with the results
-                    for idx, embedding_data in enumerate(response.data):
+                    # loop through batch and create EmbeddedChunk objects without embeddings
+                    for chunk in batch:
                         embedded_chunks.append(
                             EmbeddedChunk(
-                                chunk_id=batch[idx].chunk_id,
-                                content=batch[idx].content,
-                                metadata=batch[idx].metadata,
-                                embedding=embedding_data.embedding,
+                                chunk_id=chunk.chunk_id,
+                                content=chunk.content,
+                                metadata=chunk.metadata,
+                                embedding=[],
                             )
                         )
+
+                    # Generate embeddings for the batch if to_embed is True
+                    if to_embed:
+                        response = self.client.embeddings.create(
+                            model=EMBEDDING_MODEL,
+                            input=[chunk.content for chunk in batch],
+                        )
+                        # add embeddings to the corresponding EmbeddedChunk objects
+                        # Create EmbeddedChunk objects with the results
+                        for idx, embedding_data in enumerate(response.data):
+                            embedded_chunks[i + idx].embedding = (
+                                embedding_data.embedding
+                            )
+                            # embedded_chunks.append(
+                            #     EmbeddedChunk(
+                            #         chunk_id=batch[idx].chunk_id,
+                            #         content=batch[idx].content,
+                            #         metadata=batch[idx].metadata,
+                            #         embedding=embedding_data.embedding,
+                            #     )
+                            # )
                     logger.info(
                         f"Embedded batch {i//BATCH_SIZE + 1}: {len(batch)} chunks"
                     )
@@ -490,16 +508,18 @@ class DocumentProcessor:
 
         return embedded_chunks
 
-    def load_embedded_chunks_to_chromadb(
+    def load_chunks_to_chromadb(
         self,
-        embedded_chunks: List[EmbeddedChunk],
+        embedded_chunks: Optional[List[EmbeddedChunk]],
+        to_embed: bool,
         collection_name: str = COLLECTION_NAME,
     ) -> None:
         """
-        Stores embedded chunks in ChromaDB for later retrieval.
+        Stores chunks in ChromaDB for later retrieval.
 
         Args:
-            embedded_chunks (List[EmbeddedChunk]): List of chunks with embeddings to store.
+            embedded_chunks Optional (List[EmbeddedChunk]): List of chunks with embeddings to store.
+            to_embed (bool): Whether the chunks have embeddings or not.
             collection_name (str): Name of the ChromaDB collection to use.
         """
         # Get or create the collection
@@ -509,21 +529,32 @@ class DocumentProcessor:
         for i in range(0, len(embedded_chunks), BATCH_SIZE):
             batch = embedded_chunks[i : i + BATCH_SIZE]
             try:
-                collection.add(
-                    documents=[chunk.content for chunk in batch],  # The text content
-                    # embeddings=[
-                    #     chunk.embedding for chunk in batch
-                    # ],  # The embedding vectors
-                    metadatas=[chunk.metadata for chunk in batch],  # All metadata
-                    ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
-                )
+                if to_embed:
+                    collection.add(
+                        documents=[
+                            chunk.content for chunk in batch
+                        ],  # The text content
+                        embeddings=[
+                            chunk.embedding for chunk in batch
+                        ],  # The embedding vectors
+                        metadatas=[chunk.metadata for chunk in batch],  # All metadata
+                        ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
+                    )
+                else:
+                    collection.add(
+                        documents=[
+                            chunk.content for chunk in batch
+                        ],  # The text content
+                        metadatas=[chunk.metadata for chunk in batch],  # All metadata
+                        ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
+                    )
                 logger.info(f"Loaded batch {i//BATCH_SIZE + 1} into ChromaDB")
             except Exception as e:
                 logger.error(f"Error loading batch to ChromaDB: {e}")
                 continue
 
 
-def db_pipeline(data):
+def db_pipeline(data, to_embed: bool = True):
     """
     Function that orchestrates the document processing pipeline.
 
@@ -534,6 +565,7 @@ def db_pipeline(data):
 
     Args:
         data (dict): Dictionary containing JSON data to process
+        to_embed (bool): Whether to generate embeddings using a provided embedding model. If false use chromaDB local model.
 
     Raises:
         Any exceptions that occur during the processing pipeline.
@@ -552,8 +584,8 @@ def db_pipeline(data):
             return
 
         # Step 2: Generate embeddings
-        logger.info("Embedding chunks using OpenAI embeddings...")
-        embedded_chunks = processor.fake_embed_chunks(chunks)
+        # logger.info("Embedding chunks using OpenAI embeddings...")
+        embedded_chunks = processor.embed_chunks(chunks, to_embed)
 
         if not embedded_chunks:
             logger.error("No embeddings were created. Exiting.")
@@ -561,7 +593,7 @@ def db_pipeline(data):
 
         # Step 3: Store in database
         logger.info("Loading embedded chunks into ChromaDB...")
-        processor.load_embedded_chunks_to_chromadb(embedded_chunks)
+        processor.load_chunks_to_chromadb(embedded_chunks, to_embed)
 
         logger.info("Processing completed successfully!")
 
