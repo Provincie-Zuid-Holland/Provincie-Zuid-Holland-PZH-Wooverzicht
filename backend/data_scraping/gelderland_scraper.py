@@ -5,7 +5,6 @@ import time
 from urllib.parse import urljoin
 import zipfile
 import tempfile
-import io
 from datetime import timezone
 import dateparser
 import logging
