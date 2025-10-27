@@ -168,9 +168,9 @@ def execute_pipeline() -> None:
                         with tempfile.TemporaryDirectory() as temp_dir:
                             logger.info(f"Start scraping URL: {url}")
                             scraper.scrape_document(temp_dir, url, i)  # SCRAPE
-                            logger.info(f"Start extracting data")
+                            logger.info("Start extracting data")
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
-                            logger.info(f"Start chunking and loading into DB")
+                            logger.info("Start chunking and loading into DB")
                             for combined_data in combined_data_list:
                                 db_pipeline(
                                     combined_data, to_embed
