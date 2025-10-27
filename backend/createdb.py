@@ -29,7 +29,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
-from dotenv import load_dotenv
 import random
 
 # Set up logging configuration for tracking progress and errors
