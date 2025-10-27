@@ -89,8 +89,6 @@ class ChromadbQuery:
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
 
-        
-
         # Initialize ChromaDB client
         self.client = chromadb.PersistentClient(
             path=database_path, settings=Settings(anonymized_telemetry=False)
@@ -120,7 +118,7 @@ class ChromadbQuery:
         """
         try:
             # Initialize OpenAI client for embeddings
-            self.openai_client = OpenAI() # use default from environment variable
+            self.openai_client = OpenAI()  # use default from environment variable
             response = self.openai_client.embeddings.create(
                 model="text-embedding-3-small",  # Use the same model as in createdb.py
                 input=text,
@@ -139,6 +137,7 @@ class ChromadbQuery:
             List[float]: Fake embedding vector for the input text.
         """
         import math
+
         vec = [random.random() for _ in range(1536)]
         length = math.sqrt(sum(x**2 for x in vec))
         return [x / length for x in vec]
@@ -174,7 +173,9 @@ class ChromadbQuery:
             if EMBEDDING_MODEL:
                 query_embedding = self._get_embeddings(query)
                 results = self.collection.query(
-                    query_embeddings=[query_embedding],  # Use embeddings instead of text
+                    query_embeddings=[
+                        query_embedding
+                    ],  # Use embeddings instead of text
                     # query_texts=[query],
                     n_results=limit,
                     where=metadata_filter,
@@ -188,7 +189,7 @@ class ChromadbQuery:
                     where=metadata_filter,
                     include=["metadatas", "distances", "documents"],
                 )
-                
+
             # query_embedding = self._get_fake_embeddings(query)
 
             logger.info(f"number of raw results: {len(results['ids'][0])}")
