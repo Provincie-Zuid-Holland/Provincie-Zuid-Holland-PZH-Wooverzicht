@@ -128,6 +128,10 @@ def execute_pipeline() -> None:
     sys.path.insert(0, parent_dir)
 
     provinces = SUPPORTED_PROVINCES
+    to_embed = False
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None) 
+    if EMBEDDING_MODEL:
+        to_embed = True
 
     # Import the appropriate modules based on source
     for province in provinces:
@@ -165,7 +169,7 @@ def execute_pipeline() -> None:
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
                             logger.info(f"Start chunking and loading into DB")
                             for combined_data in combined_data_list:
-                                db_pipeline(combined_data, False)  # CHUNK AND PUT IN DATABASE
+                                db_pipeline(combined_data, to_embed)  # CHUNK AND PUT IN DATABASE
                             f.write(f"{url}\n")  # Log successfully processed URL
                             f.flush()
                             logger.info("")
