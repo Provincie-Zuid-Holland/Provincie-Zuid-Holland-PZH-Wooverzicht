@@ -78,17 +78,41 @@ class Scraper:
         if platform.system() == "Linux":
             options.binary_location = "/usr/bin/google-chrome"
 
-        # Download and get path to chromedriver
+        # Install ChromeDriver and get path
         driver_path = ChromeDriverManager().install()
-
-        # Ensure path ends with .exe (webdriver-manager bug workaround)
-        if not driver_path.endswith(".exe"):
-            directory = os.path.dirname(driver_path)
-            exe_candidates = [f for f in os.listdir(directory) if f.endswith(".exe")]
-            if exe_candidates:
-                driver_path = os.path.join(directory, exe_candidates[0])
-            else:
-                raise FileNotFoundError("ChromeDriver .exe not found in " + directory)
+        print(f"ChromeDriver installed at: {driver_path}")
+        # Detect correct binary name
+        driver_dir = os.path.dirname(driver_path)
+        print(f"ChromeDriver directory: {driver_dir}")
+        # print dir contents
+        print(f"Contents of driver directory: {os.listdir(driver_dir)}")
+        print(f"Platform system: {platform.system()}")
+        if platform.system() == "Windows":
+            # Ensure .exe is used
+            if not driver_path.endswith(".exe"):
+                exe_candidates = [
+                    f for f in os.listdir(driver_dir) if f.endswith(".exe")
+                ]
+                if exe_candidates:
+                    driver_path = os.path.join(driver_dir, exe_candidates[0])
+                else:
+                    raise FileNotFoundError(
+                        f"ChromeDriver .exe not found in {driver_dir}"
+                    )
+        else:
+            # Linux/macOS: look for 'chromedriver'
+            # Get file at end of path
+            file_name = driver_path.split(os.sep)[-1]
+            print(f"Detected driver file name: {file_name}")
+            if file_name != "chromedriver":
+                alt_path = os.path.join(driver_dir, "chromedriver")
+                print(f"Checking alternative driver path: {alt_path}")
+                if os.path.isfile(alt_path):
+                    driver_path = alt_path
+                else:
+                    raise FileNotFoundError(f"ChromeDriver not found in {driver_dir}")
+            # Ensure it's executable
+            os.chmod(driver_path, 0o755)
 
         service = Service(driver_path)
         # print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromedriver-win64', 'chromedriver.exe'))
