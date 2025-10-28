@@ -280,7 +280,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Configuratie voor het crawlen
-    max_urls = 7
+    max_urls = 7000
 
     try:
         crawler = Crawler(max_urls=max_urls)
