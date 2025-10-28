@@ -276,7 +276,7 @@ if __name__ == "__main__":
     # Configuratie voor het crawlen
     base_url = "https://woo.dataportaaloverijssel.nl/list"
     api_url = "https://admin.geoportaaloverijssel.nl/api/document/search/woo"
-    max_urls = 10
+    max_urls = 10000
     page_size = 15
 
     print(f"Base URL: {base_url}")

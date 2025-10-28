@@ -338,7 +338,7 @@ class Crawler:
 
 if __name__ == "__main__":
     BASE_URL = "https://open.brabant.nl/woo-verzoeken"
-    MAX_URLS = 30
+    MAX_URLS = 3000
 
     crawler = Crawler(BASE_URL, MAX_URLS)
     urls = crawler.get_new_links()
