@@ -304,7 +304,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Command line arguments
-    max_urls = 7
+    max_urls = 7000
     if len(sys.argv) > 1:
         try:
             max_urls = int(sys.argv[1])
