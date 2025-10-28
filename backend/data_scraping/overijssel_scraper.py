@@ -80,13 +80,8 @@ class Scraper:
 
         # Install ChromeDriver and get path
         driver_path = ChromeDriverManager().install()
-        print(f"ChromeDriver installed at: {driver_path}")
         # Detect correct binary name
         driver_dir = os.path.dirname(driver_path)
-        print(f"ChromeDriver directory: {driver_dir}")
-        # print dir contents
-        print(f"Contents of driver directory: {os.listdir(driver_dir)}")
-        print(f"Platform system: {platform.system()}")
         if platform.system() == "Windows":
             # Ensure .exe is used
             if not driver_path.endswith(".exe"):
@@ -103,10 +98,8 @@ class Scraper:
             # Linux/macOS: look for 'chromedriver'
             # Get file at end of path
             file_name = driver_path.split(os.sep)[-1]
-            print(f"Detected driver file name: {file_name}")
             if file_name != "chromedriver":
                 alt_path = os.path.join(driver_dir, "chromedriver")
-                print(f"Checking alternative driver path: {alt_path}")
                 if os.path.isfile(alt_path):
                     driver_path = alt_path
                 else:
