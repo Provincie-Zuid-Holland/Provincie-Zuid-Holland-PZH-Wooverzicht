@@ -252,15 +252,29 @@ class Crawler:
         # Filter links that already exist in the URLs.txt file
         new_links = []
         with open(urls_txt_file_path, "a+") as f:
-            # Only keep links that are not already in the file
-            new_links = []  # [link for link in all_links if link not in f.read()]
+            # Move to the start to read existing contents
             f.seek(0)
             all_seen_links = f.read()
-            seen_links = all_seen_links.split("\n")
+
+            # Build a set of existing links (strip to avoid issues with whitespace)
+            seen_links = set(
+                line.strip() for line in all_seen_links.splitlines() if line.strip()
+            )
+
+            # Collect only truly new links (strip as well)
+            new_links = []
             for link in all_links:
-                if link not in seen_links:
-                    new_links.append(link)
-            self.log(f"Found {len(new_links)} *NEW* URLs")
+                clean = link.strip()
+                if clean and clean not in seen_links:
+                    new_links.append(clean)
+                    seen_links.add(clean)  # Avoid duplicates within the same run
+
+            # Append new links to the file, each on its own line
+            if new_links:
+                f.write("\n".join(new_links) + "\n")
+
+        # Optional: log how many were added
+        self.log(f"Found {len(new_links)} *NEW* URLs")
 
         return new_links
 
