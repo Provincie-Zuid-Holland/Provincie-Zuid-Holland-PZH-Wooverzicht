@@ -15,6 +15,9 @@ import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
 from pathlib import Path
+import random
+
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
 
 # Set up logging
 logging.basicConfig(
@@ -56,7 +59,6 @@ class ChromadbQuery:
         self,
         collection_name: str = "document_chunks",
         database_path: str = None,
-        openai_api_key: Optional[str] = None,
     ):
         """
         Initializes the query interface to ChromaDB.
@@ -87,9 +89,6 @@ class ChromadbQuery:
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
 
-        # Initialize OpenAI client for embeddings
-        self.openai_client = OpenAI(api_key=openai_api_key)
-
         # Initialize ChromaDB client
         self.client = chromadb.PersistentClient(
             path=database_path, settings=Settings(anonymized_telemetry=False)
@@ -118,6 +117,8 @@ class ChromadbQuery:
             Exception: If there's an error generating embeddings.
         """
         try:
+            # Initialize OpenAI client for embeddings
+            self.openai_client = OpenAI()  # use default from environment variable
             response = self.openai_client.embeddings.create(
                 model="text-embedding-3-small",  # Use the same model as in createdb.py
                 input=text,
@@ -126,6 +127,21 @@ class ChromadbQuery:
         except Exception as e:
             logger.error(f"Error getting embeddings: {e}")
             raise
+
+    def _get_fake_embeddings(self, text: str) -> List[float]:
+        """
+        Generates fake embeddings for testing purposes.
+        Args:
+            text (str): Input text to generate embeddings for.
+        Returns:
+            List[float]: Fake embedding vector for the input text.
+        """
+        import math
+
+        vec = [random.random() for _ in range(1536)]
+        length = math.sqrt(sum(x**2 for x in vec))
+        return [x / length for x in vec]
+        return [random.random() for _ in range(1536)]
 
     def search(
         self,
@@ -153,15 +169,30 @@ class ChromadbQuery:
 
         try:
             # Get embeddings for the query
-            query_embedding = self._get_embeddings(query)
+            logger.info(f"Using EMBEDDING_MODEL: {EMBEDDING_MODEL}")
+            if EMBEDDING_MODEL:
+                query_embedding = self._get_embeddings(query)
+                results = self.collection.query(
+                    query_embeddings=[
+                        query_embedding
+                    ],  # Use embeddings instead of text
+                    # query_texts=[query],
+                    n_results=limit,
+                    where=metadata_filter,
+                    include=["metadatas", "distances", "documents"],
+                )
+            else:
+                # Perform the search
+                results = self.collection.query(
+                    query_texts=[query],
+                    n_results=limit,
+                    where=metadata_filter,
+                    include=["metadatas", "distances", "documents"],
+                )
 
-            # Perform the search
-            results = self.collection.query(
-                query_embeddings=[query_embedding],  # Use embeddings instead of text
-                n_results=limit,
-                where=metadata_filter,
-                include=["metadatas", "distances", "documents"],
-            )
+            # query_embedding = self._get_fake_embeddings(query)
+
+            logger.info(f"number of raw results: {len(results['ids'][0])}")
 
             # Process results
             search_results = []
@@ -175,15 +206,16 @@ class ChromadbQuery:
                     )
                 ):
                     score = 1 - (distance / 2)
-                    if score >= min_relevance_score:
-                        search_results.append(
-                            SearchResult(
-                                content=document,
-                                metadata=metadata,
-                                score=score,
-                                document_id=doc_id,
-                            )
+                    logger.info(f"Result {idx}: ID={doc_id}, Score={score}")
+                    # if score >= min_relevance_score:
+                    search_results.append(
+                        SearchResult(
+                            content=document,
+                            metadata=metadata,
+                            score=score,
+                            document_id=doc_id,
                         )
+                    )
 
             query_time = time.time() - start_time
             logger.info(

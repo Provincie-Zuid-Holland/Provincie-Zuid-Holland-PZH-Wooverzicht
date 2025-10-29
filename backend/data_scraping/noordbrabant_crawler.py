@@ -295,17 +295,9 @@ class Crawler:
                 new_links = [link for link in all_links if link not in seen_links]
                 self.log(f"Found {len(new_links)} *NEW* URLs")
 
-                # Update the URLs.txt file with the new links
-                for link in new_links:
-                    f.write(f"{link}\n")
-
                 return new_links
 
         except FileNotFoundError:
-            # If file doesn't exist, create it and add all links
-            with open(urls_txt_file_path, "w") as f:
-                for link in all_links:
-                    f.write(f"{link}\n")
             return all_links
 
     def print_results(self, urls: List[str]) -> None:
@@ -346,7 +338,7 @@ class Crawler:
 
 if __name__ == "__main__":
     BASE_URL = "https://open.brabant.nl/woo-verzoeken"
-    MAX_URLS = 30
+    MAX_URLS = 3000
 
     crawler = Crawler(BASE_URL, MAX_URLS)
     urls = crawler.get_new_links()
