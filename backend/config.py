@@ -1,14 +1,10 @@
 import os
 
 SUPPORTED_PROVINCES = [
-    "overijssel",
-    "zuid_holland",
     "noord_brabant",
-    "flevoland",
-    "gelderland",
 ]
 
-MAX_URLS = 1000  # Maximum number of URLs to crawl per province.
+MAX_URLS = 3  # Maximum number of URLs to crawl per province.
 
 # Base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,3 +21,6 @@ JSON_FOLDER = os.path.join(BASE_DIR, "json")
 # ChromaDB configuration
 CHROMA_DB_DIR = os.path.join(BASE_DIR, "chromadb")
 CHROMA_COLLECTION_NAME = "pdf_chunks"
+
+# Path to which succesfully crawled and processed URLs will be written
+URLS_WRITE_LOCATION = os.path.join(BASE_DIR, "URLs.txt")

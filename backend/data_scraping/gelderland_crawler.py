@@ -249,14 +249,10 @@ class Crawler:
                         new_links.append(link)
                 self.log(f"Found {len(new_links)} *NEW* URLs")
 
-                # Update the URLs.txt file with the new links
-                for link in new_links:
-                    f.write(f"{link}\n")
-
             return new_links
 
         except Exception as e:
-            print(f"Error reading or writing to URLs file: {e}")
+            print(f"Error reading URLs file: {e}")
             return all_links  # Return all links if file operations fail
 
     def print_results(self, urls):
@@ -284,7 +280,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Configuratie voor het crawlen
-    max_urls = 7
+    max_urls = 7000
 
     try:
         crawler = Crawler(max_urls=max_urls)

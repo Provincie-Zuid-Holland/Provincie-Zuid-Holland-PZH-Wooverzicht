@@ -1,0 +1,47 @@
+name: Code Checks
+
+on:
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:  # Enables manual triggers
+
+jobs:
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - run: pip install flake8
+      - run: python check.py --frontend lint
+
+  format-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - run: pip install black
+      - run: python check.py --frontend fmt-check
+
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - run: pip install flake8
+      - run: python check.py --backend lint
+
+  format-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - run: pip install black
+      - run: python check.py --backend fmt-check

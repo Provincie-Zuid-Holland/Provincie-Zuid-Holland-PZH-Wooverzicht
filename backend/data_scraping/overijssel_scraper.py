@@ -10,9 +10,11 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import platform
 from urllib.parse import urlparse, unquote
 import zipfile
 import tempfile
+from config import TIMEOUT
 
 
 class Scraper:
@@ -73,10 +75,41 @@ class Scraper:
         options.add_argument("--window-size=1920,1080")
 
         # Use binary location to point to installed Chrome
-        options.binary_location = "/usr/bin/google-chrome"
+        if platform.system() == "Linux":
+            options.binary_location = "/usr/bin/google-chrome"
 
-        # Use ChromeDriverManager with the latest version
-        service = Service(ChromeDriverManager().install())
+        # Install ChromeDriver and get path
+        driver_path = ChromeDriverManager().install()
+        # Detect correct binary name
+        driver_dir = os.path.dirname(driver_path)
+        if platform.system() == "Windows":
+            # Ensure .exe is used
+            if not driver_path.endswith(".exe"):
+                exe_candidates = [
+                    f for f in os.listdir(driver_dir) if f.endswith(".exe")
+                ]
+                if exe_candidates:
+                    driver_path = os.path.join(driver_dir, exe_candidates[0])
+                else:
+                    raise FileNotFoundError(
+                        f"ChromeDriver .exe not found in {driver_dir}"
+                    )
+        else:
+            # Linux/macOS: look for 'chromedriver'
+            # Get file at end of path
+            file_name = driver_path.split(os.sep)[-1]
+            if file_name != "chromedriver":
+                alt_path = os.path.join(driver_dir, "chromedriver")
+                if os.path.isfile(alt_path):
+                    driver_path = alt_path
+                else:
+                    raise FileNotFoundError(f"ChromeDriver not found in {driver_dir}")
+            # Ensure it's executable
+            os.chmod(driver_path, 0o755)
+
+        service = Service(driver_path)
+        # print(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromedriver-win64', 'chromedriver.exe'))
+        # service = Service(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromedriver-win64', 'chromedriver.exe'))
         self.driver = webdriver.Chrome(service=service, options=options)
         self.wait = WebDriverWait(self.driver, 20)
 
@@ -379,7 +412,7 @@ class Scraper:
                 print(
                     f"Downloading document (attempt {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
                 )
-                response = requests.get(url, stream=True, timeout=30)
+                response = requests.get(url, stream=True, timeout=TIMEOUT)
                 response.raise_for_status()
 
                 with open(save_path, "wb") as file:
@@ -482,8 +515,7 @@ class Scraper:
 
         html_content = self.fetch_html(url)
         if not html_content:
-            print(f"Could not retrieve content for {url}")
-            return
+            raise RuntimeError(f"Could not retrieve content for {url}")
 
         # Generate and save metadata
         metadata = self.generate_metadata(html_content, url)
