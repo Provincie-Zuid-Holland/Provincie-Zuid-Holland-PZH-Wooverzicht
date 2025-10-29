@@ -1,9 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin, unquote
+from urllib.parse import urlparse, urljoin
 import sys
 import logging
-from flevoland_scraper import Scraper
 
 
 class Crawler:
