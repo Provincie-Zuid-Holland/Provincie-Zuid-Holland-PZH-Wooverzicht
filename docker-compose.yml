@@ -8,6 +8,7 @@ services:
     volumes:
       - /app/node_modules
     environment:
+      - TZ=Europe/Amsterdam
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://backend-api:8000
     depends_on:
@@ -37,6 +38,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      - TZ=Europe/Amsterdam
       - CHROMA_DB_PATH=/database
     command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
@@ -58,18 +60,20 @@ services:
       # If you want hot-reloading for pipeline development:
       # - ./backend:/app # Assumes /app is the WORKDIR in your backend/Dockerfile.pipeline
       - ./database:/database
+      - ./backend/config.py:/app/config.py # Ensure this path is correct if /app is the WORKDIR
       - ./backend/URLs.txt:/app/URLs.txt # Ensure this path is correct if /app is the WORKDIR
       - ./backend/failed_downloads.txt:/app/failed_downloads.txt # Persist failed (i.e. too large) downloads on host machine
     env_file:
       - ./backend/.env
     environment:
+      - TZ=Europe/Amsterdam
       - CHROMA_DB_PATH=/database
     profiles: [ "manual" ]
     deploy:
       resources:
         limits:
-          memory: 700m
+          memory: 4g
         reservations:
-          memory: 400m
-    mem_limit: 700m
-    memswap_limit: 1400m
+          memory: 2g
+    mem_limit: 4g
+    memswap_limit: 8g

@@ -10,6 +10,7 @@ import tempfile
 import hashlib
 import re
 import logging
+from config import TIMEOUT
 
 
 class Scraper:
@@ -482,7 +483,7 @@ class Scraper:
                     f"Downloading document (attempt {attempt + 1}/{max_retries}): {os.path.basename(save_path)}"
                 )
                 response = self.session.get(
-                    url, stream=True, headers=self.headers, timeout=30
+                    url, stream=True, headers=self.headers, timeout=TIMEOUT
                 )
                 response.raise_for_status()
 
@@ -541,7 +542,7 @@ class Scraper:
         Checkt de grootte van het zip bestand.
         """
         try:
-            response = self.session.head(url, headers=self.headers, timeout=30)
+            response = self.session.head(url, headers=self.headers, timeout=TIMEOUT)
             file_size = int(response.headers.get("content-length", 0))
             # Load max size from .env
             max_size = int(os.getenv("MAX_ZIP_SIZE", 1024 * 1024 * 1024))  # 1gb
@@ -574,8 +575,7 @@ class Scraper:
 
         html_content = self.fetch_html(url)
         if not html_content:
-            print(f"Could not retrieve content for {url}")
-            return
+            raise RuntimeError(f"Could not retrieve content for {url}")
 
         # Generate and save metadata
         metadata = self.generate_metadata(html_content, url)
