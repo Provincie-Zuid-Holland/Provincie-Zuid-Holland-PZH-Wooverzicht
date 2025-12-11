@@ -6,6 +6,8 @@ SUPPORTED_PROVINCES = [
 
 MAX_URLS = 3  # Maximum number of URLs to crawl per province.
 
+TIMEOUT = 30
+
 # Base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
