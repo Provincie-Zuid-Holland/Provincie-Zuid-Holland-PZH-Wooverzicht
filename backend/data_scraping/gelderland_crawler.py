@@ -1,6 +1,10 @@
 import requests
 import time
 from urllib.parse import urlparse
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class Crawler:
@@ -16,7 +20,7 @@ class Crawler:
         seen_document_urls (set): Set van reeds geziene document URLs
     """
 
-    def __init__(self, base_url="", max_urls: int = 9999, debug: bool = False):
+    def __init__(self, base_url="", max_urls: int = 9999, debug: bool = True):
         """
         Initialiseert de Crawler met maximum aantal te verzamelen URLs.
 
@@ -27,16 +31,20 @@ class Crawler:
         Voorbeeld:
             crawler = Crawler(10)
         """
+        self.debug = debug
         self.base_url = "https://open.gelderland.nl"
         # Base API URL without query parameters
         self.api_base_url = "https://w247fahdn6-dsn.algolia.net/1/indexes/*/queries"
         # API URL with authentication parameters
-        self.api_url = f"{self.api_base_url}?x-algolia-agent=Algolia%20for%20JavaScript%20(4.22.1)%3B%20Browser%20(lite)&x-algolia-api-key=xxxxxxxxxxxxxxxxxxxxxx&x-algolia-application-id=W247FAHDN6"
+        self.alg_api_key = os.getenv("ALGOLIA_API_KEY", None)
+        if not self.alg_api_key:
+            self.log("No Algolia API key in .env")
+            return
+        self.api_url = f"{self.api_base_url}?x-algolia-agent=Algolia%20for%20JavaScript%20(4.22.1)%3B%20Browser%20(lite)&x-algolia-api-key={self.alg_api_key}&x-algolia-application-id=W247FAHDN6"
         self.max_urls = max_urls
         self.pages_visited = 0
         self.urls_per_page = {}
         self.seen_document_urls = set()
-        self.debug = debug
 
         # API headers
         self.headers = {
@@ -116,7 +124,8 @@ class Crawler:
 
         # Send POST request - using json parameter correctly converts to proper content type
         try:
-            self.log(f"Sending request to: {self.api_url}")
+            no_key_url = self.api_url.replace(self.alg_api_key, "xxxxxxx")
+            self.log(f"Sending request to: {no_key_url}")
             self.log(f"Payload: {payload}")
             response = requests.post(self.api_url, headers=self.headers, json=payload)
 
@@ -155,7 +164,7 @@ class Crawler:
         for hit in hits:
             # Extract slug or other identifiers that form the URL
             if "slug" in hit:
-                document_url = f"{self.base_url}/woo-documenten/{hit['slug']}"
+                document_url = f"{self.base_url}{hit['slug']}"
                 if self.is_valid_document_url(document_url):
                     document_urls.append(document_url)
 
@@ -280,7 +289,7 @@ class Crawler:
 
 if __name__ == "__main__":
     # Configuratie voor het crawlen
-    max_urls = 7000
+    max_urls = 10
 
     try:
         crawler = Crawler(max_urls=max_urls)
