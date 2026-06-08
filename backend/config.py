@@ -1,10 +1,14 @@
 import os
 
 SUPPORTED_PROVINCES = [
+    "gelderland",
+    "zuid_holland",
     "noord_brabant",
+    "flevoland",
+    "overijssel",
 ]
 
-MAX_URLS = 3  # Maximum number of URLs to crawl per province.
+MAX_URLS = 20  # Maximum number of URLs to crawl per province.
 
 TIMEOUT = 30
 
