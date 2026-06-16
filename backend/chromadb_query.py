@@ -16,6 +16,7 @@ from chromadb.config import Settings
 from openai import OpenAI
 from pathlib import Path
 import random
+from sentence_transformers import SentenceTransformer
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
 
@@ -182,9 +183,13 @@ class ChromadbQuery:
                     include=["metadatas", "distances", "documents"],
                 )
             else:
-                # Perform the search
+                # No embedding model given, so use default model (sentence transformer)
+                embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+                query_embedding = embedding_model.encode_query(
+                    query,
+                ).tolist()
                 results = self.collection.query(
-                    query_texts=[query],
+                    query_embeddings=[query_embedding],
                     n_results=limit,
                     where=metadata_filter,
                     include=["metadatas", "distances", "documents"],
