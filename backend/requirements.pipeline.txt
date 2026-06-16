@@ -13,3 +13,4 @@ langchain-text-splitters==0.3.6
 dateparser==1.2.2
 openai==2.6.0
 numpy<2.0.0
+sentence_transformers==5.5.1
