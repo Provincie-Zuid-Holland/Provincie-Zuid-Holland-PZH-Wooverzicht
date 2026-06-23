@@ -104,7 +104,7 @@ class Crawler:
             dict: JSON-response met documentgegevens
         """
         # Volledige URL expliciet definiëren
-        url = "https://admin.geoportaaloverijssel.nl/api/document/search/woo"
+        url = "https://admin.geoportaaloverijssel.nl/api/document/search/woo/extern"
 
         # Query parameters toevoegen
         params = {
