@@ -16,7 +16,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 from typing import TypedDict
 import logging
-import traceback
 
 # Set up logging
 logging.basicConfig(
@@ -24,8 +23,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-traceback.print_stack(limit=10)
 print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 # Get the directory where the script is located, to prevent issues with relative paths
 script_dir = Path(__file__).parent.absolute()
