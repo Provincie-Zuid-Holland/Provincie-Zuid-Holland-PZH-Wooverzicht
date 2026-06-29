@@ -4,9 +4,9 @@ import importlib
 from typing import Tuple
 import tempfile
 from extract import extract_data
-from createdb import db_pipeline
 from config import SUPPORTED_PROVINCES, MAX_URLS, URLS_WRITE_LOCATION
 import logging
+from createdb import dbPipelineHandler
 
 # Set up logging
 
@@ -136,6 +136,8 @@ def execute_pipeline() -> None:
     if EMBEDDING_MODEL:
         to_embed = True
 
+    db_pipeline_handler = dbPipelineHandler()
+
     # Import the appropriate modules based on source
     for province in provinces:
         try:
@@ -178,7 +180,7 @@ def execute_pipeline() -> None:
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
                             logger.info("Start chunking and loading into DB")
                             for combined_data in combined_data_list:
-                                db_pipeline(
+                                db_pipeline_handler.db_pipeline2(
                                     combined_data, to_embed
                                 )  # CHUNK AND PUT IN DATABASE
                             f.write(f"{url}\n")  # Log successfully processed URL

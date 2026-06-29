@@ -16,6 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from typing import TypedDict
 import logging
+import traceback
 
 # Set up logging
 logging.basicConfig(
@@ -23,6 +24,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+traceback.print_stack(limit=10)
 print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 # Get the directory where the script is located, to prevent issues with relative paths
 script_dir = Path(__file__).parent.absolute()
@@ -49,6 +52,7 @@ app.add_middleware(
 )
 
 # Initialize document retriever
+print(f"Creating DocumentRetriever in PID {os.getpid()}")
 document_retriever = DocumentRetriever()
 
 
@@ -156,4 +160,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)
