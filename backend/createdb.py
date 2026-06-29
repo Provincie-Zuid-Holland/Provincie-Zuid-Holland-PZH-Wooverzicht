@@ -30,6 +30,7 @@ import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
 import random
+from embedder_logic import get_embedder
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -49,11 +50,12 @@ CHUNK_SENTENCE_OVERLAP = int(
 COLLECTION_NAME = os.getenv(
     "COLLECTION_NAME", "document_chunks"
 )  # ChromaDB collection name
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")  # OpenAI model
+
 MAX_WORKERS = int(os.getenv("MAX_WORKERS", 5))  # Number of parallel embedding workers
 BATCH_SIZE = int(
     os.getenv("BATCH_SIZE", 100)
 )  # Batch size for API calls and DB operations
+from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL
 
 
 @dataclass
@@ -84,143 +86,9 @@ class EmbeddedChunk(ChunkData):
     embedding: List[float]
 
 
-class DocumentProcessor:
-    """
-    Processes document content from JSON files into searchable vector database entries.
-
-    Attributes:
-        json_folder (Path): Path to folder containing JSON files.
-        client (OpenAI): OpenAI client for generating embeddings.
-        chroma_client (chromadb.PersistentClient): ChromaDB client for vector storage.
-
-    Functions:
-        flatten_json: Converts nested JSON structures into flat dictionary.
-        load_and_chunk_json_data: Processes JSON files into chunks while preserving metadata.
-        embed_chunks: Generates embeddings for chunks using OpenAI's API.
-        load_embedded_chunks_to_chromadb: Stores embedded chunks in ChromaDB for retrieval.
-    """
-
-    def __init__(self):
-        """
-        Initializes the document processor.
-
-        Args:
-            openai_api_key (Optional[str]): Optional API key (falls back to environment variable).
-
-        Raises:
-            ValueError: If no OpenAI API key is available.
-        """
-        api_key = os.getenv("OPENAI_API_KEY", None)
-        if api_key:
-            self.client = OpenAI(os.getenv("OPENAI_API_KEY"))
-
-        # # Verify API key availability
-        # if not self.client.api_key:
-        #     raise ValueError("OPENAI_API_KEY environment variable is not set.")
-
-        # Initialize ChromaDB with persistent storage
-        db_path = os.environ.get("CHROMA_DB_PATH", "database")
-        logger.info(f"Using ChromaDB path: {db_path}")
-        self.chroma_client = chromadb.PersistentClient(
-            path=db_path,  # Use environment variable
-            settings=Settings(
-                anonymized_telemetry=False,  # Disable usage tracking
-                allow_reset=False,  # Prevent accidental database resets
-            ),
-        )
-
-    def flatten_json(self, prefix: str, obj: Dict) -> Dict[str, Any]:
-        """
-        Converts nested JSON structures into flat dictionary with dot notation keys.
-
-        Args:
-            prefix (str): Current key prefix for nested structures.
-            obj (Dict): Dictionary to flatten.
-
-        Returns:
-            Dict[str, Any]: Dictionary with flattened structure using dot notation.
-
-        Example:
-            Input: {"a": {"b": 1}}
-            Output: {"a.b": 1}
-        """
-        flattened = {}
-        for key, value in obj.items():
-            new_key = f"{prefix}.{key}" if prefix else key
-            # Recursively flatten nested dictionaries
-            if isinstance(value, dict):
-                flattened.update(self.flatten_json(new_key, value))
-            # Store primitive values directly
-            elif isinstance(value, (str, int, float, bool)) or value is None:
-                flattened[new_key] = value
-        return flattened
-
-    def load_and_chunk_data(
-        self,
-        data: dict,
-        chunk_size: int = CHUNK_SIZE,
-        chunk_overlap: int = CHUNK_OVERLAP,
-    ) -> List[ChunkData]:
-        """
-        Processes JSON files into chunks while preserving all metadata.
-
-        Args:
-            data (dict): Dictionary containing JSON data to process.
-            chunk_size (int): Maximum characters per chunk.
-            chunk_overlap (int): Number of overlapping characters between chunks.
-
-        Returns:
-            List[ChunkData]: List of ChunkData objects containing processed chunks.
-
-        Raises:
-            ValueError: If data is empty.
-        """
-        # If dict is empty raise error
-        if not data:
-            raise ValueError("No data found in the JSON dict.")
-        # Check if data.content is empty
-        if not data.get("content") or data["content"] == "":
-            raise ValueError("No content field found in the JSON dict.")
-        all_chunks = []
-
-        # Initialize text splitter with multiple separators for intelligent splitting
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            separators=["\n\n", "\n", " ", ""],  # Try different separators in order
-        )
-
-        # Process data
-        # Get metadata from data dict
-        metadata = data["metadata"]
-        if "datum" in metadata:
-            try:
-                metadata["datum"] = int(metadata["datum"])
-            except (ValueError, TypeError):
-                logger.warning(f"Datum field is not a valid int: {metadata['datum']}")
-
-        # Find the main content field
-        content = data["content"]
-
-        if not content:
-            logger.warning(
-                f"No content field found in {data["pdf_file"]}. "
-                f"Available fields: {list(data.keys())}"
-            )
-
-        # Split content into chunks
-        chunks = text_splitter.split_text(content)
-
-        # Create ChunkData objects for each chunk
-        for idx, chunk in enumerate(chunks):
-            chunk_id = f"{data["file_name"]}_chunk_{idx}"
-            all_chunks.append(
-                ChunkData(chunk_id=chunk_id, content=chunk, metadata=metadata)
-            )
-
-        logger.info(f"Processed {data["file_name"]}: {len(chunks)} chunks created")
-
-        return all_chunks
+class Chunker:
+    def __init__(self) -> None:
+        pass
 
     def chunk_by_sentence_with_overlap(
         self, text, chunk_size=1000, sentence_limit_factor=10, overlap_sentences=1
@@ -339,114 +207,10 @@ class DocumentProcessor:
 
         return all_chunks
 
-    def load_and_chunk_json_files(
-        self, chunk_size: int = CHUNK_SIZE, chunk_overlap: int = CHUNK_OVERLAP
-    ) -> List[ChunkData]:  # DEPRECATED NO LONGER USED IN PIPELINE SCRIPT
-        """
-        Processes JSON files into chunks while preserving all metadata.
 
-        Args:
-            chunk_size (int): Maximum characters per chunk.
-            chunk_overlap (int): Number of overlapping characters between chunks.
-
-        Returns:
-            List[ChunkData]: List of ChunkData objects containing processed chunks.
-
-        Raises:
-            FileNotFoundError: If JSON folder doesn't exist.
-        """
-        if not self.json_folder.exists():
-            raise FileNotFoundError(f"JSON folder not found: {self.json_folder}")
-
-        all_chunks = []
-
-        # Initialize text splitter with multiple separators for intelligent splitting
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            separators=["\n\n", "\n", " ", ""],  # Try different separators in order
-        )
-
-        # Process each JSON file in the folder
-        for file_path in self.json_folder.glob("*.json"):
-            try:
-                # Load and parse JSON file
-                with file_path.open("r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                # Get metadata from data dict
-                metadata = data["metadata"]
-
-                # Find the main content field
-                content = data["pdf_content"]
-
-                if not content:
-                    logger.warning(
-                        f"No content field found in {file_path}. "
-                        f"Available fields: {list(data.keys())}"
-                    )
-                    continue
-
-                # Split content into chunks
-                chunks = text_splitter.split_text(content)
-
-                # Create ChunkData objects for each chunk
-                for idx, chunk in enumerate(chunks):
-                    chunk_id = f"{file_path.stem}_chunk_{idx}"
-                    all_chunks.append(
-                        ChunkData(chunk_id=chunk_id, content=chunk, metadata=metadata)
-                    )
-
-                logger.info(f"Processed {file_path.name}: {len(chunks)} chunks created")
-
-            except json.JSONDecodeError as e:
-                logger.error(f"Error parsing {file_path}: {e}")
-                continue
-            except Exception as e:
-                logger.error(f"Error processing {file_path}: {e}")
-                continue
-
-        return all_chunks
-
-    def _generate_fake_embedded_chunk(self, chunk):
-        import math
-
-        vec = [random.random() for _ in range(1536)]
-        length = math.sqrt(sum(x**2 for x in vec))
-        embedding = [x / length for x in vec]
-        return EmbeddedChunk(
-            chunk_id=chunk.chunk_id,
-            content=chunk.content,
-            metadata=chunk.metadata,
-            embedding=embedding,
-        )
-
-    def fake_embed_chunks(self, chunks: List[ChunkData]) -> List[EmbeddedChunk]:
-        """
-        Generates fake embeddings for chunks using random vectors.
-
-        Args:
-            chunks (List[ChunkData]): List of chunks to embed.
-
-        Returns:
-            List[EmbeddedChunk]: List of chunks with their embedding vectors.
-        """
-        embedded_chunks = []
-
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures = [
-                executor.submit(self._generate_fake_embedded_chunk, chunk)
-                for chunk in chunks
-            ]
-
-            for future in futures:
-                try:
-                    embedded_chunks.append(future.result())
-                except Exception as e:
-                    logger.error(f"Error generating fake embedding: {e}")
-
-        logger.info(f"Generated fake embeddings for {len(embedded_chunks)} chunks")
-        return embedded_chunks
+class Embedder:
+    def __init__(self) -> None:
+        self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
 
     def embed_chunks(
         self, chunks: List[ChunkData], to_embed: bool
@@ -482,27 +246,230 @@ class DocumentProcessor:
 
                     # Generate embeddings for the batch if to_embed is True
                     if to_embed:
-                        response = self.client.embeddings.create(
-                            model=EMBEDDING_MODEL,
-                            input=[chunk.content for chunk in batch],
+                        embeddings = self.embedding_provider.embed_documents(
+                            [chunk.content for chunk in batch]
                         )
-                        # add embeddings to the corresponding EmbeddedChunk objects
-                        # Create EmbeddedChunk objects with the results
-                        for idx, embedding_data in enumerate(response.data):
-                            embedded_chunks[i + idx].embedding = (
-                                embedding_data.embedding
+
+                        for idx, embedding in enumerate(embeddings):
+                            embedded_chunks[i + idx].embedding = embedding
+
+                        logger.info(
+                            f"Embedded batch {i//BATCH_SIZE + 1}: {len(batch)} chunks"
+                        )
+
+                except Exception as e:
+                    logger.error(f"Error embedding batch starting at index {i}: {e}")
+                    continue
+
+        return embedded_chunks
+
+
+class DocumentProcessor:
+    """
+    Processes document content from JSON files into searchable vector database entries.
+
+    Attributes:
+        json_folder (Path): Path to folder containing JSON files.
+        client (OpenAI): OpenAI client for generating embeddings.
+        chroma_client (chromadb.PersistentClient): ChromaDB client for vector storage.
+
+    Functions:
+        flatten_json: Converts nested JSON structures into flat dictionary.
+        load_and_chunk_json_data: Processes JSON files into chunks while preserving metadata.
+        embed_chunks: Generates embeddings for chunks using OpenAI's API.
+        load_embedded_chunks_to_chromadb: Stores embedded chunks in ChromaDB for retrieval.
+    """
+
+    def __init__(self):
+        """
+        Initializes the document processor.
+
+        Args:
+            openai_api_key (Optional[str]): Optional API key (falls back to environment variable).
+
+        Raises:
+            ValueError: If no OpenAI API key is available.
+        """
+        api_key = os.getenv("OPENAI_API_KEY", None)
+        if api_key:
+            self.client = OpenAI(os.getenv("OPENAI_API_KEY"))
+
+        # # Verify API key availability
+        # if not self.client.api_key:
+        #     raise ValueError("OPENAI_API_KEY environment variable is not set.")
+
+        # Initialize ChromaDB with persistent storage
+        db_path = os.environ.get("CHROMA_DB_PATH", "database")
+        logger.info(f"Using ChromaDB path: {db_path}")
+        self.chroma_client = chromadb.PersistentClient(
+            path=db_path,  # Use environment variable
+            settings=Settings(
+                anonymized_telemetry=False,  # Disable usage tracking
+                allow_reset=False,  # Prevent accidental database resets
+            ),
+        )
+
+    def chunk_by_sentence_with_overlap(
+        self, text, chunk_size=1000, sentence_limit_factor=10, overlap_sentences=1
+    ):
+        """
+        Splits text into chunks based on sentences while preserving overlap.
+
+        Args:
+            text (str): The text to be chunked.
+            chunk_size (int): Maximum size of each chunk in characters.
+            sentence_limit_factor (int): Factor to limit how often a 'sentence'(already split by sentence tokenizer) can exceed chunk size, and still be split into smaller parts. After that, it will be skipped.
+            overlap_sentences (int): Number of sentences to overlap between chunks.
+
+        Returns:
+            List[str]: List of text chunks.
+        """
+        sentences = sent_tokenize(text, language="dutch")
+        chunks = []
+        current_chunk = []  # Sentences will be stored here
+
+        for sentence in sentences:
+            if sum(len(s) for s in current_chunk) + len(sentence) <= chunk_size:
+                current_chunk.append(
+                    sentence
+                )  # add current sentence to the chunk if char limit is not exceeded
+            elif len(sentence) > sentence_limit_factor * chunk_size:
+                logger.warning(
+                    f"Sentence way too long even after sentence tokenization ({len(sentence)} characters), longer than chunk size limit ({chunk_size} characters), multiplied by factor {sentence_limit_factor}. Skipping."
+                )
+                continue
+            elif len(sentence) > chunk_size:
+                logger.warning(
+                    f"Sentence ({len(sentence)} characters) exceeds chunk size limit ({chunk_size} characters). Splitting sentence."
+                )
+                # First save the current chunk if it has content
+                if current_chunk:
+                    chunks.append(" ".join(current_chunk))
+                    current_chunk = []
+                # Split the sentence into smaller parts if it exceeds chunk size
+                for i in range(0, len(sentence), chunk_size):
+                    part = sentence[i : i + chunk_size]
+                    chunks.append(part)
+            else:  # if chunk size would be exceeded
+                chunks.append(
+                    " ".join(current_chunk)
+                )  # Add sentences as a single string to chunks
+
+                current_chunk = (  # Set current chunk to the last N sentences of the previous chunk
+                    current_chunk[-overlap_sentences:] if overlap_sentences > 0 else []
+                )
+                current_chunk.append(
+                    sentence
+                )  # Add the 'new' sentence to the current chunk
+
+        if (
+            current_chunk
+        ):  # If we have run out of sentences but still have a chunk to add, add it
+            chunks.append(" ".join(current_chunk))
+
+        return chunks
+
+    def load_and_chunk_data_by_sentence(
+        self,
+        data: dict,
+        chunk_size: int = CHUNK_SIZE,
+        chunk_overlap: int = CHUNK_SENTENCE_OVERLAP,
+    ) -> List[ChunkData]:
+        """
+        Processes JSON files into chunks while preserving all metadata.Chunking strategy is based on sentences.
+
+        Args:
+            data (dict): Dictionary containing JSON data to process.
+            chunk_size (int): Maximum characters per chunk.
+            chunk_overlap (int): Number of overlapping characters between chunks.
+
+        Returns:
+            List[ChunkData]: List of ChunkData objects containing processed chunks.
+
+        Raises:
+            ValueError: If data is empty.
+        """
+        # If dict is empty raise error
+        if not data:
+            raise ValueError("No data found in the JSON dict.")
+        # Check if data.content is empty
+        if not data.get("content") or data["content"] == "":
+            raise ValueError("No content field found in the JSON dict.")
+        all_chunks = []
+
+        # Process data
+        # Get metadata from data dict
+        metadata = data["metadata"]
+
+        # Find the main content field
+        content = data["content"]
+
+        if not content:
+            logger.warning(
+                f"No content field found in {data["pdf_file"]}. "
+                f"Available fields: {list(data.keys())}"
+            )
+
+        # Split content into chunks
+        chunks = self.chunk_by_sentence_with_overlap(
+            content, chunk_size=chunk_size, overlap_sentences=chunk_overlap
+        )
+
+        # Create ChunkData objects for each chunk
+        for idx, chunk in enumerate(chunks):
+            chunk_id = f"{data["file_name"]}_chunk_{idx}"
+            all_chunks.append(
+                ChunkData(chunk_id=chunk_id, content=chunk, metadata=metadata)
+            )
+
+        logger.info(f"Processed {data["file_name"]}: {len(chunks)} chunks created")
+
+        return all_chunks
+
+    def embed_chunks(
+        self, chunks: List[ChunkData], to_embed: bool
+    ) -> List[EmbeddedChunk]:
+        """
+        Creates Embeddedchunk objects. If to_embed is true includes generated embeddings for chunks.
+
+        Args:
+            chunks (List[ChunkData]): List of chunks to embed.
+            to_embed (bool): Whether to generate embeddings or not.
+
+        Returns:
+            List[EmbeddedChunk]: List of chunks with their embedding vectors.
+        """
+        embedded_chunks = []
+
+        # Use thread pool for parallel processing
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS):
+            # Process chunks in batches to respect API limits
+            for i in range(0, len(chunks), BATCH_SIZE):
+                batch = chunks[i : i + BATCH_SIZE]
+                try:
+                    # loop through batch and create EmbeddedChunk objects without embeddings
+                    for chunk in batch:
+                        embedded_chunks.append(
+                            EmbeddedChunk(
+                                chunk_id=chunk.chunk_id,
+                                content=chunk.content,
+                                metadata=chunk.metadata,
+                                embedding=[],
                             )
-                            # embedded_chunks.append(
-                            #     EmbeddedChunk(
-                            #         chunk_id=batch[idx].chunk_id,
-                            #         content=batch[idx].content,
-                            #         metadata=batch[idx].metadata,
-                            #         embedding=embedding_data.embedding,
-                            #     )
-                            # )
-                    logger.info(
-                        f"Embedded batch {i//BATCH_SIZE + 1}: {len(batch)} chunks"
-                    )
+                        )
+
+                    # Generate embeddings for the batch if to_embed is True
+                    if to_embed:
+                        embeddings = self.embedder.embed_documents(
+                            [chunk.content for chunk in batch]
+                        )
+
+                        for idx, embedding in enumerate(embeddings):
+                            embedded_chunks[i + idx].embedding = embedding
+
+                        logger.info(
+                            f"Embedded batch {i//BATCH_SIZE + 1}: {len(batch)} chunks"
+                        )
 
                 except Exception as e:
                     logger.error(f"Error embedding batch starting at index {i}: {e}")
@@ -556,6 +523,45 @@ class DocumentProcessor:
                 continue
 
 
+class dbPipelineHandler:
+    """
+    Class that handles the logic for chunking, embedding and loading data into the database.
+    """
+
+    def __init__(self) -> None:
+        load_dotenv()
+        self.chunker = Chunker()
+        self.embedder = Embedder()
+        self.processor = DocumentProcessor()
+
+    def db_pipeline2(self, data, to_embed: bool = True):
+
+        try:
+            # Step 1: Load and chunk the documents
+            logger.info("Chunking JSON data...")
+            chunks = self.chunker.load_and_chunk_data_by_sentence(data)
+
+            if not chunks:
+                raise Exception("No chunks were created. Exiting.")
+
+            # Step 2: Generate embeddings
+            logger.info("Embedding chunks...")
+            embedded_chunks = self.embedder.embed_chunks(chunks, to_embed)
+
+            if not embedded_chunks:
+                raise Exception("No embeddings were created. Exiting.")
+
+            # Step 3: store embeddings in db
+            logger.info("Loading embedded chunks into ChromaDB...")
+            self.processor.load_chunks_to_chromadb(embedded_chunks, to_embed)
+
+            logger.info("Processing completed successfully!")
+
+        except Exception as e:
+            logger.error(f"An error occurred during processing: {e}")
+            raise
+
+
 def db_pipeline(data, to_embed: bool = True):
     """
     Function that orchestrates the document processing pipeline.
@@ -602,54 +608,3 @@ def db_pipeline(data, to_embed: bool = True):
     except Exception as e:
         logger.error(f"An error occurred during processing: {e}")
         raise
-
-
-def main():
-    """
-    Main execution function that orchestrates the document processing pipeline.
-
-    This function coordinates the steps of:
-    1. Loading and chunking JSON documents
-    2. Generating embeddings
-    3. Storing embedded chunks in ChromaDB
-
-    Raises:
-        Any exceptions that occur during the processing pipeline.
-    """
-
-    # Load environment variables from .env file
-    load_dotenv()
-
-    try:
-        # Initialize processor
-        processor = DocumentProcessor(JSON_FOLDER)
-
-        # Step 1: Load and chunk the documents
-        logger.info("Chunking JSON data...")
-        chunks = processor.load_and_chunk_json_files()
-
-        if not chunks:
-            logger.error("No chunks were created. Exiting.")
-            return
-
-        # Step 2: Generate embeddings
-        logger.info("Embedding chunks using OpenAI embeddings...")
-        embedded_chunks = processor.embed_chunks(chunks)
-
-        if not embedded_chunks:
-            logger.error("No embeddings were created. Exiting.")
-            return
-
-        # Step 3: Store in database
-        logger.info("Loading embedded chunks into ChromaDB...")
-        processor.load_embedded_chunks_to_chromadb(embedded_chunks)
-
-        logger.info("Processing completed successfully!")
-
-    except Exception as e:
-        logger.error(f"An error occurred during processing: {e}")
-        raise
-
-
-if __name__ == "__main__":
-    main()
