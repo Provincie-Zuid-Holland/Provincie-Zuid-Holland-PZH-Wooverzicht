@@ -5,7 +5,6 @@ This module provides functionality to search and retrieve documents from the Chr
 It supports similarity-based searches with metadata filtering and returns ranked results.
 """
 
-from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
@@ -16,9 +15,8 @@ from chromadb.config import Settings
 from openai import OpenAI
 from pathlib import Path
 import random
-from sentence_transformers import SentenceTransformer
-
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
+from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL
+from embedder_logic import get_embedder
 
 # Set up logging
 logging.basicConfig(
@@ -104,6 +102,8 @@ class ChromadbQuery:
             )
             self.collection = self.client.create_collection(name=collection_name)
 
+        self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
+
     def _get_embeddings(self, text: str) -> List[float]:
         """
         Get embeddings using OpenAI API.
@@ -172,7 +172,7 @@ class ChromadbQuery:
             # Get embeddings for the query
             logger.info(f"Using EMBEDDING_MODEL: {EMBEDDING_MODEL}")
             if EMBEDDING_MODEL:
-                query_embedding = self._get_embeddings(query)
+                query_embedding = self.embedding_provider.embed_query(query)
                 results = self.collection.query(
                     query_embeddings=[
                         query_embedding
@@ -184,10 +184,7 @@ class ChromadbQuery:
                 )
             else:
                 # No embedding model given, so use default model (sentence transformer)
-                embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-                query_embedding = embedding_model.encode_query(
-                    query,
-                ).tolist()
+                query_embedding = self.embedding_provider.embed_query(query)
                 results = self.collection.query(
                     query_embeddings=[query_embedding],
                     n_results=limit,
@@ -346,66 +343,3 @@ class ChromadbQuery:
         except Exception as e:
             logger.error(f"Error getting collection stats: {e}")
             raise
-
-
-def main():
-    # Example usage of the ChromadbQuery class
-    print("Starting ChromaDB Query Example...")
-    chroma_query = ChromadbQuery(
-        collection_name="document_chunks",
-        database_path="./database",
-        openai_api_key=os.getenv("OPENAI_API_KEY"),
-    )
-    provinces = ["Gelderland"]
-    metadata_filter = {
-        "$and": [
-            {
-                "provincie": {"$in": provinces},
-            },
-            {
-                "$and": [
-                    {
-                        "datum": {
-                            "$gte": int(
-                                datetime.strptime("2024-7-6", "%Y-%m-%d")
-                                .replace(tzinfo=timezone.utc)
-                                .timestamp()
-                            )
-                        }
-                    },
-                    {
-                        "datum": {
-                            "$lte": int(
-                                datetime.strptime("2025-6-4", "%Y-%m-%d")
-                                .replace(tzinfo=timezone.utc)
-                                .timestamp()
-                            )
-                        }
-                    },
-                ]
-            },
-        ]
-    }
-
-    # Search for documents
-    results = chroma_query.search(
-        query="Wat kan je me vertellen over Faunaschade?",
-        limit=5,
-        metadata_filter=metadata_filter,
-    )
-    for result in results:
-        print(
-            f"Document ID: {result.document_id}, Score: {result.score}, Content: {result.content[:100]}..."
-        )
-        print(f"Metadata: {result.metadata}")
-        print("Type: ", type(result.metadata["datum"]), result.metadata["datum"])
-
-    # Get collection stats
-    stats = chroma_query.get_collection_stats()
-    print(
-        f"Collection '{stats['collection_name']}' has {stats['document_count']} documents."
-    )
-
-
-if __name__ == "__main__":
-    main()

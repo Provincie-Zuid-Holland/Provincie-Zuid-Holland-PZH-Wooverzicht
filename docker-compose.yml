@@ -52,6 +52,7 @@ services:
     memswap_limit: 8g
 
   backend-pipeline:
+    image: backend-pipeline:latest
     platform: linux/amd64
     build:
       context: ./backend

@@ -14,3 +14,4 @@ SQLAlchemy==2.0.38
 dateparser==1.2.2
 numpy<2.0.0
 sentence_transformers==5.5.1
+nltk
