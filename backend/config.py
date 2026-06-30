@@ -1,14 +1,17 @@
 import os
 
 SUPPORTED_PROVINCES = [
+    "overijssel",
     "gelderland",
     "zuid_holland",
     "noord_brabant",
     "flevoland",
-    "overijssel",
 ]
 
-MAX_URLS = 20  # Maximum number of URLs to crawl per province.
+EMBEDDING_PROVIDER = "sentence_transformers"
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+MAX_URLS = 4  # Maximum number of URLs to crawl per province.
 
 TIMEOUT = 30
 

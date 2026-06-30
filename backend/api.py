@@ -49,6 +49,7 @@ app.add_middleware(
 )
 
 # Initialize document retriever
+print(f"Creating DocumentRetriever in PID {os.getpid()}")
 document_retriever = DocumentRetriever()
 
 
@@ -156,4 +157,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)
