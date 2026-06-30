@@ -17,19 +17,15 @@ Required Environment Variables:
 """
 
 import os
-import json
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 import logging
-from config import JSON_FOLDER
 from openai import OpenAI
 from dotenv import load_dotenv
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
-import random
 from embedder_logic import get_embedder
 
 # Set up logging configuration for tracking progress and errors
@@ -55,7 +51,7 @@ MAX_WORKERS = int(os.getenv("MAX_WORKERS", 5))  # Number of parallel embedding w
 BATCH_SIZE = int(
     os.getenv("BATCH_SIZE", 100)
 )  # Batch size for API calls and DB operations
-from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL
+from config import EMBEDDING_PROVIDER
 
 
 @dataclass

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import os
+
 from dotenv import load_dotenv
 from config import EMBEDDING_MODEL
 
@@ -44,17 +44,17 @@ class SentenceTransformerEmbedder(Embedder):
     def embed_query(self, text: str) -> list[float]:
         try:
             return self.model.encode_query(text).tolist()
-        except:
+        except Exception:
             return self.model.encode(text).tolist()
 
     def embed_document(self, text: str) -> list[float]:
         try:
             return self.model.encode_document(text).tolist()
-        except:
+        except Exception:
             return self.model.encode(text).tolist()
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         try:
             return self.model.encode_document(texts).tolist()
-        except:
+        except Exception:
             return self.model.encode(texts).tolist()
