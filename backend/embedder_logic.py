@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from config import EMBEDDING_MODEL
 
@@ -32,9 +33,6 @@ class Embedder(ABC):
 
     # def embed_batch(self, texts: list[str]) -> list[list[float]]:
     #     return [self.embed(t) for t in texts]
-
-
-from sentence_transformers import SentenceTransformer
 
 
 class SentenceTransformerEmbedder(Embedder):
