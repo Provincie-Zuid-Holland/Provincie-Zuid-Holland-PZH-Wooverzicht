@@ -5,7 +5,6 @@ This module provides functionality to search and retrieve documents from the Chr
 It supports similarity-based searches with metadata filtering and returns ranked results.
 """
 
-from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
@@ -16,7 +15,6 @@ from chromadb.config import Settings
 from openai import OpenAI
 from pathlib import Path
 import random
-from sentence_transformers import SentenceTransformer
 from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL
 from embedder_logic import get_embedder
 
