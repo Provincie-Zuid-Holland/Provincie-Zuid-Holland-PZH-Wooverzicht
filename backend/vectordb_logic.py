@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
-from config import CHROMA_COLLECTION_NAME
+from config import CHROMA_COLLECTION_NAME, EMBEDDING_PROVIDER
 from typing import Optional, List
 from dataclass.embedded_chunk import EmbeddedChunk
 from dataclasses import dataclass
@@ -9,6 +9,8 @@ import logging
 import os
 import chromadb
 from chromadb.config import Settings
+import time
+from embedder_logic import get_embedder
 
 load_dotenv()
 # Set up logging configuration for tracking progress and errors
@@ -51,7 +53,6 @@ def get_vectordb(vector_provider: str):
 
 
 class VectorStore(ABC):
-
     @abstractmethod
     def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
         pass
@@ -85,6 +86,18 @@ class ChromadbVectorStore(VectorStore):
                 allow_reset=False,  # Prevent accidental database resets
             ),
         )
+        try:
+            self.collection = self.chroma_client.get_collection(name=collection_name)
+            logger.info(f"Succesfully connected to collection: {collection_name}")
+        except Exception:
+            self.collection = self.chroma_client.get_or_create_collection(
+                name=collection_name
+            )
+            logger.info(
+                f"Could not connect to collection named: {collection_name}, Creating new collection"
+            )
+
+        self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
 
     def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
         """
@@ -143,42 +156,34 @@ class ChromadbVectorStore(VectorStore):
 
         try:
             # Get embeddings for the query
-            logger.info(f"Using EMBEDDING_MODEL: {EMBEDDING_MODEL}")
-            if EMBEDDING_MODEL:
-                query_embedding = self.embedding_provider.embed_query(query)
-                results = self.collection.query(
-                    query_embeddings=[
-                        query_embedding
-                    ],  # Use embeddings instead of text
-                    # query_texts=[query],
-                    n_results=limit,
-                    where=metadata_filter,
-                    include=["metadatas", "distances", "documents"],
-                )
-            else:
-                # No embedding model given, so use default model (sentence transformer)
-                query_embedding = self.embedding_provider.embed_query(query)
-                results = self.collection.query(
-                    query_embeddings=[query_embedding],
-                    n_results=limit,
-                    where=metadata_filter,
-                    include=["metadatas", "distances", "documents"],
-                )
+            logger.info(f"Using EMBEDDING_MODEL: {self.embedding_provider.model}")
+            query_embedding = self.embedding_provider.embed_query(query)
+            results = self.collection.query(
+                query_embeddings=[query_embedding],
+                n_results=limit,
+                where=metadata_filter,
+                include=["metadatas", "distances", "documents"],
+            )
 
             # query_embedding = self._get_fake_embeddings(query)
 
-            logger.info(f"number of raw results: {len(results['ids'][0])}")
+            ids = results.get("ids") or []
+            documents = results.get("documents") or []
+            metadatas = results.get("metadatas") or []
+            distances = results.get("distances") or []
+
+            ids = ids[0] if ids and ids[0] is not None else []
+            documents = documents[0] if documents and documents[0] is not None else []
+            metadatas = metadatas[0] if metadatas and metadatas[0] is not None else []
+            distances = distances[0] if distances and distances[0] is not None else []
+
+            logger.info(f"number of raw results: {len(ids)}")
 
             # Process results
             search_results = []
-            if results["ids"][0]:
+            if ids:
                 for idx, (doc_id, document, metadata, distance) in enumerate(
-                    zip(
-                        results["ids"][0],
-                        results["documents"][0],
-                        results["metadatas"][0],
-                        results["distances"][0],
-                    )
+                    zip(ids, documents, metadatas, distances)
                 ):
                     score = 1 - (distance / 2)
                     logger.info(f"Result {idx}: ID={doc_id}, Score={score}")
