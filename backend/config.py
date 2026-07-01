@@ -11,6 +11,8 @@ SUPPORTED_PROVINCES = [
 EMBEDDING_PROVIDER = "sentence_transformers"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
+VECTOR_DB = "chromadb"  # Supported values: chromadb, postgres
+
 MAX_URLS = 4  # Maximum number of URLs to crawl per province.
 
 TIMEOUT = 30
@@ -28,7 +30,7 @@ EXTRACTED_FOLDER = os.path.join(BASE_DIR, "extracted")
 JSON_FOLDER = os.path.join(BASE_DIR, "json")
 
 # ChromaDB configuration
-CHROMA_DB_DIR = os.path.join(BASE_DIR, "chromadb")
+CHROMA_DB_DIR = os.path.join(BASE_DIR, "database")
 CHROMA_COLLECTION_NAME = "pdf_chunks"
 
 # Path to which succesfully crawled and processed URLs will be written
