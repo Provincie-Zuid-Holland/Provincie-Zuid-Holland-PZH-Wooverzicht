@@ -180,7 +180,7 @@ def execute_pipeline() -> None:
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
                             logger.info("Start chunking and loading into DB")
                             for combined_data in combined_data_list:
-                                db_pipeline_handler.db_pipeline2(
+                                db_pipeline_handler.db_pipeline(
                                     combined_data, to_embed
                                 )  # CHUNK AND PUT IN DATABASE
                             f.write(f"{url}\n")  # Log successfully processed URL

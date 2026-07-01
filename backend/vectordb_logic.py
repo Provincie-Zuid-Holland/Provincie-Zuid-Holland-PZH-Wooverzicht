@@ -1,28 +1,24 @@
-"""
-ChromaDB Query Module
-
-This module provides functionality to search and retrieve documents from the ChromaDB vector database.
-It supports similarity-based searches with metadata filtering and returns ranked results.
-"""
-
-import logging
-from typing import List, Dict, Any, Optional
+from abc import ABC, abstractmethod
+from dotenv import load_dotenv
+from config import CHROMA_COLLECTION_NAME
+from typing import Optional, List
+from dataclass.embedded_chunk import EmbeddedChunk
 from dataclasses import dataclass
-import time
+from typing import Dict, Any
+import logging
 import os
 import chromadb
 from chromadb.config import Settings
-from openai import OpenAI
-from pathlib import Path
-import random
-from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL
-from embedder_logic import get_embedder
 
-# Set up logging
+load_dotenv()
+# Set up logging configuration for tracking progress and errors
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+BATCH_SIZE = int(
+    os.getenv("BATCH_SIZE", 100)
+)  # Batch size for API calls and DB operations
 
 
 @dataclass
@@ -43,66 +39,83 @@ class SearchResult:
     document_id: str
 
 
-class ChromadbQuery:
-    """
-    Provides an interface for querying a ChromaDB vector database.
+def get_vectordb(vector_provider: str):
+    if vector_provider == "chromadb":
+        return ChromadbVectorStore(CHROMA_COLLECTION_NAME)
+    elif vector_provider == "postgres":
+        return PgVectorStore()
+    # elif EMBEDDING_PROVIDER == "OPENAI":
+    #     ...
 
-    Attributes:
-        collection_name (str): Name of the ChromaDB collection.
-        client (chromadb.PersistentClient): ChromaDB client instance.
-        collection (Collection): ChromaDB collection for querying.
-        openai_client (OpenAI): OpenAI client for generating embeddings.
-    """
+    raise ValueError(f"Unknown vector store: {vector_provider}")
 
-    def __init__(
-        self,
-        collection_name: str = "document_chunks",
-        database_path: str = None,
-    ):
+
+class VectorStore(ABC):
+
+    @abstractmethod
+    def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
+        pass
+
+    @abstractmethod
+    def search(
+        self, query: str, limit, metadata_filter, min_relevance_score
+    ) -> List[SearchResult]:
+        pass
+
+    # @abstractmethod
+    # def delete(self, text: list[str]) -> list[list[float]]:
+    #     pass
+
+
+class ChromadbVectorStore(VectorStore):
+    def __init__(self, collection_name: str) -> None:
         """
-        Initializes the query interface to ChromaDB.
+        Stores chunks in ChromaDB for later retrieval.
 
         Args:
-            collection_name (str, optional): Name of the ChromaDB collection. Defaults to "document_chunks".
-            database_path (str, optional): Path to the ChromaDB database. Defaults to "database".
-            openai_api_key (Optional[str], optional): OpenAI API key for embeddings. Defaults to None.
-
-        Raises:
-            Exception: If there's an error connecting to the collection.
+            collection_name (str): Name of the ChromaDB collection to use.
         """
-        if database_path is None:
-            database_path = os.environ.get("CHROMA_DB_PATH", "database")
-        project_root = Path(__file__).parent.parent.absolute()
-        database_path = str(project_root / database_path)
-        # database_path = ".." + database_path
-        print(database_path)
-        print("Path exists:", os.path.exists(database_path))
-
-        logger.info(f"Path exists: {os.path.exists(database_path)}")
-        print(os.path.abspath(database_path))
-        # Print dir
-        print(os.listdir(database_path))
-        for root, dirs, files in os.walk(database_path):
-            print(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
-            logger.info(f"Directory: {root}\nSubdirectories: {dirs}\nFiles: {files}\n")
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         self.collection_name = collection_name
-
-        # Initialize ChromaDB client
-        self.client = chromadb.PersistentClient(
-            path=database_path, settings=Settings(anonymized_telemetry=False)
+        db_path = os.environ.get("CHROMA_DB_PATH", "database")
+        logger.info(f"Using ChromaDB path: {db_path}")
+        self.chroma_client = chromadb.PersistentClient(
+            path=db_path,
+            settings=Settings(
+                anonymized_telemetry=False,  # Disable usage tracking
+                allow_reset=False,  # Prevent accidental database resets
+            ),
         )
 
-        try:
-            self.collection = self.client.get_collection(name=collection_name)
-            logger.info(f"Successfully connected to collection: {collection_name}")
-        except Exception:
-            logger.warning(
-                f"Collection not found, creating new collection: {collection_name}"
-            )
-            self.collection = self.client.create_collection(name=collection_name)
+    def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
+        """
+        Stores chunks in ChromaDB for later retrieval.
 
-        self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
+        Args:
+            embedded_chunks Optional (List[EmbeddedChunk]): List of chunks with embeddings to store.
+            to_embed (bool): Whether the chunks have embeddings or not.
+            collection_name (str): Name of the ChromaDB collection to use.
+        """
+        # Get or create the collection
+        collection = self.chroma_client.get_or_create_collection(
+            name=self.collection_name
+        )
+
+        # Add chunks to database in batches
+        for i in range(0, len(embedded_chunks), BATCH_SIZE):
+            batch = embedded_chunks[i : i + BATCH_SIZE]
+            try:
+                collection.add(
+                    documents=[chunk.content for chunk in batch],  # The text content
+                    embeddings=[
+                        chunk.embedding for chunk in batch
+                    ],  # The embedding vectors
+                    metadatas=[chunk.metadata for chunk in batch],  # All metadata
+                    ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
+                )
+                logger.info(f"Loaded batch {i//BATCH_SIZE + 1} into ChromaDB")
+            except Exception as e:
+                logger.error(f"Error loading batch to ChromaDB: {e}")
+                continue
 
     def search(
         self,
@@ -189,3 +202,8 @@ class ChromadbQuery:
         except Exception as e:
             logger.error(f"Error during search: {e}")
             raise
+
+
+class PgVectorStore(VectorStore):
+    def __init__(self) -> None:
+        super().__init__()
