@@ -31,7 +31,7 @@ JSON_FOLDER = os.path.join(BASE_DIR, "json")
 
 # ChromaDB configuration
 CHROMA_DB_DIR = os.path.join(BASE_DIR, "database")
-CHROMA_COLLECTION_NAME = "pdf_chunks"
+CHROMA_COLLECTION_NAME = "document_chunks"
 
 # Path to which succesfully crawled and processed URLs will be written
 URLS_WRITE_LOCATION = os.path.join(BASE_DIR, "URLs.txt")
