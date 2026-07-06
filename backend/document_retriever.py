@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any
 from chromadb_query import ChromadbQuery
+from vectordb_logic import get_vectordb
 
 # Set up logging
 logging.basicConfig(
@@ -29,7 +30,7 @@ class DocumentRetriever:
         Args:
             max_context_chunks (int): Maximum number of context chunks to retrieve.
         """
-        self.query_engine = ChromadbQuery()
+        self.query_engine = get_vectordb()
         self.max_context_chunks = max_context_chunks
 
     def generate_metadata_filter(
@@ -112,7 +113,7 @@ class DocumentRetriever:
             context_chunks = self.query_engine.search(
                 query=query,
                 limit=self.max_context_chunks,
-                min_relevance_score=0.52,
+                min_relevance_score=0.4,
                 metadata_filter=meta_filter,
             )
 

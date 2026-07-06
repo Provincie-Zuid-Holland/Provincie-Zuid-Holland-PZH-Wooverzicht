@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
-from config import CHROMA_COLLECTION_NAME, EMBEDDING_PROVIDER
+from config import CHROMA_COLLECTION_NAME, EMBEDDING_PROVIDER, VECTOR_DB
 from typing import Optional, List
 from dataclass.embedded_chunk import EmbeddedChunk
 from dataclasses import dataclass
@@ -41,7 +41,7 @@ class SearchResult:
     document_id: str
 
 
-def get_vectordb(vector_provider: str):
+def get_vectordb(vector_provider: str = VECTOR_DB):
     if vector_provider == "chromadb":
         return ChromadbVectorStore(CHROMA_COLLECTION_NAME)
     elif vector_provider == "postgres":
@@ -187,15 +187,15 @@ class ChromadbVectorStore(VectorStore):
                 ):
                     score = 1 - (distance / 2)
                     logger.info(f"Result {idx}: ID={doc_id}, Score={score}")
-                    # if score >= min_relevance_score:
-                    search_results.append(
-                        SearchResult(
-                            content=document,
-                            metadata=metadata,
-                            score=score,
-                            document_id=doc_id,
+                    if score >= min_relevance_score:
+                        search_results.append(
+                            SearchResult(
+                                content=document,
+                                metadata=metadata,
+                                score=score,
+                                document_id=doc_id,
+                            )
                         )
-                    )
 
             query_time = time.time() - start_time
             logger.info(
