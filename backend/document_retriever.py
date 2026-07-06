@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any
-from chromadb_query import ChromadbQuery
 from vectordb_logic import get_vectordb
 
 # Set up logging
@@ -16,7 +15,7 @@ class DocumentRetriever:
     DocumentRetriever class to handle document retrieval and processing.
 
     Attributes:
-        query_engine (ChromaDBQuery): The engine to query documents.
+        query_engine: The engine to query documents.
         max_context_chunks (int): Maximum number of context chunks to use.
     """
 

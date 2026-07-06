@@ -1,4 +1,5 @@
 """
+DEPRECATED
 Healthcheck utility to verify database access and compatibility.
 
 This script checks that the API can properly access ChromaDB and the logging database.
