@@ -78,3 +78,30 @@ services:
           memory: 2g
     mem_limit: 4g
     memswap_limit: 8g
+
+# docker compose --env-file backend/.env up postgres
+  postgres:
+    image: pgvector/pgvector:0.8.4-pg18-trixie
+    container_name: my_postgres
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DBNAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql
+
+
+# https://oneuptime.com/blog/post/2026-01-25-postgresql-docker-compose-connection/view#connection-retry-logic
+# postgres:
+#     image: postgres:16
+#     environment:
+#       POSTGRES_USER: ${POSTGRES_USER}
+#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#       POSTGRES_DB: ${POSTGRES_DB}
+
+#   app:
+#     build: .
+#     environment:
+#       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
