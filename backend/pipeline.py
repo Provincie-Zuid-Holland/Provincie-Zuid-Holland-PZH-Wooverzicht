@@ -135,8 +135,11 @@ def execute_pipeline() -> None:
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
     if EMBEDDING_MODEL:
         to_embed = True
-
-    db_pipeline_handler = dbPipelineHandler()
+    try:
+        db_pipeline_handler = dbPipelineHandler()
+    except Exception as e:
+        logger.error(f"Error during set-up: {e}. Exiting")
+        sys.exit(1)
 
     # Import the appropriate modules based on source
     for province in provinces:
