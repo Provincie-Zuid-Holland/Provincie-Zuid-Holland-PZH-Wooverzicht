@@ -29,7 +29,6 @@ script_dir = Path(__file__).parent.absolute()
 load_dotenv(
     dotenv_path=script_dir / ".env"
 )  # This will load from .env in the backend directory
-print(f"CHROMA_DB_PATH: {os.environ.get('CHROMA_DB_PATH', 'Not set')}")
 
 print("$")
 # Initialize the FastAPI app
