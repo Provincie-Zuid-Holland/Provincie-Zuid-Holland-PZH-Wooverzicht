@@ -61,6 +61,8 @@ Thumbs.db
 
 # database
 /database
+/postgres_data
+backend/postgres_data
 backend/data_scraping/downloads/
 backend/database/
 backend/downloads/
