@@ -11,6 +11,9 @@ import chromadb
 from chromadb.config import Settings
 import time
 from embedder_logic import get_embedder
+import psycopg
+from psycopg import sql
+from pgvector.psycopg import register_vector
 
 load_dotenv()
 # Set up logging configuration for tracking progress and errors
@@ -45,7 +48,7 @@ def get_vectordb(vector_provider: str = VECTOR_DB):
     if vector_provider == "chromadb":
         return ChromadbVectorStore(CHROMA_COLLECTION_NAME)
     elif vector_provider == "postgres":
-        return PgVectorStore()
+        return PgVectorStore(CHROMA_COLLECTION_NAME)
     # elif EMBEDDING_PROVIDER == "OPENAI":
     #     ...
 
@@ -210,5 +213,150 @@ class ChromadbVectorStore(VectorStore):
 
 
 class PgVectorStore(VectorStore):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, collection_name: str) -> None:
+        """
+        Stores chunks in PostgreSQL using pgvector for later retrieval.
+
+        Args:
+            collection_name (str): Logical collection/table namespace.
+        """
+        self.collection_name = collection_name
+
+        self.host = os.environ.get("PG_HOST")
+        self.port = int(os.environ.get("PG_PORT", 5432))
+        self.database = os.environ.get("PG_DBNAME")
+        self.user = os.environ.get("PG_USER")
+        self.password = os.environ.get("PG_PASSWORD")
+
+        if not all([self.user, self.password]):
+            raise ValueError(
+                "PG_USER and PG_PASSWORD environment variables must be set."
+            )
+        try:
+            print(self.host, self.port, self.database, self.user)
+            self.conn = psycopg.connect(
+                host=self.host,
+                port=self.port,
+                dbname=self.database,
+                user=self.user,
+                password=self.password,
+                sslmode="disable",
+            )
+            self.conn.execute(
+                "CREATE EXTENSION IF NOT EXISTS vector;"
+            )  # Enable PGvector
+
+            register_vector(self.conn)
+
+            # conn.autocommit = True
+            # cursor = conn.cursor()
+            query = sql.SQL(
+                "CREATE TABLE IF NOT EXISTS {table_name}("
+                "id INTEGER PRIMARY KEY,"
+                "document_title TEXT,"
+                "document_text TEXT,"
+                "date TIMESTAMP,"
+                "vector vector)"
+            ).format(table_name=sql.Identifier(self.collection_name))
+            # Create table if it doesn't exist
+            cursor = self.conn.execute(query)
+            self.conn.commit()
+            cursor.close()
+            self.conn.close()
+
+            logger.info(
+                f"Successfully connected to PostgreSQL table: {self.collection_name}"
+            )
+
+            self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
+        except Exception as e:
+            logger.error(f"Failed to initialize PostgreSQL: {e}")
+            if (
+                hasattr(self, "conn") and self.conn
+            ):  # If connection exists and is still open
+                self.conn.close()
+            raise
+
+    def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
+        return super().add_documents(embedded_chunks)
+
+    def search(
+        self, query: str, limit, metadata_filter, min_relevance_score
+    ) -> List[SearchResult]:
+        return super().search(query, limit, metadata_filter, min_relevance_score)
+
+
+#         """
+# Upload vectors to a PostgreSQL database with pgvector.
+# All connection details and table/column names are configurable via environment variables.
+# """
+
+# import os
+# import psycopg2
+# from psycopg2.extras import execute_values
+# from typing import List, Tuple, Optional
+# from datetime import datetime
+
+# def upload_vectors_to_pgvector(
+#     vectors: List[Tuple[int, str, str, datetime, List[float]]],
+#     batch_size: int = 1000,
+# ) -> None:
+#     """
+#     Uploads a batch of vectors and associated metadata to a PostgreSQL table with pgvector.
+
+#     Args:
+#         vectors: List of tuples, where each tuple contains:
+#             (id, document_title, document_text, date, vector)
+#         batch_size: Number of vectors to upload in each batch (default: 1000)
+#     """
+#     # Load environment variables
+#     host = os.getenv("PG_HOST", "localhost")
+#     port = int(os.getenv("PG_PORT", "5432"))
+#     dbname = os.getenv("PG_DBNAME", "pg_database")
+#     user = os.getenv("PG_USER")
+#     password = os.getenv("PG_PASSWORD")
+#     table_name = os.getenv("PG_TABLE_NAME", "documents")
+
+#     if not all([user, password]):
+#         raise ValueError("PG_USER and PG_PASSWORD environment variables must be set.")
+
+#     # Connect to PostgreSQL
+#     conn = psycopg2.connect(
+#         host=host, port=port, dbname=dbname, user=user, password=password
+#     )
+#     cursor = conn.cursor()
+
+#     # Create table if it doesn't exist
+#     cursor.execute(f"""
+#         CREATE TABLE IF NOT EXISTS {table_name} (
+#             id INTEGER PRIMARY KEY,
+#             document_title TEXT,
+#             document_text TEXT,
+#             date TIMESTAMP,
+#             vector vector
+#         );
+#     """)
+
+#     # Prepare batch upload
+#     query = f"""
+#         INSERT INTO {table_name} (id, document_title, document_text, date, vector)
+#         VALUES %s
+#     """
+
+#     # Split into batches
+#     for i in range(0, len(vectors), batch_size):
+#         batch = vectors[i:i + batch_size]
+#         execute_values(cursor, query, batch)
+
+#     conn.commit()
+#     cursor.close()
+#     conn.close()
+#     print(f"Uploaded {len(vectors)} vectors to {table_name}.")
+
+# ---
+# ### **How to Use**
+# 1. **Set your environment variables** (e.g., in a `.env` file or your shell):
+#    ```bash
+#    export PG_USER=your_username
+#    export PG_PASSWORD=your_password
+#    export PG_TABLE_NAME=documents  # optional, defaults to "documents"
