@@ -227,13 +227,13 @@ class PgVectorStore(VectorStore):
         self.database = os.environ.get("PG_DBNAME")
         self.user = os.environ.get("PG_USER")
         self.password = os.environ.get("PG_PASSWORD")
+        self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
 
         if not all([self.user, self.password]):
             raise ValueError(
                 "PG_USER and PG_PASSWORD environment variables must be set."
             )
         try:
-            print(self.host, self.port, self.database, self.user)
             self.conn = psycopg.connect(
                 host=self.host,
                 port=self.port,
@@ -242,24 +242,52 @@ class PgVectorStore(VectorStore):
                 password=self.password,
                 sslmode="disable",
             )
-            self.conn.execute(
-                "CREATE EXTENSION IF NOT EXISTS vector;"
-            )  # Enable PGvector
 
+            # Enable pgvector
+            self.conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
             register_vector(self.conn)
 
-            # conn.autocommit = True
-            # cursor = conn.cursor()
-            query = sql.SQL(
-                "CREATE TABLE IF NOT EXISTS {table_name}("
-                "id INTEGER PRIMARY KEY,"
-                "document_title TEXT,"
-                "document_text TEXT,"
-                "date TIMESTAMP,"
-                "vector vector)"
-            ).format(table_name=sql.Identifier(self.collection_name))
-            # Create table if it doesn't exist
-            cursor = self.conn.execute(query)
+            # Tabel 1: documenten
+            tbl_documenten = sql.SQL(
+                "CREATE TABLE IF NOT EXISTS documenten ("
+                "woo_id BIGSERIAL PRIMARY KEY,"
+                "file_name text NOT NULL,"
+                "url text NOT NULL,"
+                "provincie text,"
+                "titel text NOT NULL,"
+                "datum INTEGER,"
+                "type text,"
+                "publiekssamenvatting text,"
+                "file_type text NOT NULL,"
+                "created_at TIMESTAMP DEFAULT NOW(),"
+                "updated_at TIMESTAMP DEFAULT NOW()"
+                ")"
+            )
+
+            # Tabel 2: embeddings (met foreign key naar documenten)
+            tbl_embeddings = sql.SQL(
+                "CREATE TABLE IF NOT EXISTS embeddings ("
+                "chunk_id BIGSERIAL PRIMARY KEY,"
+                "woo_id BIGINT NOT NULL REFERENCES documenten(woo_id) ON DELETE CASCADE,"
+                "content text NOT NULL,"
+                "vector vector({embedding_dim}) NOT NULL,"
+                "created_at TIMESTAMP DEFAULT NOW()"
+                ")"
+            ).format(embedding_dim=sql.Literal(self.embedding_provider.embedding_dim))
+
+            # Index voor vector search op embeddings
+            index_query = sql.SQL(
+                "CREATE INDEX IF NOT EXISTS idx_embeddings_vector "
+                "ON embeddings USING ivfflat (vector vector_cosine_ops) WITH (lists = 200);"
+            )
+
+            # Voer queries uit
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname='public';")
+            print(cursor.fetchall())
+            cursor.execute(tbl_documenten)
+            cursor.execute(tbl_embeddings)
+            cursor.execute(index_query)
             self.conn.commit()
             cursor.close()
             self.conn.close()
@@ -268,7 +296,6 @@ class PgVectorStore(VectorStore):
                 f"Successfully connected to PostgreSQL table: {self.collection_name}"
             )
 
-            self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
         except Exception as e:
             logger.error(f"Failed to initialize PostgreSQL: {e}")
             if (
@@ -278,7 +305,61 @@ class PgVectorStore(VectorStore):
             raise
 
     def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
-        return super().add_documents(embedded_chunks)
+        # Assume all chunks belong to same woo verzoek
+        with psycopg.connect(
+            host=self.host,
+            port=self.port,
+            dbname=self.database,
+            user=self.user,
+            password=self.password,
+            sslmode="disable",
+        ) as conn:
+            with conn.cursor() as cur:
+                insert_doc_command = """INSERT INTO documenten (file_name, url, provincie, titel, datum, type, publiekssamenvatting, file_type)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING woo_id;
+                """
+                insert_emb_command = """INSERT INTO embeddings (woo_id, content, vector)
+                VALUES (%s, %s, %s)
+                RETURNING woo_id;
+                """
+                print("@#%^#@^#@$&#$&@&*#@&*@#&*$#@&$&#@&#@$*&#@$")
+                print(
+                    embedded_chunks[0].metadata["titel"],
+                )
+                #####################
+                # Upload to documents
+                chunk = embedded_chunks[0]  # All these values SHOULD be the same
+                cur.execute(
+                    insert_doc_command,
+                    (
+                        chunk.metadata["file_name"],
+                        chunk.metadata["url"],
+                        chunk.metadata["provincie"],
+                        chunk.metadata["titel"],
+                        chunk.metadata["datum"],
+                        chunk.metadata["type"],
+                        chunk.metadata["publiekssamenvatting"],
+                        chunk.metadata["file_type"],
+                    ),
+                )
+                row = (
+                    cur.fetchone()
+                )  # Read first result from returned row, we only return woo_id
+                if row is None or len(row) == 0:
+                    raise ValueError("Failed to insert document or retrieve woo_id")
+                woo_id = row[0]
+
+                embeddings_data = [
+                    (woo_id, chunk.content, chunk.embedding)
+                    for chunk in embedded_chunks
+                ]
+                cur.executemany(insert_emb_command, embeddings_data)
+                # for chunk in embedded_chunks: # add through for loop
+                #     cur.execute(
+                #         insert_emb_command,
+                #         (woo_id, chunk.content, chunk.embedding),
+                #     )
 
     def search(
         self, query: str, limit, metadata_filter, min_relevance_score
