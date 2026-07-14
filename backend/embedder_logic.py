@@ -8,7 +8,6 @@ load_dotenv()
 
 
 def get_embedder(embedding_provider: str):
-
     if embedding_provider == "sentence_transformers":
         return SentenceTransformerEmbedder()
     # elif EMBEDDING_PROVIDER == "OPENAI":
@@ -38,6 +37,7 @@ class Embedder(ABC):
 class SentenceTransformerEmbedder(Embedder):
     def __init__(self):
         self.model = SentenceTransformer(EMBEDDING_MODEL)
+        self.embedding_dim = self.model.get_embedding_dimension()
 
     def embed_query(self, text: str) -> list[float]:
         try:

@@ -458,7 +458,6 @@ class dbPipelineHandler:
         self.processor = DocumentProcessor()
 
     def db_pipeline(self, data, to_embed: bool = True):
-
         try:
             # Step 1: Load and chunk the documents
             logger.info("Chunking JSON data...")
@@ -475,7 +474,7 @@ class dbPipelineHandler:
                 raise Exception("No embeddings were created. Exiting.")
 
             # Step 3: store embeddings in db
-            logger.info("Loading embedded chunks into ChromaDB...")
+            logger.info(f"Loading embedded chunks into {VECTOR_DB} database...")
             self.processor.load_chunks_to_vectordb(embedded_chunks)
 
             logger.info("Processing completed successfully!")
