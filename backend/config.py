@@ -1,17 +1,17 @@
 import os
 
 SUPPORTED_PROVINCES = [
-    "overijssel",
-    "gelderland",
+    # "overijssel",
+    # "gelderland",
     "zuid_holland",
-    "noord_brabant",
-    "flevoland",
+    # "noord_brabant",
+    # "flevoland",
 ]
 
 EMBEDDING_PROVIDER = "sentence_transformers"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
-VECTOR_DB = "chromadb"  # Supported values: chromadb, postgres
+VECTOR_DB = "postgres"  # Supported values: chromadb, postgres
 
 MAX_URLS = 4  # Maximum number of URLs to crawl per province.
 
