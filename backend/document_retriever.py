@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 import logging
 from typing import List, Dict, Any
 from vectordb_logic import get_vectordb
@@ -32,54 +31,6 @@ class DocumentRetriever:
         self.query_engine = get_vectordb()
         self.max_context_chunks = max_context_chunks
 
-    def generate_metadata_filter(
-        self,
-        provinces: List[str] | None,
-        startDate: str = None,
-        endDate: str = None,
-    ) -> Dict[str, Any]:
-        """
-        Generate a metadata filter for querying documents.
-
-        Args:
-            provinces: Optional list of provinces to filter results.
-            startDate: Start date in "YYYY-MM-DD" format to filter results.
-            endDate: End date in "YYYY-MM-DD" format to filter results.
-
-        Returns:
-            Dict[str, Any]: Metadata filter for querying documents. Returns None if no filters are applied.
-        """
-        filters = []
-        if provinces and len(provinces) > 0:
-            filters.append({"provincie": {"$in": provinces}})
-
-        date_filters = []
-        start_date_epoch_time = int(
-            datetime.strptime(startDate, "%Y-%m-%d")
-            .replace(tzinfo=timezone.utc)
-            .timestamp()
-        )
-        end_date_epoch_time = int(
-            datetime.strptime(endDate, "%Y-%m-%d")
-            .replace(tzinfo=timezone.utc)
-            .timestamp()
-        )
-        date_filters.append({"datum": {"$gte": start_date_epoch_time}})
-        date_filters.append({"datum": {"$lte": end_date_epoch_time}})
-
-        if date_filters:
-            filters.append({"$and": date_filters})
-
-        if not filters:
-            # If no filters, return an empty filter
-            return None
-        if len(filters) == 1:
-            # If only one filter, return it directly
-            return filters[0]
-        else:
-            # Combine multiple filters with $and
-            return {"$and": filters}
-
     def retrieve_relevant_documents(
         self,
         query: str,
@@ -104,16 +55,18 @@ class DocumentRetriever:
                 f"Retrieving documents for query: {query} with provinces: {provinces} and date_range: {startDate} to {endDate}"
             )
 
-            meta_filter = self.generate_metadata_filter(
-                provinces=provinces, startDate=startDate, endDate=endDate
-            )
-            logger.info(f"Using metadata filter: {meta_filter}")
+            meta_data = {
+                "provinces": [provinces],
+                "startDate": startDate,
+                "endDate": endDate,
+            }
+            logger.info(f"Using metadata: {meta_data}")
             # Search for relevant chunks
             context_chunks = self.query_engine.search(
                 query=query,
+                meta_data=meta_data,
                 limit=self.max_context_chunks,
-                min_relevance_score=0.4,
-                metadata_filter=meta_filter,
+                min_relevance_score=0.0,
             )
 
             # Format chunks for citations

@@ -14,6 +14,7 @@ from embedder_logic import get_embedder
 import psycopg
 from psycopg import sql
 from pgvector.psycopg import register_vector
+from datetime import datetime, timezone
 
 load_dotenv()
 # Set up logging configuration for tracking progress and errors
@@ -62,7 +63,7 @@ class VectorStore(ABC):
 
     @abstractmethod
     def search(
-        self, query: str, limit, metadata_filter, min_relevance_score
+        self, query: str, meta_data, limit, min_relevance_score
     ) -> List[SearchResult]:
         pass
 
@@ -136,8 +137,8 @@ class ChromadbVectorStore(VectorStore):
     def search(
         self,
         query: str,
+        meta_data: Dict[str, Any],
         limit: int = 5,
-        metadata_filter: Optional[Dict[str, Any]] = None,
         min_relevance_score: float = 0.0,
     ) -> List[SearchResult]:
         """
@@ -159,8 +160,12 @@ class ChromadbVectorStore(VectorStore):
 
         try:
             # Get embeddings for the query
-            logger.info(f"Using EMBEDDING_MODEL: {self.embedding_provider.model}")
             query_embedding = self.embedding_provider.embed_query(query)
+            metadata_filter = self.generate_metadata_filter(
+                provinces=meta_data.get("provinces"),
+                startDate=meta_data.get("startDate", ""),
+                endDate=meta_data.get("endDate", ""),
+            )
             results = self.collection.query(
                 query_embeddings=[query_embedding],
                 n_results=limit,
@@ -211,6 +216,54 @@ class ChromadbVectorStore(VectorStore):
             logger.error(f"Error during search: {e}")
             raise
 
+    def generate_metadata_filter(
+        self,
+        provinces: List[str] | None,
+        startDate: str = None,
+        endDate: str = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate a metadata filter for querying documents.
+
+        Args:
+            provinces: Optional list of provinces to filter results.
+            startDate: Start date in "YYYY-MM-DD" format to filter results.
+            endDate: End date in "YYYY-MM-DD" format to filter results.
+
+        Returns:
+            Dict[str, Any]: Metadata filter for querying documents. Returns None if no filters are applied.
+        """
+        filters = []
+        if provinces and len(provinces) > 0:
+            filters.append({"provincie": {"$in": provinces}})
+
+        date_filters = []
+        start_date_epoch_time = int(
+            datetime.strptime(startDate, "%Y-%m-%d")
+            .replace(tzinfo=timezone.utc)
+            .timestamp()
+        )
+        end_date_epoch_time = int(
+            datetime.strptime(endDate, "%Y-%m-%d")
+            .replace(tzinfo=timezone.utc)
+            .timestamp()
+        )
+        date_filters.append({"datum": {"$gte": start_date_epoch_time}})
+        date_filters.append({"datum": {"$lte": end_date_epoch_time}})
+
+        if date_filters:
+            filters.append({"$and": date_filters})
+
+        if not filters:
+            # If no filters, return an empty filter
+            return None
+        if len(filters) == 1:
+            # If only one filter, return it directly
+            return filters[0]
+        else:
+            # Combine multiple filters with $and
+            return {"$and": filters}
+
 
 class PgVectorStore(VectorStore):
     def __init__(self, collection_name: str) -> None:
@@ -234,14 +287,7 @@ class PgVectorStore(VectorStore):
                 "PG_USER and PG_PASSWORD environment variables must be set."
             )
         try:
-            self.conn = psycopg.connect(
-                host=self.host,
-                port=self.port,
-                dbname=self.database,
-                user=self.user,
-                password=self.password,
-                sslmode="disable",
-            )
+            self.connect_to_pg()
 
             # Enable pgvector
             self.conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
@@ -276,9 +322,14 @@ class PgVectorStore(VectorStore):
             ).format(embedding_dim=sql.Literal(self.embedding_provider.embedding_dim))
 
             # Index voor vector search op embeddings
-            index_query = sql.SQL(
+            index_query_200 = sql.SQL(
                 "CREATE INDEX IF NOT EXISTS idx_embeddings_vector "
                 "ON embeddings USING ivfflat (vector vector_cosine_ops) WITH (lists = 200);"
+            )
+
+            index_query_1000 = sql.SQL(
+                "CREATE INDEX IF NOT EXISTS idx_embeddings_vector "
+                "ON embeddings USING ivfflat (vector vector_cosine_ops) WITH (lists = 1000);"
             )
 
             # Voer queries uit
@@ -287,7 +338,8 @@ class PgVectorStore(VectorStore):
             print(cursor.fetchall())
             cursor.execute(tbl_documenten)
             cursor.execute(tbl_embeddings)
-            cursor.execute(index_query)
+            cursor.execute(index_query_200)
+            cursor.execute(index_query_1000)
             self.conn.commit()
             cursor.close()
             self.conn.close()
@@ -303,6 +355,18 @@ class PgVectorStore(VectorStore):
             ):  # If connection exists and is still open
                 self.conn.close()
             raise
+
+    def connect_to_pg(self) -> None:
+        logger.info("Connecting to postgres database...")
+        self.conn = psycopg.connect(
+            host=self.host,
+            port=self.port,
+            dbname=self.database,
+            user=self.user,
+            password=self.password,
+            sslmode="disable",
+        )
+        logger.info("Succesfully connected to postgres database")
 
     def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
         # Assume all chunks belong to same woo verzoek
@@ -323,10 +387,6 @@ class PgVectorStore(VectorStore):
                 VALUES (%s, %s, %s)
                 RETURNING woo_id;
                 """
-                print("@#%^#@^#@$&#$&@&*#@&*@#&*$#@&$&#@&#@$*&#@$")
-                print(
-                    embedded_chunks[0].metadata["titel"],
-                )
                 #####################
                 # Upload to documents
                 chunk = embedded_chunks[0]  # All these values SHOULD be the same
@@ -362,82 +422,97 @@ class PgVectorStore(VectorStore):
                 #     )
 
     def search(
-        self, query: str, limit, metadata_filter, min_relevance_score
+        self,
+        query: str,
+        meta_data: dict[str, Any],
+        limit: int,
+        min_relevance_score: float,
     ) -> List[SearchResult]:
-        return super().search(query, limit, metadata_filter, min_relevance_score)
+        """
+        Search for similar chunks in the embeddings table, filtered by date range, provincies, and minimum relevance score.
 
+        Args:
+            query: The user's search query.
+            meta_data: Dictionary containing filters (start_date, end_date, provincies).
+            limit: Maximum number of results to return.
+            min_relevance_score: Minimum similarity score to include in results.
 
-#         """
-# Upload vectors to a PostgreSQL database with pgvector.
-# All connection details and table/column names are configurable via environment variables.
-# """
+        Returns:
+            List of dictionaries containing chunk_id, content, woo_id, file_name, titel, provincie, datum, and similarity.
+        """
+        # Get embeddings for the query
+        query_embedding = self.embedding_provider.embed_query(query)
+        self.connect_to_pg()
+        # Base query
+        search_query = sql.SQL("""
+            SELECT
+                e.chunk_id,
+                e.content,
+                e.woo_id,
+                d.file_name,
+                d.titel,
+                d.provincie,
+                d.datum,
+                1 - (e.vector <=> %s::vector) AS similarity
+            FROM
+                embeddings e
+            JOIN
+                documenten d ON e.woo_id = d.woo_id
+        """)
 
-# import os
-# import psycopg2
-# from psycopg2.extras import execute_values
-# from typing import List, Tuple, Optional
-# from datetime import datetime
+        # Apply filters
+        conditions = []
+        params = []
+        params.append(query_embedding)
 
-# def upload_vectors_to_pgvector(
-#     vectors: List[Tuple[int, str, str, datetime, List[float]]],
-#     batch_size: int = 1000,
-# ) -> None:
-#     """
-#     Uploads a batch of vectors and associated metadata to a PostgreSQL table with pgvector.
+        start_date = meta_data.get("start_date")
+        end_date = meta_data.get("end_date")
+        provincies = meta_data.get("provincies")
 
-#     Args:
-#         vectors: List of tuples, where each tuple contains:
-#             (id, document_title, document_text, date, vector)
-#         batch_size: Number of vectors to upload in each batch (default: 1000)
-#     """
-#     # Load environment variables
-#     host = os.getenv("PG_HOST", "localhost")
-#     port = int(os.getenv("PG_PORT", "5432"))
-#     dbname = os.getenv("PG_DBNAME", "pg_database")
-#     user = os.getenv("PG_USER")
-#     password = os.getenv("PG_PASSWORD")
-#     table_name = os.getenv("PG_TABLE_NAME", "documents")
+        if start_date is not None:
+            conditions.append(sql.SQL("d.datum >= %s"))
+            params.append(start_date)
+        if end_date is not None:
+            conditions.append(sql.SQL("d.datum <= %s"))
+            params.append(end_date)
+        if provincies is not None and len(provincies) > 0:
+            conditions.append(sql.SQL("d.provincie = ANY(%s)"))
+            params.append(provincies)
 
-#     if not all([user, password]):
-#         raise ValueError("PG_USER and PG_PASSWORD environment variables must be set.")
+        # Add similarity threshold
+        conditions.append(sql.SQL("1 - (e.vector <=> %s::vector) >= %s"))
+        params.extend([query_embedding, min_relevance_score])
 
-#     # Connect to PostgreSQL
-#     conn = psycopg2.connect(
-#         host=host, port=port, dbname=dbname, user=user, password=password
-#     )
-#     cursor = conn.cursor()
+        if conditions:
+            search_query = sql.SQL("{} WHERE {}").format(
+                search_query, sql.SQL(" AND ").join(conditions)
+            )
 
-#     # Create table if it doesn't exist
-#     cursor.execute(f"""
-#         CREATE TABLE IF NOT EXISTS {table_name} (
-#             id INTEGER PRIMARY KEY,
-#             document_title TEXT,
-#             document_text TEXT,
-#             date TIMESTAMP,
-#             vector vector
-#         );
-#     """)
+        # Order by similarity and limit
+        search_query = sql.SQL("{} ORDER BY similarity DESC LIMIT %s").format(
+            search_query, sql.Literal(limit)
+        )
+        params.append(limit)
 
-#     # Prepare batch upload
-#     query = f"""
-#         INSERT INTO {table_name} (id, document_title, document_text, date, vector)
-#         VALUES %s
-#     """
-
-#     # Split into batches
-#     for i in range(0, len(vectors), batch_size):
-#         batch = vectors[i:i + batch_size]
-#         execute_values(cursor, query, batch)
-
-#     conn.commit()
-#     cursor.close()
-#     conn.close()
-#     print(f"Uploaded {len(vectors)} vectors to {table_name}.")
-
-# ---
-# ### **How to Use**
-# 1. **Set your environment variables** (e.g., in a `.env` file or your shell):
-#    ```bash
-#    export PG_USER=your_username
-#    export PG_PASSWORD=your_password
-#    export PG_TABLE_NAME=documents  # optional, defaults to "documents"
+        # Execute
+        with self.conn.cursor() as cur:
+            cur.execute(search_query, params)
+            results = cur.fetchall()
+        self.conn.close()
+        # Format results as SearchResult dataclass
+        return [
+            SearchResult(
+                content=row[1],
+                metadata={
+                    "woo_id": row[2],
+                    "file_name": row[3],
+                    "titel": row[4],
+                    "provincie": row[5],
+                    "datum": row[6],
+                    "chunk_id": row[0],
+                },
+                score=row[7],
+                document_id=str(row[2]),  # Using woo_id as document_id
+            )
+            for row in results
+        ]
