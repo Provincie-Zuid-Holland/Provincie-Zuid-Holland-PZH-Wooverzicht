@@ -13,6 +13,7 @@ import time
 from embedder_logic import get_embedder
 import psycopg
 from psycopg import sql
+from psycopg_pool import ConnectionPool
 from pgvector.psycopg import register_vector
 from datetime import datetime, timezone
 
@@ -286,12 +287,23 @@ class PgVectorStore(VectorStore):
             raise ValueError(
                 "PG_USER and PG_PASSWORD environment variables must be set."
             )
-        try:
-            self.connect_to_pg()
 
-            # Enable pgvector
-            self.conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-            register_vector(self.conn)
+        try:
+            self.pool = ConnectionPool(
+                conninfo="",  # can be empty since we're passing everything via kwargs
+                kwargs={
+                    "host": self.host,
+                    "port": self.port,
+                    "dbname": self.database,
+                    "user": self.user,
+                    "password": self.password,
+                    "sslmode": "disable",
+                    "autocommit": True,
+                },
+                min_size=1,
+                max_size=10,
+                open=True,
+            )
 
             # Tabel 1: documenten
             tbl_documenten = sql.SQL(
@@ -323,26 +335,29 @@ class PgVectorStore(VectorStore):
 
             # Index voor vector search op embeddings
             index_query_200 = sql.SQL(
-                "CREATE INDEX IF NOT EXISTS idx_embeddings_vector "
+                "CREATE INDEX IF NOT EXISTS idx_embeddings_vector_200 "
                 "ON embeddings USING ivfflat (vector vector_cosine_ops) WITH (lists = 200);"
             )
 
-            index_query_1000 = sql.SQL(
-                "CREATE INDEX IF NOT EXISTS idx_embeddings_vector "
-                "ON embeddings USING ivfflat (vector vector_cosine_ops) WITH (lists = 1000);"
-            )
+            # index_query_1000 = sql.SQL(
+            #     "CREATE INDEX IF NOT EXISTS idx_embeddings_vector_1000 "
+            #     "ON embeddings USING ivfflat (vector vector_cosine_ops) WITH (lists = 1000);"
+            # )
 
-            # Voer queries uit
-            cursor = self.conn.cursor()
-            cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname='public';")
-            print(cursor.fetchall())
-            cursor.execute(tbl_documenten)
-            cursor.execute(tbl_embeddings)
-            cursor.execute(index_query_200)
-            cursor.execute(index_query_1000)
-            self.conn.commit()
-            cursor.close()
-            self.conn.close()
+            # Voer queries uit via een pooled connection
+            with self.pool.connection() as conn:
+                conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+                register_vector(conn)
+
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT tablename FROM pg_tables WHERE schemaname='public';"
+                    )
+                    print(cursor.fetchall())
+                    cursor.execute(tbl_documenten)
+                    cursor.execute(tbl_embeddings)
+                    cursor.execute(index_query_200)
+                    # cursor.execute(index_query_1000)
 
             logger.info(
                 f"Successfully connected to PostgreSQL table: {self.collection_name}"
@@ -350,34 +365,32 @@ class PgVectorStore(VectorStore):
 
         except Exception as e:
             logger.error(f"Failed to initialize PostgreSQL: {e}")
-            if (
-                hasattr(self, "conn") and self.conn
-            ):  # If connection exists and is still open
-                self.conn.close()
+            if hasattr(self, "pool") and self.pool:
+                self.pool.close()
             raise
 
     def connect_to_pg(self) -> None:
-        logger.info("Connecting to postgres database...")
-        self.conn = psycopg.connect(
-            host=self.host,
-            port=self.port,
-            dbname=self.database,
-            user=self.user,
-            password=self.password,
-            sslmode="disable",
-        )
-        logger.info("Succesfully connected to postgres database")
+        """
+        If connections fails it raises an ConnectionError
+        """
+        try:
+            logger.info("Connecting to postgres database...")
+            self.conn = psycopg.connect(
+                host=self.host,
+                port=self.port,
+                dbname=self.database,
+                user=self.user,
+                password=self.password,
+                sslmode="disable",
+            )
+            logger.info("Succesfully connected to postgres database")
+        except Exception as e:
+            logger.error(f"Could not connect to postgres database: {e}")
+            raise ConnectionError
 
     def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
         # Assume all chunks belong to same woo verzoek
-        with psycopg.connect(
-            host=self.host,
-            port=self.port,
-            dbname=self.database,
-            user=self.user,
-            password=self.password,
-            sslmode="disable",
-        ) as conn:
+        with self.pool.connection() as conn:
             with conn.cursor() as cur:
                 insert_doc_command = """INSERT INTO documenten (file_name, url, provincie, titel, datum, type, publiekssamenvatting, file_type)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -415,11 +428,6 @@ class PgVectorStore(VectorStore):
                     for chunk in embedded_chunks
                 ]
                 cur.executemany(insert_emb_command, embeddings_data)
-                # for chunk in embedded_chunks: # add through for loop
-                #     cur.execute(
-                #         insert_emb_command,
-                #         (woo_id, chunk.content, chunk.embedding),
-                #     )
 
     def search(
         self,
@@ -438,81 +446,79 @@ class PgVectorStore(VectorStore):
             min_relevance_score: Minimum similarity score to include in results.
 
         Returns:
-            List of dictionaries containing chunk_id, content, woo_id, file_name, titel, provincie, datum, and similarity.
+            List of SearchResult objects containing chunk content, metadata, and similarity score.
         """
-        # Get embeddings for the query
-        query_embedding = self.embedding_provider.embed_query(query)
-        self.connect_to_pg()
-        # Base query
-        search_query = sql.SQL("""
-            SELECT
-                e.chunk_id,
-                e.content,
-                e.woo_id,
-                d.file_name,
-                d.titel,
-                d.provincie,
-                d.datum,
-                1 - (e.vector <=> %s::vector) AS similarity
-            FROM
-                embeddings e
-            JOIN
-                documenten d ON e.woo_id = d.woo_id
-        """)
+        try:
+            query_embedding = self.embedding_provider.embed_query(query)
 
-        # Apply filters
-        conditions = []
-        params = []
-        params.append(query_embedding)
+            filter_conditions = []
+            filter_params = []
 
-        start_date = meta_data.get("start_date")
-        end_date = meta_data.get("end_date")
-        provincies = meta_data.get("provincies")
+            start_date = meta_data.get("start_date")
+            end_date = meta_data.get("end_date")
+            provincies = meta_data.get("provincies")
 
-        if start_date is not None:
-            conditions.append(sql.SQL("d.datum >= %s"))
-            params.append(start_date)
-        if end_date is not None:
-            conditions.append(sql.SQL("d.datum <= %s"))
-            params.append(end_date)
-        if provincies is not None and len(provincies) > 0:
-            conditions.append(sql.SQL("d.provincie = ANY(%s)"))
-            params.append(provincies)
+            if start_date is not None:
+                filter_conditions.append(sql.SQL("d.datum >= %s"))
+                filter_params.append(start_date)
+            if end_date is not None:
+                filter_conditions.append(sql.SQL("d.datum <= %s"))
+                filter_params.append(end_date)
+            if provincies is not None and len(provincies) > 0:
+                filter_conditions.append(sql.SQL("d.provincie = ANY(%s)"))
+                filter_params.append(provincies)
 
-        # Add similarity threshold
-        conditions.append(sql.SQL("1 - (e.vector <=> %s::vector) >= %s"))
-        params.extend([query_embedding, min_relevance_score])
+            where_clause = sql.SQL("")
+            if filter_conditions:
+                where_clause = sql.SQL("WHERE {}").format(
+                    sql.SQL(" AND ").join(filter_conditions)
+                )
 
-        if conditions:
-            search_query = sql.SQL("{} WHERE {}").format(
-                search_query, sql.SQL(" AND ").join(conditions)
-            )
+            search_query = sql.SQL("""
+                WITH scored AS (
+                    SELECT
+                        e.chunk_id,
+                        e.content,
+                        e.woo_id,
+                        d.file_name,
+                        d.titel,
+                        d.provincie,
+                        d.datum,
+                        1 - (e.vector <=> %s::vector) AS similarity
+                    FROM embeddings e
+                    JOIN documenten d ON e.woo_id = d.woo_id
+                    {where_clause}
+                )
+                SELECT *
+                FROM scored
+                WHERE similarity >= %s
+                ORDER BY similarity DESC
+                LIMIT %s
+            """).format(where_clause=where_clause)
 
-        # Order by similarity and limit
-        search_query = sql.SQL("{} ORDER BY similarity DESC LIMIT %s").format(
-            search_query, sql.Literal(limit)
-        )
-        params.append(limit)
+            params = [query_embedding, *filter_params, min_relevance_score, limit]
 
-        # Execute
-        with self.conn.cursor() as cur:
-            cur.execute(search_query, params)
-            results = cur.fetchall()
-        self.conn.close()
-        # Format results as SearchResult dataclass
-        return [
-            SearchResult(
-                content=row[1],
-                metadata={
-                    "woo_id": row[2],
-                    "file_name": row[3],
-                    "titel": row[4],
-                    "provincie": row[5],
-                    "datum": row[6],
-                    "chunk_id": row[0],
-                },
-                score=row[7],
-                document_id=str(row[2]),  # Using woo_id as document_id
-            )
-            for row in results
-        ]
+            with self.pool.connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(search_query, params)
+                    results = cur.fetchall()
+
+            return [
+                SearchResult(
+                    content=row[1],
+                    metadata={
+                        "woo_id": row[2],
+                        "file_name": row[3],
+                        "titel": row[4],
+                        "provincie": row[5],
+                        "datum": row[6],
+                        "chunk_id": row[0],
+                    },
+                    score=row[7],
+                    document_id=str(row[2]),
+                )
+                for row in results
+            ]
+        except Exception as e:
+            logger.error(f"Error during search: {e}")
+            raise LookupError
