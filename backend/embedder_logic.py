@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from config import EMBEDDING_MODEL
+import os
 
 load_dotenv()
 
@@ -36,7 +37,8 @@ class Embedder(ABC):
 
 class SentenceTransformerEmbedder(Embedder):
     def __init__(self):
-        self.model = SentenceTransformer(EMBEDDING_MODEL)
+        access_token = os.getenv("HF_TOKEN", "")
+        self.model = SentenceTransformer(EMBEDDING_MODEL, token=access_token)
         self.embedding_dim = self.model.get_embedding_dimension()
 
     def embed_query(self, text: str) -> list[float]:
