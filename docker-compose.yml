@@ -83,10 +83,13 @@ services:
   postgres:
     image: pgvector/pgvector:0.8.4-pg18-trixie
     container_name: my_postgres
+    env_file:
+      - ./backend/.env
     environment:
       POSTGRES_USER: ${PG_USER}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: ${PG_DBNAME}
+    profiles: [ "manual" ]
     ports:
       - "5432:5432"
     volumes:
