@@ -305,10 +305,6 @@ class Crawler:
                     new_links.append(clean)
                     seen_links.add(clean)  # Avoid duplicates within the same run
 
-            # Append new links to the file, each on its own line
-            if new_links:
-                f.write("\n".join(new_links) + "\n")
-
         # Optional: log how many were added
         self.log(f"Found {len(new_links)} *NEW* URLs")
 
