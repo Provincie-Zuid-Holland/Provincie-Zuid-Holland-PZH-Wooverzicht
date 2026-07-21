@@ -13,7 +13,7 @@ _embedder = None  # One shared global embedder instance instead of initializing 
 def get_embedder(embedding_provider: str):
     global _embedder
     if embedding_provider == "sentence_transformers":
-        if _embedder == None:
+        if _embedder is None:
             _embedder = SentenceTransformerEmbedder()
         return _embedder
     # elif EMBEDDING_PROVIDER == "OPENAI":
