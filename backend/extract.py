@@ -293,7 +293,7 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
         logger.info(f"Files found: {files_in_folder}")
         combined_data_list = []
         for it, file in enumerate(files_in_folder):
-            logger.info(f"Processing file {it + 1}/{len_files}: {file}")
+            logger.info(f"{len(files_in_folder)} files found in folder")
             if file == "metadata.txt":
                 continue
             try:
