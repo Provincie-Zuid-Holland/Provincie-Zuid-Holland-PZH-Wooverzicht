@@ -1,4 +1,9 @@
 ###########################################################################
+#
+#
+#              # DEPRECRATED #
+#
+#
 # HOW TO USE THIS SCRIPT:
 # This scripts has been created so you are able to manually add woo verzoeken to the DB.
 # There are two ways to do this:

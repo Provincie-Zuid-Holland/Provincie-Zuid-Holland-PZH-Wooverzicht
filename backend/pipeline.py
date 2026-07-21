@@ -135,8 +135,11 @@ def execute_pipeline() -> None:
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", None)
     if EMBEDDING_MODEL:
         to_embed = True
-
-    db_pipeline_handler = dbPipelineHandler()
+    try:
+        db_pipeline_handler = dbPipelineHandler()
+    except Exception as e:
+        logger.error(f"Error during set-up: {e}. Exiting")
+        sys.exit(1)
 
     # Import the appropriate modules based on source
     for province in provinces:
@@ -180,7 +183,7 @@ def execute_pipeline() -> None:
                             combined_data_list = extract_data(temp_dir)  # EXTRACT
                             logger.info("Start chunking and loading into DB")
                             for combined_data in combined_data_list:
-                                db_pipeline_handler.db_pipeline2(
+                                db_pipeline_handler.db_pipeline(
                                     combined_data, to_embed
                                 )  # CHUNK AND PUT IN DATABASE
                             f.write(f"{url}\n")  # Log successfully processed URL

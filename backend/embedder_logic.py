@@ -3,14 +3,19 @@ from abc import ABC, abstractmethod
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from config import EMBEDDING_MODEL
+import os
 
 load_dotenv()
 
+_embedder = None  # One shared global embedder instance instead of initializing it multiple times
+
 
 def get_embedder(embedding_provider: str):
-
+    global _embedder
     if embedding_provider == "sentence_transformers":
-        return SentenceTransformerEmbedder()
+        if _embedder is None:
+            _embedder = SentenceTransformerEmbedder()
+        return _embedder
     # elif EMBEDDING_PROVIDER == "OPENAI":
     #     ...
 
@@ -37,7 +42,10 @@ class Embedder(ABC):
 
 class SentenceTransformerEmbedder(Embedder):
     def __init__(self):
-        self.model = SentenceTransformer(EMBEDDING_MODEL)
+        print("Creating SentenceTransformerEmbedder", id(self))
+        access_token = os.getenv("HF_TOKEN", "")
+        self.model = SentenceTransformer(EMBEDDING_MODEL, token=access_token)
+        self.embedding_dim = self.model.get_embedding_dimension()
 
     def embed_query(self, text: str) -> list[float]:
         try:

@@ -17,17 +17,15 @@ Required Environment Variables:
 """
 
 import os
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
+from typing import List
+from dataclass.embedded_chunk import EmbeddedChunk, ChunkData
 from concurrent.futures import ThreadPoolExecutor
 import logging
-from openai import OpenAI
 from dotenv import load_dotenv
-import chromadb
-from chromadb.config import Settings
 from nltk.tokenize import sent_tokenize
 from embedder_logic import get_embedder
-from config import EMBEDDING_PROVIDER
+from config import EMBEDDING_PROVIDER, VECTOR_DB
+from vectordb_logic import get_vectordb
 
 # Set up logging configuration for tracking progress and errors
 logging.basicConfig(
@@ -52,34 +50,6 @@ MAX_WORKERS = int(os.getenv("MAX_WORKERS", 5))  # Number of parallel embedding w
 BATCH_SIZE = int(
     os.getenv("BATCH_SIZE", 100)
 )  # Batch size for API calls and DB operations
-
-
-@dataclass
-class ChunkData:
-    """
-    Stores a chunk of text and its associated metadata.
-
-    Attributes:
-        chunk_id (str): Unique identifier for the chunk.
-        content (str): The text content of the chunk.
-        metadata (Dict[str, Any]): Dictionary containing all metadata associated with the chunk.
-    """
-
-    chunk_id: str
-    content: str
-    metadata: Dict[str, Any]
-
-
-@dataclass
-class EmbeddedChunk(ChunkData):
-    """
-    Extends ChunkData to include the embedding vector.
-
-    Attributes:
-        embedding (List[float]): Vector representation of the chunk content.
-    """
-
-    embedding: List[float]
 
 
 class Chunker:
@@ -286,25 +256,9 @@ class DocumentProcessor:
         Raises:
             ValueError: If no OpenAI API key is available.
         """
-        api_key = os.getenv("OPENAI_API_KEY", None)
-        if api_key:
-            self.client = OpenAI(os.getenv("OPENAI_API_KEY"))
+        self.client = get_vectordb(VECTOR_DB)
 
-        # # Verify API key availability
-        # if not self.client.api_key:
-        #     raise ValueError("OPENAI_API_KEY environment variable is not set.")
-
-        # Initialize ChromaDB with persistent storage
-        db_path = os.environ.get("CHROMA_DB_PATH", "database")
-        logger.info(f"Using ChromaDB path: {db_path}")
-        self.chroma_client = chromadb.PersistentClient(
-            path=db_path,  # Use environment variable
-            settings=Settings(
-                anonymized_telemetry=False,  # Disable usage tracking
-                allow_reset=False,  # Prevent accidental database resets
-            ),
-        )
-
+    # UNUSED, see chunker
     def chunk_by_sentence_with_overlap(
         self, text, chunk_size=1000, sentence_limit_factor=10, overlap_sentences=1
     ):
@@ -365,6 +319,7 @@ class DocumentProcessor:
 
         return chunks
 
+    # UNUSED see chunker
     def load_and_chunk_data_by_sentence(
         self,
         data: dict,
@@ -422,6 +377,7 @@ class DocumentProcessor:
 
         return all_chunks
 
+    # UNUSED, see Embedder class
     def embed_chunks(
         self, chunks: List[ChunkData], to_embed: bool
     ) -> List[EmbeddedChunk]:
@@ -473,11 +429,10 @@ class DocumentProcessor:
 
         return embedded_chunks
 
-    def load_chunks_to_chromadb(
+    # TODO Generalise to any db instead of chromaDB
+    def load_chunks_to_vectordb(
         self,
-        embedded_chunks: Optional[List[EmbeddedChunk]],
-        to_embed: bool,
-        collection_name: str = COLLECTION_NAME,
+        embedded_chunks: List[EmbeddedChunk],
     ) -> None:
         """
         Stores chunks in ChromaDB for later retrieval.
@@ -488,35 +443,7 @@ class DocumentProcessor:
             collection_name (str): Name of the ChromaDB collection to use.
         """
         # Get or create the collection
-        collection = self.chroma_client.get_or_create_collection(name=collection_name)
-
-        # Add chunks to database in batches
-        for i in range(0, len(embedded_chunks), BATCH_SIZE):
-            batch = embedded_chunks[i : i + BATCH_SIZE]
-            try:
-                if to_embed:
-                    collection.add(
-                        documents=[
-                            chunk.content for chunk in batch
-                        ],  # The text content
-                        embeddings=[
-                            chunk.embedding for chunk in batch
-                        ],  # The embedding vectors
-                        metadatas=[chunk.metadata for chunk in batch],  # All metadata
-                        ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
-                    )
-                else:
-                    collection.add(
-                        documents=[
-                            chunk.content for chunk in batch
-                        ],  # The text content
-                        metadatas=[chunk.metadata for chunk in batch],  # All metadata
-                        ids=[chunk.chunk_id for chunk in batch],  # Unique IDs
-                    )
-                logger.info(f"Loaded batch {i//BATCH_SIZE + 1} into ChromaDB")
-            except Exception as e:
-                logger.error(f"Error loading batch to ChromaDB: {e}")
-                continue
+        self.client.add_documents(embedded_chunks)
 
 
 class dbPipelineHandler:
@@ -530,8 +457,7 @@ class dbPipelineHandler:
         self.embedder = Embedder()
         self.processor = DocumentProcessor()
 
-    def db_pipeline2(self, data, to_embed: bool = True):
-
+    def db_pipeline(self, data, to_embed: bool = True):
         try:
             # Step 1: Load and chunk the documents
             logger.info("Chunking JSON data...")
@@ -548,59 +474,11 @@ class dbPipelineHandler:
                 raise Exception("No embeddings were created. Exiting.")
 
             # Step 3: store embeddings in db
-            logger.info("Loading embedded chunks into ChromaDB...")
-            self.processor.load_chunks_to_chromadb(embedded_chunks, to_embed)
+            logger.info(f"Loading embedded chunks into {VECTOR_DB} database...")
+            self.processor.load_chunks_to_vectordb(embedded_chunks)
 
             logger.info("Processing completed successfully!")
 
         except Exception as e:
             logger.error(f"An error occurred during processing: {e}")
             raise
-
-
-def db_pipeline(data, to_embed: bool = True):
-    """
-    Function that orchestrates the document processing pipeline.
-
-    This function coordinates the steps of:
-    1. Loading and chunking JSON documents
-    2. Generating embeddings
-    3. Storing embedded chunks in ChromaDB
-
-    Args:
-        data (dict): Dictionary containing JSON data to process
-        to_embed (bool): Whether to generate embeddings using a provided embedding model. If false use chromaDB local model.
-
-    Raises:
-        Any exceptions that occur during the processing pipeline.
-    """
-    # Load environment variables from .env file
-    load_dotenv()
-    # initalize processor
-    try:
-        processor = DocumentProcessor()
-        # Step 1: Load and chunk the documents
-        logger.info("Chunking JSON data...")
-        chunks = processor.load_and_chunk_data_by_sentence(data)
-
-        if not chunks:
-            logger.warning("No chunks were created. Exiting.")
-            return
-
-        # Step 2: Generate embeddings
-        # logger.info("Embedding chunks using OpenAI embeddings...")
-        embedded_chunks = processor.embed_chunks(chunks, to_embed)
-
-        if not embedded_chunks:
-            logger.error("No embeddings were created. Exiting.")
-            return
-
-        # Step 3: Store in database
-        logger.info("Loading embedded chunks into ChromaDB...")
-        processor.load_chunks_to_chromadb(embedded_chunks, to_embed)
-
-        logger.info("Processing completed successfully!")
-
-    except Exception as e:
-        logger.error(f"An error occurred during processing: {e}")
-        raise

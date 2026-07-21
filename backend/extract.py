@@ -289,7 +289,7 @@ def extract_data(temp_dir: tempfile.TemporaryDirectory):
             raise ValueError(
                 f"Only 1 file found in folder, should be metadatafile and other files: {folder_path}"
             )
-        logger.info(f"\nProcessing folder {folder_path}:")
+        logger.info(f"Processing folder {folder_path}:")
         logger.info(f"Files found: {files_in_folder}")
         combined_data_list = []
         for it, file in enumerate(files_in_folder):
