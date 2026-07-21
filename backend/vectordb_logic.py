@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
 from config import CHROMA_COLLECTION_NAME, EMBEDDING_PROVIDER, VECTOR_DB
-from typing import Optional, List
+from typing import List
 from dataclass.embedded_chunk import EmbeddedChunk
 from dataclasses import dataclass
 from typing import Dict, Any

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any
+from typing import List
 from vectordb_logic import get_vectordb
 
 # Set up logging
