@@ -16,6 +16,7 @@ from psycopg import sql
 from psycopg_pool import ConnectionPool
 from pgvector.psycopg import register_vector
 from datetime import datetime, timezone
+from azure.identity import DefaultAzureCredential
 
 load_dotenv()
 # Set up logging configuration for tracking progress and errors
@@ -26,6 +27,23 @@ logger = logging.getLogger(__name__)
 BATCH_SIZE = int(
     os.getenv("BATCH_SIZE", 100)
 )  # Batch size for API calls and DB operations
+
+
+# Fixed resource scope for Azure Database for PostgreSQL - same for every server
+AAD_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
+
+
+class EntraTokenConnection(psycopg.Connection):  # This function is generated
+    """A psycopg Connection that fetches a fresh Entra ID token as the
+    password every time the pool opens a new physical connection."""
+
+    _credential = DefaultAzureCredential()  # created once, cached/reused
+
+    @classmethod
+    def connect(cls, conninfo="", **kwargs):
+        token = cls._credential.get_token(AAD_SCOPE)
+        kwargs["password"] = token.token
+        return super().connect(conninfo, **kwargs)
 
 
 @dataclass
@@ -282,6 +300,12 @@ class PgVectorStore(VectorStore):
         self.user = os.environ.get("PG_USER")
         self.password = os.environ.get("PG_PASSWORD")
         self.embedding_provider = get_embedder(EMBEDDING_PROVIDER)
+        self.credential = DefaultAzureCredential()
+        self.use_entra_auth = os.environ.get("PG_USE_ENTRA_AUTH", "False").lower() in (
+            "true",
+            "1",
+            "t",
+        )  # Cast to bool
 
         if not all([self.user, self.password]):
             raise ValueError(
@@ -291,13 +315,16 @@ class PgVectorStore(VectorStore):
         try:
             self.pool = ConnectionPool(
                 conninfo="",  # can be empty since we're passing everything via kwargs
+                connection_class=(
+                    EntraTokenConnection if self.use_entra_auth else psycopg.Connection
+                ),
                 kwargs={
                     "host": self.host,
                     "port": self.port,
                     "dbname": self.database,
                     "user": self.user,
-                    "password": self.password,
-                    "sslmode": "disable",
+                    "password": self.password,  # ignored/overwritten when use_entra_auth=True
+                    "sslmode": "require" if self.use_entra_auth else "disable",
                     "autocommit": True,
                 },
                 min_size=1,
@@ -368,6 +395,11 @@ class PgVectorStore(VectorStore):
             if hasattr(self, "pool") and self.pool:
                 self.pool.close()
             raise
+
+    def get_pg_token(self) -> str:  # Azure entra id
+        return self.credential.get_token(
+            "https://ossrdbms-aad.database.windows.net/.default"
+        ).token
 
     def connect_to_pg(self) -> None:
         """
