@@ -17,3 +17,4 @@ sentence_transformers==5.5.1
 psycopg[binary]==3.3.4
 pgvector==0.5.0
 psycopg_pool==3.3.1
+azure_identity
