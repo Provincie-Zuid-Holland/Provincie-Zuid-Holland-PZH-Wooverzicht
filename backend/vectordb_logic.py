@@ -37,7 +37,10 @@ class EntraTokenConnection(psycopg.Connection):  # This function is generated
     """A psycopg Connection that fetches a fresh Entra ID token as the
     password every time the pool opens a new physical connection."""
 
-    _credential = DefaultAzureCredential()  # created once, cached/reused
+    _credential = DefaultAzureCredential(
+        exclude_managed_identity_credential=True,
+        exclude_workload_identity_credential=True,
+    )  # created once, cached/reused
 
     @classmethod
     def connect(cls, conninfo="", **kwargs):
@@ -400,25 +403,6 @@ class PgVectorStore(VectorStore):
         return self.credential.get_token(
             "https://ossrdbms-aad.database.windows.net/.default"
         ).token
-
-    def connect_to_pg(self) -> None:
-        """
-        If connections fails it raises an ConnectionError
-        """
-        try:
-            logger.info("Connecting to postgres database...")
-            self.conn = psycopg.connect(
-                host=self.host,
-                port=self.port,
-                dbname=self.database,
-                user=self.user,
-                password=self.password,
-                sslmode="disable",
-            )
-            logger.info("Succesfully connected to postgres database")
-        except Exception as e:
-            logger.error(f"Could not connect to postgres database: {e}")
-            raise ConnectionError
 
     def add_documents(self, embedded_chunks: List[EmbeddedChunk]) -> None:
         # Assume all chunks belong to same woo verzoek
